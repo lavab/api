@@ -1,8 +1,6 @@
 FROM google/golang
 
-WORKDIR /gopath/src/app
-ADD . /gopath/src/app/
-RUN go get app
+RUN go get github.com/lavab/api
 
 CMD []
-ENTRYPOINT ["/gopath/bin/app"]
+ENTRYPOINT ["/gopath/bin/api"]
