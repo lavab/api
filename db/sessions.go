@@ -2,31 +2,42 @@ package db
 
 import (
 	"fmt"
+	"time"
 
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/lavab/api/models"
-	"github.com/lavab/api/util"
+	"github.com/lavab/api/utils"
 )
 
-// SessionsStore maps tokens to session objects
-var SessionsStore = map[string]models.Session{}
+// TODO replace with rethinkdb
+var sessionStore = map[string]models.Session{}
 
-// GetSession TODO
-func GetSession(token string) (models.Session, error) {
-	if v, ok := SessionsStore[token]; ok {
-		return v, nil
+// Session TODO
+func Session(token string) (models.Session, error) {
+	v, ok := sessionStore[token]
+	if !ok {
+		return models.Session{}, fmt.Errorf("Session token not found")
 	}
-	return models.Session{}, fmt.Errorf("Session token not found")
+	expDate, err := time.Parse(time.RFC3339, v.ExpDate)
+	if err == nil && time.Now().UTC().After(expDate) {
+		DeleteSession(token)
+		return models.Session{}, fmt.Errorf("Session expired")
+	}
+	return v, nil
 }
 
 // CreateSession TODO
-func CreateSession(user, userID, userAgent string) (string, error) {
+func CreateSession(user string, hours int) (string, error) {
 	token := uuid.New()
-	SessionsStore[token] = models.Session{
-		User:      user,
-		UserID:    userID,
-		UserAgent: userAgent,
-		Expires:   util.HoursFromNow(80),
+	sessionStore[token] = models.Session{
+		User:    user,
+		ExpDate: utils.HoursFromNow(hours),
 	}
 	return token, nil
+}
+
+// DeleteSession TODO
+func DeleteSession(token string) error {
+	delete(sessionStore, token)
+	return nil
 }

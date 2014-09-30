@@ -4,11 +4,11 @@ import "fmt"
 import "github.com/lavab/api/models"
 
 // UsersTable TODO
-var UsersTable = map[string]models.User{}
+var usersTable = map[string]models.User{}
 
-// GetUser TODO
-func GetUser(username string) (models.User, error) {
-	v, ok := UsersTable[username]
+// User TODO
+func User(username string) (models.User, error) {
+	v, ok := usersTable[username]
 	if !ok {
 		return models.User{}, fmt.Errorf("User not found")
 	}
@@ -16,7 +16,11 @@ func GetUser(username string) (models.User, error) {
 }
 
 // CreateUser TODO
-func CreateUser(data models.User) error {
-
+func CreateUser(user models.User) error {
+	if _, ok := usersTable[user.Name]; !ok {
+		usersTable[user.Name] = user
+	} else {
+		return fmt.Errorf("Username already exists")
+	}
 	return nil
 }

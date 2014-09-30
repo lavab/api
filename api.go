@@ -7,6 +7,12 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lavab/api/routes"
+	"github.com/lavab/api/utils"
+)
+
+const (
+	tlsFilePub  = ".tls/pub"
+	tlsFilePriv = ".tls/priv"
 )
 
 func init() {
@@ -22,7 +28,7 @@ func main() {
 	r.HandleFunc("/", routes.Root).Methods("GET")
 	r.HandleFunc("/login", routes.Login).Methods("POST")
 	r.HandleFunc("/signup", routes.Signup).Methods("POST")
-	r.HandleFunc("/logout", routes.Logout)
+	r.HandleFunc("/logout", routes.Logout).Methods("DELETE", "POST")
 	r.HandleFunc("/me", routes.Me).Methods("GET", "PUT")
 
 	r.HandleFunc("/actions/wipe-user-data", routes.WipeUserData).Methods("DELETE")
@@ -48,5 +54,10 @@ func main() {
 	r.HandleFunc("/keys/{id}/jwt", routes.KeyJwt).Methods("GET")
 
 	http.Handle("/", r)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	if utils.FileExists(tlsFilePub) && utils.FileExists(tlsFilePriv) {
+		log.Fatal(http.ListenAndServeTLS(":80", tlsFilePub, tlsFilePriv, nil))
+	} else {
+		log.Fatal(http.ListenAndServe(":80", nil))
+	}
 }

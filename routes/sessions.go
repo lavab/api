@@ -1,72 +1,18 @@
 package routes
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"code.google.com/p/go-uuid/uuid"
-	"code.google.com/p/go.crypto/bcrypt"
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/models"
-	"github.com/lavab/api/util"
+	"github.com/lavab/api/utils"
 )
-
-const cost = bcrypt.DefaultCost * 2
-
-type loginResponse struct {
-	Success bool   `json:"success"`
-	Token   string `json:"token"`
-	Expires string `json:"expires"`
-	Message string `json:"message"`
-}
 
 // Login TODO
 func Login(w http.ResponseWriter, r *http.Request) {
 	user, pass := r.FormValue("username"), r.FormValue("password")
-
-	login(user, pass, w, r)
-}
-
-func login(user, pass string, w http.ResponseWriter, r *http.Request) {
-	userData, err := db.GetUser(user)
-	if err != nil {
-		http.Error(w, "Wrong username or password", 403)
-		return
-	}
-	if userData.Salt == "" {
-		http.Error(w, "The user doesn't have a salt", 500)
-		return
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(pass+userData.Salt), cost)
-	if err != nil {
-		http.Error(w, "Error salting the provided password", 500)
-		return
-	}
-	if string(hash) != userData.Password {
-		http.Error(w, "Wrong username or password", 403)
-		return
-	}
-
-	token, err := db.CreateSession(user, userData.ID, r.UserAgent())
-	if err != nil {
-		http.Error(w, "Unable to create session", 500)
-		return
-	}
-
-	// For now we're sending the token in plaintext, until I implement JWT
-	res, err := json.Marshal(loginResponse{
-		Success: true,
-		Token:   token,
-		Expires: util.HoursFromNow(80),
-		Message: "",
-	})
-	if err != nil {
-		http.Error(w, "Error marshaling the response body", 500)
-		return
-	}
-	fmt.Fprintf(w, string(res))
+	loginHelper(user, pass, w, r)
 }
 
 // Signup TODO
@@ -75,54 +21,109 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	pass := r.FormValue("password")
 	// regt := r.FormValue("reg_token")
 
-	// TODO duplicate code
-	if _, err := db.GetUser(user); err == nil {
-		res, err := json.Marshal(loginResponse{
-			Success: false,
-			Token:   "",
-			Expires: "",
-			Message: "Username already exists",
+	if _, err := db.User(user); err == nil {
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  409,
+			"success": false,
+			"message": "Username already exists",
 		})
-		if err != nil {
-			http.Error(w, "Error marshaling the response body", 500)
-			return
-		}
-		fmt.Fprintf(w, string(res))
 		return
 	}
-
-	salt, err := util.RandomString(16)
+	hash, err := utils.BcryptHash(pass)
 	if err != nil {
-		http.Error(w, "Error generating secure random string", 500)
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  500,
+			"message": "Hashing with bcrypt has failed",
+		})
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(pass+salt), cost)
-	if err != nil {
-		http.Error(w, "Error salting the provided password", 500)
-		return
-	}
-
 	created := models.User{
 		ID:       uuid.New(),
 		Name:     user,
 		Password: string(hash),
-		Salt:     salt,
 	}
 	err = db.CreateUser(created)
 	if err != nil {
-		http.Error(w, "Error saving user to database", 500)
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  500,
+			"message": "Couldn't save the data to database",
+		})
 		return
 	}
 
-	login(user, pass, w, r)
+	loginHelper(user, pass, w, r)
 }
 
 // Logout TODO
 func Logout(w http.ResponseWriter, r *http.Request) {
-
+	utils.JSONResponse(w, map[string]interface{}{
+		"status":  404,
+		"message": "Hey Dennis, this isn't implemented yet! :D",
+	})
 }
 
 // Me TODO
 func Me(w http.ResponseWriter, r *http.Request) {
+	token := r.FormValue("token")
+	// TODO make this check a middleware function
+	if token == "" {
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  401,
+			"message": "Please login to view this resource",
+		})
+		return
+	}
+	session, err := db.Session(token)
+	if err != nil {
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  401,
+			"message": "Invalid token",
+		})
+		return
+	}
+	user, err := db.User(session.User)
+	if err != nil {
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  500,
+			"message": "Corrupted session or user store",
+		})
+		return
+	}
+	utils.JSONResponse(w, map[string]interface{}{
+		"status": 200,
+		"data":   user,
+	})
+}
 
+func loginHelper(user, pass string, w http.ResponseWriter, r *http.Request) {
+	userData, err := db.User(user)
+	if err != nil {
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  403,
+			"message": "Wrong username of password",
+		})
+		return
+	}
+	if !utils.BcryptVerify(userData.Password, pass) {
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  403,
+			"message": "Wrong username of password",
+		})
+		return
+	}
+	token, err := db.CreateSession(user, 72)
+	if err != nil {
+		utils.JSONResponse(w, map[string]interface{}{
+			"status":  500,
+			"message": "Unable to create session",
+		})
+		return
+	}
+	// For now we're sending the token in plaintext, until I implement JWT
+	utils.JSONResponse(w, map[string]interface{}{
+		"status":   200,
+		"success":  true,
+		"token":    token,
+		"exp_date": utils.HoursFromNow(72),
+	})
 }
