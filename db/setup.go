@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -37,6 +38,8 @@ func Init() {
 
 	if tmp := os.Getenv("RETHINKDB_URL"); tmp != "" {
 		config.Url = tmp
+	} else if tmp := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR"); tmp != "" {
+		config.Url = fmt.Sprintf("%s:28015", tmp)
 	} else {
 		log.Printf("No database URL specified, using %s.\n", config.Url)
 	}
