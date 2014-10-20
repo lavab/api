@@ -1,63 +1,118 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/lavab/api/routes"
+	"github.com/lavab/api/db"
+	"github.com/lavab/api/dbutils"
+	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
+	"github.com/stretchr/graceful"
 )
+
+// TODO: "Middleware that implements a few quick security wins"
+// 		 https://github.com/unrolled/secure
 
 const (
-	tlsFilePub  = ".tls/pub"
-	tlsFilePriv = ".tls/priv"
+	cTlsFilePub  = ".tls/pub"
+	cTlsFilePriv = ".tls/priv"
+	cTcpPort     = 5000
 )
 
+var config struct {
+	Port         int
+	PortString   string
+	Host         string
+	TlsAvailable bool
+	MethodsJSON  string
+}
+
 func init() {
+	config.Port = cTcpPort
+	config.Host = ""
+	config.TlsAvailable = false
+	config.MethodsJSON = listRoutesString()
+
+	if tmp := os.Getenv("API_PORT"); tmp != "" {
+		tmp2, err := strconv.Atoi(tmp)
+		if err != nil {
+			config.Port = tmp2
+		}
+		log.Println("Running on non-default port", config.Port)
+	}
+	config.PortString = fmt.Sprintf(":%d", config.Port)
+
+	if utils.FileExists(cTlsFilePub) && utils.FileExists(cTlsFilePriv) {
+		config.TlsAvailable = true
+		log.Println("Imported TLS cert/key successfully.")
+	} else {
+		log.Printf("TLS cert (%s) and key (%s) not found, serving plain HTTP.\n", cTlsFilePub, cTlsFilePriv)
+	}
+
+	// Set up RethinkDB
+	go db.Init()
 }
 
 func main() {
+	setupAndRun()
+	// debug()
+}
+
+func setupAndRun() {
 	r := mux.NewRouter()
 
-	if host := os.Getenv("API_HOST"); host != "" {
-		r = r.Schemes("https").Host(host).Subrouter()
+	if config.TlsAvailable {
+		r = r.Schemes("https").Subrouter()
+	}
+	if tmp := os.Getenv("API_HOST"); tmp != "" {
+		r = r.Host(tmp).Subrouter()
 	}
 
-	r.HandleFunc("/", routes.Root).Methods("GET")
-	r.HandleFunc("/login", routes.Login).Methods("POST")
-	r.HandleFunc("/signup", routes.Signup).Methods("POST")
-	r.HandleFunc("/logout", routes.Logout).Methods("DELETE", "POST")
-	r.HandleFunc("/me", routes.Me).Methods("GET", "PUT")
+	for _, rt := range publicRoutes {
+		r.HandleFunc(rt.Path, rt.HandleFunc).Methods(rt.Method)
+	}
 
-	r.HandleFunc("/actions/wipe-user-data", routes.WipeUserData).Methods("DELETE")
-	r.HandleFunc("/actions/delete-account", routes.DeleteAccount).Methods("DELETE")
+	for _, rt := range authRoutes {
+		r.HandleFunc(rt.Path, AuthWrapper(rt.HandleFunc)).Methods(rt.Method)
+	}
 
-	r.HandleFunc("/threads", routes.Threads).Methods("GET", "POST")
-	r.HandleFunc("/threads/{id}", routes.Thread).Methods("GET", "PUT")
+	srv := &graceful.Server{
+		Timeout: 10 * time.Second,
+		Server: &http.Server{
+			Addr:    config.PortString,
+			Handler: r,
+		},
+	}
 
-	r.HandleFunc("/messages", routes.Messages).Methods("GET", "POST")
-	r.HandleFunc("/messages/{id}", routes.Message).Methods("GET", "DELETE", "PUT")
-
-	r.HandleFunc("/tags", routes.Tags).Methods("GET", "POST")
-	r.HandleFunc("/tags/{id}", routes.Tag).Methods("GET", "PUT", "DELETE")
-	r.HandleFunc("/tags/{id}/threads", routes.TagThreads).Methods("GET")
-	r.HandleFunc("/tags/{id}/messages", routes.TagMessages).Methods("GET")
-
-	r.HandleFunc("/contacts", routes.Contacts).Methods("GET", "POST")
-	r.HandleFunc("/contacts/{id}", routes.Contact).Methods("GET", "PUT", "DELETE")
-	r.HandleFunc("/contacts/{id}/threads", routes.ContactThreads).Methods("GET")
-
-	r.HandleFunc("/keys", routes.Keys).Methods("GET")
-	r.HandleFunc("/keys/{id}", routes.Key).Methods("GET")
-	r.HandleFunc("/keys/{id}/jwt", routes.KeyJwt).Methods("GET")
-
-	http.Handle("/", r)
-
-	if utils.FileExists(tlsFilePub) && utils.FileExists(tlsFilePriv) {
-		log.Fatal(http.ListenAndServeTLS(":80", tlsFilePub, tlsFilePriv, nil))
+	if config.TlsAvailable {
+		log.Fatal(srv.ListenAndServeTLS(cTlsFilePub, cTlsFilePriv))
 	} else {
-		log.Fatal(http.ListenAndServe(":80", nil))
+		log.Fatal(srv.ListenAndServe())
+	}
+}
+
+func debug() {
+	log.Println("============= Testing db operations ==============")
+	defer log.Fatalln("============= Ended testig db ops ================")
+	db.Insert("users", models.User{Pgp: models.PGP{}})
+
+	// err := db.Update("sessions", models.Session{
+	// 	// ID:      utils.UUID(),
+	// 	ID:      "2",
+	// 	User:    "rmmebro",
+	// 	UserID:  "rmmebro_id",
+	// 	ExpDate: utils.TimeNowString(),
+	// })
+
+	if res, ok := dbutils.GetSession("5c5cfbef-68b7-41e6-8908-0e8965cfd886"); ok {
+		log.Println("Found", res)
+	} else {
+		log.Println("Not found")
 	}
 }

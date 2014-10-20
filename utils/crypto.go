@@ -7,7 +7,7 @@ import (
 	"code.google.com/p/go.crypto/bcrypt"
 )
 
-const bcryptCost = 12
+const bcryptCost = 13
 
 // BcryptHash TODO
 func BcryptHash(src ...string) (string, error) {

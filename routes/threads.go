@@ -11,3 +11,8 @@ func Threads(w http.ResponseWriter, r *http.Request) {
 func Thread(w http.ResponseWriter, r *http.Request) {
 
 }
+
+// UpdateThread TODO
+func UpdateThread(w http.ResponseWriter, r *http.Request) {
+
+}

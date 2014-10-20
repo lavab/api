@@ -1,129 +1,94 @@
 package routes
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/gorilla/context"
 	"github.com/lavab/api/db"
+	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
 )
 
-// Login TODO
+// Login gets a username and password and returns a session token on success
 func Login(w http.ResponseWriter, r *http.Request) {
-	user, pass := r.FormValue("username"), r.FormValue("password")
-	loginHelper(user, pass, w, r)
+	username, password := r.FormValue("username"), r.FormValue("password")
+	user, ok := dbutils.FindUserByName(username)
+	if !ok || user == nil || !utils.BcryptVerify(user.Password, password) {
+		utils.ErrorResponse(w, 403, "Wrong username or password",
+			fmt.Sprintf("user: %+v", user))
+		return
+	}
+
+	// TODO check number of sessions here
+
+	session := models.Session{
+		ID:        utils.UUID(),
+		User:      username,
+		UserID:    user.ID,
+		UserAgent: r.Header.Get("User-Agent"),
+		ExpDate:   utils.HoursFromNowString(72), // TODO extract const into variable
+	}
+	db.Insert("sessions", session)
+
+	utils.JSONResponse(w, map[string]interface{}{
+		"status":  200,
+		"message": "Authentication successful",
+		"success": true,
+		"data":    session,
+	})
 }
 
-// Signup TODO
+// Signup gets a username and password and creates a user account on success
 func Signup(w http.ResponseWriter, r *http.Request) {
-	user := r.FormValue("username")
-	pass := r.FormValue("password")
+	username, password := r.FormValue("username"), r.FormValue("password")
 	// regt := r.FormValue("reg_token")
 
-	if _, err := db.User(user); err == nil {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  409,
-			"success": false,
-			"message": "Username already exists",
-		})
-		return
+	if _, ok := dbutils.FindUserByName(username); ok {
+		utils.ErrorResponse(w, 409, "Username already exists", "")
 	}
-	hash, err := utils.BcryptHash(pass)
+
+	hash, err := utils.BcryptHash(password)
 	if err != nil {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  500,
-			"message": "Hashing with bcrypt has failed",
-		})
-		return
+		msg := "Bcrypt hashing has failed"
+		utils.ErrorResponse(w, 500, "Internal server error", msg)
+		log.Fatalln(msg)
 	}
-	created := models.User{
-		ID:       uuid.New(),
-		Name:     user,
+
+	// TODO: sanitize user name (i.e. remove caps, periods)
+
+	user := models.User{
+		ID:       utils.UUID(),
+		Name:     username,
 		Password: string(hash),
 	}
-	err = db.CreateUser(created)
-	if err != nil {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  500,
-			"message": "Couldn't save the data to database",
-		})
-		return
+
+	if err := db.Insert("users", user); err != nil {
+		utils.ErrorResponse(w, 500, "Internal server error",
+			fmt.Sprintf("Couldn't insert %+v to database", user))
 	}
 
-	loginHelper(user, pass, w, r)
+	utils.JSONResponse(w, map[string]interface{}{
+		"status":  201,
+		"message": "Signup successful",
+		"success": true,
+		"data":    user,
+	})
 }
 
-// Logout TODO
+// Logout destroys the current session token
 func Logout(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, map[string]interface{}{
-		"status":  404,
-		"message": "Hey Dennis, this isn't implemented yet! :D",
-	})
-}
-
-// Me TODO
-func Me(w http.ResponseWriter, r *http.Request) {
-	token := r.FormValue("token")
-	// TODO make this check a middleware function
-	if token == "" {
+	session := context.Get(r, "session").(*models.Session)
+	if err := db.Delete("sessions", session.ID); err != nil {
+		utils.ErrorResponse(w, 500, "Internal server error",
+			fmt.Sprint("Couldn't delete session %v. %v", session, err))
+	} else {
 		utils.JSONResponse(w, map[string]interface{}{
-			"status":  401,
-			"message": "Please login to view this resource",
+			"status":  410,
+			"message": fmt.Sprintf("Session %s terminated", session.ID),
+			"success": true,
 		})
-		return
 	}
-	session, err := db.Session(token)
-	if err != nil {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  401,
-			"message": "Invalid token",
-		})
-		return
-	}
-	user, err := db.User(session.User)
-	if err != nil {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  500,
-			"message": "Corrupted session or user store",
-		})
-		return
-	}
-	utils.JSONResponse(w, map[string]interface{}{
-		"status": 200,
-		"data":   user,
-	})
-}
-
-func loginHelper(user, pass string, w http.ResponseWriter, r *http.Request) {
-	userData, err := db.User(user)
-	if err != nil {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  403,
-			"message": "Wrong username of password",
-		})
-		return
-	}
-	if !utils.BcryptVerify(userData.Password, pass) {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  403,
-			"message": "Wrong username of password",
-		})
-		return
-	}
-	token, err := db.CreateSession(user, 72)
-	if err != nil {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  500,
-			"message": "Unable to create session",
-		})
-		return
-	}
-	// For now we're sending the token in plaintext, until I implement JWT
-	utils.JSONResponse(w, map[string]interface{}{
-		"status":   200,
-		"success":  true,
-		"token":    token,
-		"exp_date": utils.HoursFromNow(72),
-	})
 }
