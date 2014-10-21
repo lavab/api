@@ -48,6 +48,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 
 	if _, ok := dbutils.FindUserByName(username); ok {
 		utils.ErrorResponse(w, 409, "Username already exists", "")
+		return
 	}
 
 	hash, err := utils.BcryptHash(password)
