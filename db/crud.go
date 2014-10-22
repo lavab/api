@@ -40,7 +40,6 @@ func Get(table string, id string) (*r.Cursor, error) {
 // TODO: find out how to match on nested keys
 func GetAll(table string, index string, value interface{}) (*r.Cursor, error) {
 	if response, err := r.Table(table).GetAllByIndex(index, value).Run(config.Session); err == nil {
-		log.Println("db.GetAll", response)
 		return response, nil
 	}
 	return nil, errors.New("Not found")

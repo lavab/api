@@ -8,7 +8,7 @@ type Contact struct {
 }
 
 type EmailField struct {
-	Address   string
-	PgpKey    string
-	PgpFinger string
+	Address   string `json:"address" gorethink:"address"`
+	PgpKey    string `json:"pgp_key" gorethink:"pgp_key"`
+	PgpFinger string `json:"pgp_finger" gorethink:"pgp_finger"`
 }

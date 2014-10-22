@@ -10,8 +10,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lavab/api/db"
-	"github.com/lavab/api/dbutils"
-	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
 	"github.com/stretchr/graceful"
 )
@@ -23,6 +21,7 @@ const (
 	cTlsFilePub  = ".tls/pub"
 	cTlsFilePriv = ".tls/priv"
 	cTcpPort     = 5000
+	apiVersion   = "v0"
 )
 
 var config struct {
@@ -98,21 +97,4 @@ func setupAndRun() {
 }
 
 func debug() {
-	log.Println("============= Testing db operations ==============")
-	defer log.Fatalln("============= Ended testig db ops ================")
-	db.Insert("users", models.User{Pgp: models.PGP{}})
-
-	// err := db.Update("sessions", models.Session{
-	// 	// ID:      utils.UUID(),
-	// 	ID:      "2",
-	// 	User:    "rmmebro",
-	// 	UserID:  "rmmebro_id",
-	// 	ExpDate: utils.TimeNowString(),
-	// })
-
-	if res, ok := dbutils.GetSession("5c5cfbef-68b7-41e6-8908-0e8965cfd886"); ok {
-		log.Println("Found", res)
-	} else {
-		log.Println("Not found")
-	}
 }
