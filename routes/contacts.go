@@ -19,7 +19,7 @@ func CreateContact(w http.ResponseWriter, r *http.Request) {
 		utils.FormatNotRecognizedResponse(w, err)
 		return
 	}
-
+	fmt.Println("TODO", reqData)
 }
 
 // Contact TODO
