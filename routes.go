@@ -29,10 +29,8 @@ var authRoutes = []route{
 	route{"/logout", routes.Logout, "DELETE", ""},
 	route{"/me", routes.Me, "GET", ""},
 	route{"/me", routes.UpdateMe, "PUT", ""},
-	route{"/me/settings", routes.Settings, "GET", ""},
-	route{"/me/settings", routes.UpdateSettings, "PUT", ""},
-	route{"/actions/wipe-user-data", routes.WipeUserData, "DELETE", ""},
-	route{"/actions/delete-account", routes.DeleteAccount, "DELETE", ""},
+	route{"/me/wipe-user-data", routes.WipeUserData, "DELETE", ""},
+	route{"/me/delete-account", routes.DeleteAccount, "DELETE", ""},
 	route{"/threads", routes.Threads, "GET", ""},
 	route{"/threads/{id}", routes.Thread, "GET", ""},
 	route{"/threads/{id}", routes.UpdateThread, "PUT", ""},
@@ -55,16 +53,21 @@ var authRoutes = []route{
 }
 
 func listRoutes(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, config.MethodsJSON)
+	fmt.Fprint(w, config.RootJSON)
 }
 
-func listRoutesString() string {
-	tmp, err := json.Marshal(map[string]interface{}{
-		"public": publicRoutes,
-		"auth":   authRoutes,
-	})
+func rootResponseString() string {
+	tmp, err := json.Marshal(
+		map[string]interface{}{
+			"message":  "Lavaboom API",
+			"docs_url": "http://lavaboom.readme.io/",
+			"version":  cApiVersion,
+			"routes": map[string]interface{}{
+				"public": publicRoutes,
+				"auth":   authRoutes,
+			}})
 	if err != nil {
-		log.Fatalln("Error! Couldn't marshal:", err)
+		log.Fatalln("Error! Couldn't marshal JSON.", err)
 	}
 	return string(tmp)
 }

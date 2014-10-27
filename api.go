@@ -21,7 +21,7 @@ const (
 	cTlsFilePub  = ".tls/pub"
 	cTlsFilePriv = ".tls/priv"
 	cTcpPort     = 5000
-	apiVersion   = "v0"
+	cApiVersion  = "v0"
 )
 
 var config struct {
@@ -29,14 +29,14 @@ var config struct {
 	PortString   string
 	Host         string
 	TlsAvailable bool
-	MethodsJSON  string
+	RootJSON     string
 }
 
 func init() {
 	config.Port = cTcpPort
 	config.Host = ""
 	config.TlsAvailable = false
-	config.MethodsJSON = listRoutesString()
+	config.RootJSON = rootResponseString()
 
 	if tmp := os.Getenv("API_PORT"); tmp != "" {
 		tmp2, err := strconv.Atoi(tmp)

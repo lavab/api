@@ -7,21 +7,22 @@ type User struct {
 	Password string `json:"-"  gorethink:"password"`
 	Type     string `json:"-" gorethink:"type"` // std, beta, admin
 
-	Pgp      PGP          `json:"-"  gorethink:"pgp"`
-	Settings SettingsData `json:"-"  gorethink:"settings"`
-	Billing  BillingData  `json:"-"  gorethink:"billing"`
+	Pgp      PGP          `json:"pgp"  gorethink:"pgp"`
+	Settings SettingsData `json:"settings"  gorethink:"settings"`
+	Billing  BillingData  `json:"billing"  gorethink:"billing"`
 }
 
-// PGP TODO
+// PGP TODO is it OK?
 type PGP struct {
 	PublicKey string `json:"public_key"  gorethink:"public_key"`
 	Finger    string `json:"finger"  gorethink:"finger"`
 	ExpDate   string `json:"exp_date"  gorethink:"exp_date" actual_type:"time.Time"`
 }
 
-// SettingsData TODO will do later, contains settings stuff
+// SettingsData TODO
 type SettingsData struct {
 }
 
+// BillingData TODO
 type BillingData struct {
 }

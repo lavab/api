@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,29 +24,19 @@ func JSONResponse(w http.ResponseWriter, data map[string]interface{}) {
 	if code, ok := data["status"]; ok {
 		w.WriteHeader(code.(int))
 	}
-	fmt.Fprint(w, packIt(data))
+	fmt.Fprint(w, MakeJSON(data))
 }
 
 //InternalErrorResponse TODO
 func ErrorResponse(w http.ResponseWriter, code int, message string, debug string) {
 	out := map[string]interface{}{
-		"status":  code,
-		"message": message,
 		"debug":   debug,
+		"message": message,
+		"status":  code,
 		"success": false,
 	}
 	if debug == "" {
 		delete(out, "debug")
 	}
-	fmt.Fprint(w, packIt(out))
-}
-
-// packIt receives a generic map and tries to marshal it
-func packIt(data map[string]interface{}) string {
-	res, err := json.Marshal(data)
-	if err != nil {
-		log.Fatalln("Error marshalling the response body.", err)
-		return "{\"status\": 500, \"message\":\"Error while marshalling the response body\"}"
-	}
-	return string(res)
+	fmt.Fprint(w, MakeJSON(out))
 }
