@@ -37,7 +37,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		"status":  200,
 		"message": "Authentication successful",
 		"success": true,
-		"data":    session,
+		"session": session,
 	})
 }
 
@@ -85,11 +85,11 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	if err := db.Delete("sessions", session.ID); err != nil {
 		utils.ErrorResponse(w, 500, "Internal server error",
 			fmt.Sprint("Couldn't delete session %v. %v", session, err))
-	} else {
-		utils.JSONResponse(w, map[string]interface{}{
-			"status":  410,
-			"message": fmt.Sprintf("Session %s terminated", session.ID),
-			"success": true,
-		})
 	}
+	utils.JSONResponse(w, map[string]interface{}{
+		"status":  410,
+		"message": fmt.Sprintf("Successfully logged out", session.User),
+		"success": true,
+		"deleted": session.ID,
+	})
 }

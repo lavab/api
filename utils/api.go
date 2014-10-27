@@ -27,7 +27,7 @@ func JSONResponse(w http.ResponseWriter, data map[string]interface{}) {
 	fmt.Fprint(w, MakeJSON(data))
 }
 
-//InternalErrorResponse TODO
+// ErrorResponse TODO
 func ErrorResponse(w http.ResponseWriter, code int, message string, debug string) {
 	out := map[string]interface{}{
 		"debug":   debug,
@@ -39,4 +39,9 @@ func ErrorResponse(w http.ResponseWriter, code int, message string, debug string
 		delete(out, "debug")
 	}
 	fmt.Fprint(w, MakeJSON(out))
+}
+
+// FormatNotRecognizedResponse TODO
+func FormatNotRecognizedResponse(w http.ResponseWriter, err error) {
+	ErrorResponse(w, 400, "Format not recognized", err.Error())
 }

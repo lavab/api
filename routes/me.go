@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/lavab/api/utils"
@@ -20,4 +21,5 @@ func Me(w http.ResponseWriter, r *http.Request) {
 
 // UpdateMe TODO
 func UpdateMe(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
 }
