@@ -12,6 +12,8 @@ import (
 	"github.com/lavab/api/utils"
 )
 
+const SessionDurationInHours = 72
+
 // Login gets a username and password and returns a session token on success
 func Login(w http.ResponseWriter, r *http.Request) {
 	username, password := r.FormValue("username"), r.FormValue("password")
@@ -23,13 +25,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO check number of sessions here
-
 	session := models.Session{
-		ID:        utils.UUID(),
-		User:      username,
-		UserID:    user.ID,
-		UserAgent: r.Header.Get("User-Agent"),
-		ExpDate:   utils.HoursFromNowString(72), // TODO extract const into variable
+		Resource: models.MakeResource("", user.ID),
+		Expiry: models.Expiry{
+			ExpDate: utils.HoursFromNowString(SessionDurationInHours),
+		},
+		User: username,
 	}
 	db.Insert("sessions", session)
 

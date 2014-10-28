@@ -1,6 +1,6 @@
 package models
 
-// User holds the data fields for a Lavaboom user
+// User holds the data for any Lavaboom user
 type User struct {
 	ID       string `json:"id" gorethink:"id"`
 	Name     string `json:"name" gorethink:"name"`

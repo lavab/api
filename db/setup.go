@@ -29,6 +29,8 @@ var tablesAndIndexes = map[string][]string{
 	"drafts":   []string{"user_id"},
 	"contacts": []string{},
 	"threads":  []string{"user_id"},
+	"labels":   []string{},
+	"keys":     []string{},
 }
 
 func Init() {

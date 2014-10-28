@@ -7,9 +7,9 @@ import (
 	"github.com/lavab/api/models"
 )
 
-func GetSession(token string) (*models.Session, bool) {
+func GetSession(id string) (*models.Session, bool) {
 	var result models.Session
-	response, err := db.Get("sessions", token)
+	response, err := db.Get("sessions", id)
 	if err == nil && response != nil && !response.IsNil() {
 		err := response.One(&result)
 		if err != nil {

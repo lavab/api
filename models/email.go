@@ -1,8 +1,7 @@
 package models
 
 type Email struct {
-	ID           string       `json:"id" gorethink:"id"`
-	UserID       string       `json:"user_id" gorethink:"user_id"`
+	Resource
 	ThreadID     string       `json:"thread_id" gorethink:"thread_id"`
 	LabelIDs     []string     `json:"label_ids" gorethink:"label_ids"`
 	Headers      []string     `json:"headers" gorethink:"headers"`
