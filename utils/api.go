@@ -5,12 +5,12 @@ import (
 	"net/http"
 )
 
-// JSONResponse packs a generic map and writes it to a http.ResponseWriter as JSON.
-// Additionally, if there's a data["status"] value, it's going to be added as a header.
-func JSONResponse(w http.ResponseWriter, data map[string]interface{}) {
-	if code, ok := data["status"]; ok {
-		w.WriteHeader(code.(int))
+// JSONResponse writes JSON to an http.ResponseWriter with the corresponding status code
+func JSONResponse(w http.ResponseWriter, status int, data map[string]interface{}) {
+	if status < 100 || status > 599 {
+		status = 200
 	}
+	w.WriteHeader(status)
 	fmt.Fprint(w, MakeJSON(data))
 }
 

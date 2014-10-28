@@ -11,8 +11,7 @@ import (
 // Me TODO return models.User
 func Me(w http.ResponseWriter, r *http.Request) {
 	session := models.CurrentSession(r)
-	utils.JSONResponse(w, map[string]interface{}{
-		"status": 200,
+	utils.JSONResponse(w, 200, map[string]interface{}{
 		"user": map[string]interface{}{
 			"id":   session.UserID,
 			"name": session.User,

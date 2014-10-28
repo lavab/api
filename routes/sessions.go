@@ -34,8 +34,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	db.Insert("sessions", session)
 
-	utils.JSONResponse(w, map[string]interface{}{
-		"status":  200,
+	utils.JSONResponse(w, 200, map[string]interface{}{
 		"message": "Authentication successful",
 		"success": true,
 		"session": session,
@@ -72,8 +71,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("Couldn't insert %+v to database", user))
 	}
 
-	utils.JSONResponse(w, map[string]interface{}{
-		"status":  201,
+	utils.JSONResponse(w, 201, map[string]interface{}{
 		"message": "Signup successful",
 		"success": true,
 		"data":    user,
@@ -87,8 +85,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, 500, "Internal server error",
 			fmt.Sprint("Couldn't delete session %v. %v", session, err))
 	}
-	utils.JSONResponse(w, map[string]interface{}{
-		"status":  410,
+	utils.JSONResponse(w, 410, map[string]interface{}{
 		"message": fmt.Sprintf("Successfully logged out", session.User),
 		"success": true,
 		"deleted": session.ID,

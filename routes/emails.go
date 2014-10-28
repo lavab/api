@@ -15,7 +15,7 @@ func Emails(w http.ResponseWriter, r *http.Request) {
 		"n_items": 1,
 		"emails":  []models.Email{},
 	}
-	utils.JSONResponse(w, mock)
+	utils.JSONResponse(w, 200, mock)
 }
 
 // CreateEmail TODO
@@ -29,7 +29,7 @@ func CreateEmail(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"created": []string{utils.UUID()},
 	}
-	utils.JSONResponse(w, mock)
+	utils.JSONResponse(w, 200, mock)
 }
 
 // Email TODO
@@ -38,7 +38,7 @@ func Email(w http.ResponseWriter, r *http.Request) {
 	mock := map[string]interface{}{
 		"status": "sending",
 	}
-	utils.JSONResponse(w, mock)
+	utils.JSONResponse(w, 200, mock)
 }
 
 // UpdateEmail TODO
