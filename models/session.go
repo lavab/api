@@ -5,13 +5,13 @@ import (
 	"net/http"
 
 	"github.com/gorilla/context"
+	"github.com/lavab/api/models/base"
 )
 
 // Session TODO
 type Session struct {
-	Resource
-	Expiry
-	User string `json:"user" gorethink:"user"`
+	base.Expiring
+	base.Resource
 }
 
 // CurrentSession returns the current request's session object

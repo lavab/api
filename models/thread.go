@@ -1,9 +1,10 @@
 package models
 
+import "github.com/lavab/api/models/base"
+
 type Thread struct {
-	ID      string  `json:"id" gorethink:"id"`
-	UserID  string  `json:"user_id" gorethink:"user_id"`
+	base.Resource
+	// TODO add members?
 	Snippet string  `json:"snippet" gorethink:"snippet"`
-	Changed string  `json:"changed" gorethink:"changed"`
 	Emails  []Email `json:"emails" gorethink:"emails"`
 }

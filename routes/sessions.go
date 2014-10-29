@@ -9,6 +9,7 @@ import (
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/models"
+	"github.com/lavab/api/models/base"
 	"github.com/lavab/api/utils"
 )
 
@@ -26,11 +27,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	// TODO check number of sessions here
 	session := models.Session{
-		Resource: models.MakeResource("", user.ID),
-		Expiry: models.Expiry{
+		Expiring: base.Expiring{
 			ExpDate: utils.HoursFromNowString(SessionDurationInHours),
 		},
-		User: username,
+		Resource: base.MakeResource("", user.ID),
 	}
 	db.Insert("sessions", session)
 
@@ -86,7 +86,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprint("Couldn't delete session %v. %v", session, err))
 	}
 	utils.JSONResponse(w, 410, map[string]interface{}{
-		"message": fmt.Sprintf("Successfully logged out", session.User),
+		"message": fmt.Sprintf("Successfully logged out", session.UserID),
 		"success": true,
 		"deleted": session.ID,
 	})

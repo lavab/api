@@ -12,7 +12,7 @@ type User struct {
 	Billing  BillingData  `json:"billing"  gorethink:"billing"`
 }
 
-// PGP TODO is it OK?
+// PGP is a representation of a public key
 type PGP struct {
 	PublicKey string `json:"public_key"  gorethink:"public_key"`
 	Finger    string `json:"finger"  gorethink:"finger"`

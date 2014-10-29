@@ -1,17 +1,18 @@
 package models
 
+import "github.com/lavab/api/models/base"
+
+// Email is the cornerstone of our application.
 type Email struct {
-	Resource
-	ThreadID     string       `json:"thread_id" gorethink:"thread_id"`
-	LabelIDs     []string     `json:"label_ids" gorethink:"label_ids"`
-	Headers      []string     `json:"headers" gorethink:"headers"`
-	Body         string       `json:"body" gorethink:"body"`
-	Snippet      string       `json:"snippet" gorethink:"snippet"`
-	Date         string       `json:"date" gorethink:"date"`
-	SizeEstimate int          `json:"size_estimate" gorethink:"size_estimate" unit:"byte"`
-	Attachments  []Attachment `json:"attachments" gorethink:"attachments"`
-	PgpKeys      []string     `json:"pgp_keys" gorethink:"pgp_keys"`
-	Raw          string       `json:"raw" gorethink:"raw"`
+	base.Encrypted
+	base.Resource
+	ThreadID    string       `json:"thread_id" gorethink:"thread_id"`
+	LabelIDs    []string     `json:"label_ids" gorethink:"label_ids"`
+	Headers     []string     `json:"headers" gorethink:"headers"`
+	Body        string       `json:"body" gorethink:"body"`
+	Snippet     string       `json:"snippet" gorethink:"snippet"`
+	Attachments []Attachment `json:"attachments" gorethink:"attachments"`
+	PgpKeys     []string     `json:"pgp_keys" gorethink:"pgp_keys"`
 }
 
 type Attachment struct {

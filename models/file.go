@@ -1,13 +1,15 @@
 package models
 
+import "github.com/lavab/api/models/base"
+
 type File struct {
-	Resource
+	base.Resource
 	Bytes []byte `json:"bytes" gorethink:"bytes"`
 	Size  int    `json:"size" gorethink:"size"`
 }
 
 type Picture struct {
-	Resource
+	base.Resource
 	Data       File `json:"data" gorethink:"data"`
 	ResX       int  `json:"res_x" gorethink:"res_x"`
 	ResY       int  `json:"res_y" gorethink:"res_y"`

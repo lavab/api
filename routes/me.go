@@ -1,22 +1,38 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
+	"github.com/lavab/api/db"
+	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
 )
 
-// Me TODO return models.User
+// Me returns information about the current user (more exactly, a JSONized models.User)
 func Me(w http.ResponseWriter, r *http.Request) {
 	session := models.CurrentSession(r)
-	utils.JSONResponse(w, 200, map[string]interface{}{
-		"user": map[string]interface{}{
-			"id":   session.UserID,
-			"name": session.User,
-		},
-	})
+	user, ok := dbutils.GetUser(session.UserID)
+	if !ok {
+		debug := fmt.Sprintf("Session %s was deleted", session.ID)
+		if err := db.Delete("sessions", session.ID); err != nil {
+			debug = "Error when trying to delete session associated with inactive account"
+			log.Println("[routes.Me]", debug, err)
+		}
+		utils.ErrorResponse(w, 410, "Account deactivated", debug)
+		return
+	}
+	str, err := json.Marshal(user)
+	if err != nil {
+		debug := fmt.Sprint("Failed to marshal models.User:", user)
+		log.Println("[routes.Me]", debug)
+		utils.ErrorResponse(w, 500, "Internal server error", debug)
+		return
+	}
+	fmt.Fprint(w, str)
 }
 
 // UpdateMe TODO

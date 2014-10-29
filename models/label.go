@@ -1,7 +1,9 @@
 package models
 
+import "github.com/lavab/api/models/base"
+
 type Label struct {
-	Resource
+	base.Resource
 	EmailsUnread  int  `json:"emails_unread" gorethink:"emails_unread"`
 	EmailsTotal   int  `json:"emails_total" gorethink:"emails_total"`
 	IsSystem      bool `json:"is_system" gorethink:"is_system" default:"false"`
