@@ -32,7 +32,7 @@ func Me(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, 500, "Internal server error", debug)
 		return
 	}
-	fmt.Fprint(w, str)
+	fmt.Fprint(w, string(str))
 }
 
 // UpdateMe TODO

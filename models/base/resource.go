@@ -4,7 +4,7 @@ import "github.com/lavab/api/utils"
 
 // Resource is the base struct for every resource that needs to be saved to db and marshalled with json.
 type Resource struct {
-	// ID is the resources ID, used as a primary index by the db.
+	// ID is the resources ID, used as a primary key by the db.
 	ID string `json:"id" gorethink:"id"`
 
 	// DateChanged is an RFC3339-encoded time string that lets clients poll whether a resource has changed.
@@ -22,13 +22,21 @@ type Resource struct {
 }
 
 // MakeResource creates a new Resource object with sane defaults.
-func MakeResource(name, userID string) Resource {
-	timeString := utils.TimeNowString()
+func MakeResource(userID, name string) Resource {
+	t := utils.TimeNowString()
 	return Resource{
 		ID:          utils.UUID(),
-		DateChanged: timeString,
-		DateCreated: timeString,
+		DateChanged: t,
+		DateCreated: t,
 		Name:        name,
 		UserID:      userID,
 	}
+}
+
+// Touch sets r.DateChanged to the current time
+// It returns the object it's modifying to allow chaining for shorter code:
+// 		r.Touch().PerformSomeOp(args)
+func (r *Resource) Touch() *Resource {
+	r.DateChanged = utils.TimeNowString()
+	return r
 }

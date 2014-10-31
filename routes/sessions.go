@@ -25,13 +25,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO check number of sessions here
+	// TODO check number of sessions for the current user here
 	session := models.Session{
-		Expiring: base.Expiring{
-			ExpDate: utils.HoursFromNowString(SessionDurationInHours),
-		},
-		Resource: base.MakeResource("", user.ID),
+		Expiring: base.Expiring{utils.HoursFromNowString(SessionDurationInHours)},
+		Resource: base.MakeResource(user.ID, ""),
 	}
+	session.Name = fmt.Sprintf("Auth session expiring on %s", session.ExpDate)
 	db.Insert("sessions", session)
 
 	utils.JSONResponse(w, 200, map[string]interface{}{
@@ -61,8 +60,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	// TODO: sanitize user name (i.e. remove caps, periods)
 
 	user := models.User{
-		ID:       utils.UUID(),
-		Name:     username,
+		Resource: base.MakeResource(utils.UUID(), username),
 		Password: string(hash),
 	}
 

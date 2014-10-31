@@ -6,4 +6,7 @@ import "github.com/lavab/api/models/base"
 type Contact struct {
 	base.Encrypted
 	base.Resource
+
+	// Picture is a profile picture
+	Picture Avatar `json:"picture" gorethink:"picture"`
 }

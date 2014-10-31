@@ -1,30 +1,24 @@
 package base
 
-import "log"
+import (
+	"log"
+	"strings"
+)
 
 // Encrypted is the base struct for PGP-encrypted resources
 type Encrypted struct {
 	// Encoding tells the reader how to decode the data; can be "json", "protobuf", maybe more in the future
 	Encoding string `json:"encoding" gorethink:"encoding"`
 
-	// PgpFinger is the fingerprint of the PGP public key used to encrypt the data. Although the obvious
-	// place to look for the public key is in User.Pgp, if we store this independently we'll be able to
-	// detect whether the user has replaced their key pair, and subsequently depracate this data.
-	PgpFinger string `json:"pgp_finger" gorethink:"pgp_finger"`
+	// PgpFingerprints contains the fingerprints of the PGP public keys used to encrypt the data.
+	PgpFingerprints string `json:"pgp_fingerprints" gorethink:"pgp_fingerprints"`
 
-	// Schema show how the data is structured; it's consider implicit knowledge and thus not persisted to db.
-	// Lavaboom is a zero knowledge email provider, thus the less the server knows, the better.
-	// It's the client's responsability to encode, decode, save and retrieve the data correctly.
-	Schema map[string]interface{} `json:"schema" gorethink:"-"`
+	// Data is the raw, PGP-encrypted data
+	Data []byte `json:"raw" gorethink:"raw"`
 
-	// Raw is the raw, PGP-encrypted data
-	Raw []byte `json:"raw" gorethink:"raw"`
-
-	// Version is the schema version
-	// The format is "NAME MAJOR.MINOR". If you need the actual values, use
-	// Versioning the schema we can change the schema without changing
-	// the data models. Minor versions can't break the API, they can only add fields (see protobuf).
-	Version string `json:"version" gorethink:"version"`
+	// Schema is the name of the schema used to encode the data
+	// Examples: string, contact, email
+	Schema string `json:"schema" gorethink:"schema"`
 
 	// VersionMajor is the major component of the schema version.
 	// Schemas with the same major version should be compatible.
@@ -36,12 +30,15 @@ type Encrypted struct {
 }
 
 // IsCompatibleWith checks whether the schema versions of two Encrypted objects are compatible
-func (v *Encrypted) IsCompatibleWith(res *Encrypted) bool {
-	if v == nil || res == nil {
-		log.Printf("[models.IsCompatibleWith] %+v or %+v were nil\n", v, res)
+func (e *Encrypted) IsCompatibleWith(res *Encrypted) bool {
+	if e == nil || res == nil {
+		log.Printf("[models.IsCompatibleWith] %+v or %+v were nil\n", e, res)
 		return false
 	}
-	if v.VersionMajor == res.VersionMajor {
+	if strings.ToLower(e.Schema) != strings.ToLower(res.Schema) {
+		return false
+	}
+	if e.VersionMajor == res.VersionMajor {
 		return true
 	}
 	return false

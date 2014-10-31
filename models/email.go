@@ -3,21 +3,26 @@ package models
 import "github.com/lavab/api/models/base"
 
 // Email is the cornerstone of our application.
+// TODO mime info
 type Email struct {
-	base.Encrypted
 	base.Resource
-	ThreadID    string       `json:"thread_id" gorethink:"thread_id"`
-	LabelIDs    []string     `json:"label_ids" gorethink:"label_ids"`
-	Headers     []string     `json:"headers" gorethink:"headers"`
-	Body        string       `json:"body" gorethink:"body"`
-	Snippet     string       `json:"snippet" gorethink:"snippet"`
-	Attachments []Attachment `json:"attachments" gorethink:"attachments"`
-	PgpKeys     []string     `json:"pgp_keys" gorethink:"pgp_keys"`
-}
 
-type Attachment struct {
-	FileID       string `json:"file_id" gorethink:"file_id,omitempty"`
-	Data         []byte `json:"data" gorethink:"data,omitempty"`
-	MimeType     string `json:"mime_type" gorethink:"mime_type,omitempty"`
-	SizeEstimate int    `json:"size" gorethink:"size" unit:"byte,omitempty"`
+	// AttachmentsIDs is a slice of the FileIDs associated with this email
+	// For uploading attachments see `POST /upload`
+	AttachmentIDs []string `json:"attachments" gorethink:"attachments"`
+
+	// Body contains all the data needed to send this email
+	Body base.Encrypted `json:"body" gorethink:"body"`
+
+	LabelIDs []string `json:"label_ids" gorethink:"label_ids"`
+
+	// Preview contains the encrypted preview information (needed to show a list of emails)
+	// Example: Headers []string, Body string,
+	// 		Headers       []string
+	// 		Body          string
+	// 		Snippet       string
+	Preview base.Encrypted `json:"preview" gorethink:"preview"`
+
+	// ThreadID
+	ThreadID string `json:"thread_id" gorethink:"thread_id"`
 }

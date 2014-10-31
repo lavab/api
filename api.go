@@ -36,7 +36,7 @@ func init() {
 	config.Port = cTcpPort
 	config.Host = ""
 	config.TlsAvailable = false
-	config.RootJSON = rootResponseString()
+	config.RootJSON = rootResponseString() // this avoids an import cycle and also improves perf by caching the response
 
 	if tmp := os.Getenv("API_PORT"); tmp != "" {
 		tmp2, err := strconv.Atoi(tmp)
@@ -60,7 +60,6 @@ func init() {
 
 func main() {
 	setupAndRun()
-	// debug()
 }
 
 func setupAndRun() {
@@ -94,7 +93,4 @@ func setupAndRun() {
 	} else {
 		log.Fatal(srv.ListenAndServe())
 	}
-}
-
-func debug() {
 }
