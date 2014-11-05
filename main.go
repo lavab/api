@@ -8,89 +8,84 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/lavab/api/db"
-	"github.com/lavab/api/utils"
-	"github.com/stretchr/graceful"
+	"github.com/Sirupsen/logrus"
+	"github.com/goji/glogrus"
+	"github.com/namsral/flag"
+	"github.com/zenazn/goji"
+	"github.com/zenazn/goji/graceful"
+	"github.com/zenazn/goji/web"
+	"github.com/zenazn/goji/web/middleware"
 )
 
 // TODO: "Middleware that implements a few quick security wins"
 // 		 https://github.com/unrolled/secure
 
-const (
-	cTlsFilePub  = ".tls/pub"
-	cTlsFilePriv = ".tls/priv"
-	cTcpPort     = 5000
-	cApiVersion  = "v0"
+var (
+	bindAddress      = flag.String("bind", ":5000", "Network address used to bind")
+	apiVersion       = flag.String("version", "v0", "Shown API version")
+	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
 )
 
-var config struct {
-	Port         int
-	PortString   string
-	Host         string
-	TlsAvailable bool
-	RootJSON     string
-}
-
-func init() {
-	config.Port = cTcpPort
-	config.Host = ""
-	config.TlsAvailable = false
-	config.RootJSON = rootResponseString() // this avoids an import cycle and also improves perf by caching the response
-
-	if tmp := os.Getenv("API_PORT"); tmp != "" {
-		tmp2, err := strconv.Atoi(tmp)
-		if err != nil {
-			config.Port = tmp2
-		}
-		log.Println("Running on non-default port", config.Port)
-	}
-	config.PortString = fmt.Sprintf(":%d", config.Port)
-
-	if utils.FileExists(cTlsFilePub) && utils.FileExists(cTlsFilePriv) {
-		config.TlsAvailable = true
-		log.Println("Imported TLS cert/key successfully.")
-	} else {
-		log.Printf("TLS cert (%s) and key (%s) not found, serving plain HTTP.\n", cTlsFilePub, cTlsFilePriv)
-	}
-
-	// Set up RethinkDB
-	go db.Init()
-}
-
 func main() {
-	setupAndRun()
-}
+	// Parse the flags
+	flag.Parse()
 
-func setupAndRun() {
-	r := mux.NewRouter()
+	// Set up a new logger
+	log := logrus.New()
 
-	if config.TlsAvailable {
-		r = r.Schemes("https").Subrouter()
-	}
-	if tmp := os.Getenv("API_HOST"); tmp != "" {
-		r = r.Host(tmp).Subrouter()
-	}
-
-	for _, rt := range publicRoutes {
-		r.HandleFunc(rt.Path, rt.HandleFunc).Methods(rt.Method)
+	// Set the formatter depending on the passed flag's value
+	if *logFormatterType == "text" {
+		log.Formatter = &logrus.TextFormatter{}
+	} else if *logFormatterType == "json" {
+		log.Formatter = &logrus.JSONFormatter{}
 	}
 
-	for _, rt := range authRoutes {
-		r.HandleFunc(rt.Path, AuthWrapper(rt.HandleFunc)).Methods(rt.Method)
+	// Create a new goji mux
+	mux := web.New()
+
+	// Include the most basic middlewares:
+	//  - RequestID assigns an unique ID for each request in order to identify errors.
+	//  - Glogrus logs each request
+	//  - Recoverer prevents panics from crashing the API
+	//  - AutomaticOptions
+	mux.Use(middleware.RequestID)
+	mux.Use(glogrus.NewGlogrus(log, "api"))
+	mux.Use(middleware.Recoverer)
+	mux.Use(middleware.AutomaticOptions)
+
+	// Compile the routes
+	mux.Compile()
+
+	// Make the mux handle every request
+	http.Handle("/", DefaultMux)
+
+	// Log that we're starting the server
+	log.WithFields(logrus.Fields{
+		"address": *bindAddress,
+	}).Info("Starting the HTTP server")
+
+	// Initialize the goroutine listening to signals passed to the app
+	graceful.HandleSignals()
+
+	// Pre-graceful shutdown event
+	graceful.PreHook(func() {
+		log.Info("Received a singnal, stopping the application")
+	})
+
+	// Post-shutdown event
+	graceful.PostHook(func() {
+		log.Info("Stopped the application")
+	})
+
+	// Start the listening
+	err := graceful.Serve(listener, http.DefaultServeMux)
+	if err != nil {
+		// Don't use .Fatal! We need the code to shut down properly.
+		log.Error(err)
 	}
 
-	srv := &graceful.Server{
-		Timeout: 10 * time.Second,
-		Server: &http.Server{
-			Addr:    config.PortString,
-			Handler: r,
-		},
-	}
+	// If code reaches this place, it means that it was forcefully closed.
 
-	if config.TlsAvailable {
-		log.Fatal(srv.ListenAndServeTLS(cTlsFilePub, cTlsFilePriv))
-	} else {
-		log.Fatal(srv.ListenAndServe())
-	}
+	// Wait until open connections close.
+	graceful.Wait()
 }
