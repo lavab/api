@@ -53,6 +53,60 @@ func main() {
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.AutomaticOptions)
 
+	// Set up an auth'd mux
+	auth := web.New()
+	mux.Use(models.AuthMiddleware)
+
+	// Index route
+	mux.Get("/", routes.Hello)
+
+	// Accounts
+	auth.Get("/accounts", routes.AccountsList)
+	mux.Post("/accounts", routes.AccountsCreate)
+	auth.Get("/accounts/:id", routes.AccountsGet)
+	auth.Put("/accounts/:id", routes.AccountsUpdate)
+	auth.Delete("/accounts/:id", routes.AccountsDelete)
+	auth.Post("/accounts/:id/wipe-user-data", routes.AccountsWipeUserData)
+
+	// Tokens
+	auth.Get("/token", routes.TokenGet)
+	auth.Post("/token", routes.TokensCreate)
+	auth.Delete("/token", routes.TokensDelete)
+
+	// Threads
+	auth.Get("/threads", routes.ThreadsList)
+	auth.Get("/threads/:id", routes.ThreadsGet)
+	auth.Put("/threads/:id", routes.ThreadsUpdate)
+
+	// Emails
+	auth.Get("/emails", routes.EmailsList)
+	auth.Post("/emails", routes.EmailsCreate)
+	auth.Get("/emails/:id", routes.EmailsGet)
+	auth.Put("/emails/:id", routes.EmailsUpdate)
+	auth.Delete("/emails/:id", routes.EmailsDelete)
+
+	// Labels
+	auth.Get("/labels", routes.LabelsList)
+	auth.Post("/labels", routes.LabelsCreate)
+	auth.Get("/labels/:id", routes.LabelsGet)
+	auth.Put("/labels/:id", routes.LabelsUpdate)
+	auth.Delete("/labels/:id", routes.LabelsDelete)
+
+	// Contacts
+	auth.Get("/contacts", routes.ContactsList)
+	auth.Post("/contacts", routes.ContactsCreate)
+	auth.Get("/contacts/:id", routes.ContactsGet)
+	auth.Put("/contacts/:id", routes.ContactsUpdate)
+	auth.Delete("/contacts/:id", routes.ContactsDelete)
+
+	// Keys
+	auth.Post("/keys", routes.KeysCreate)
+	mux.Get("/keys/:id", routes.KeysGet)
+	auth.Post("/keys/:id/vote", routes.KeysVote)
+
+	// Merge the muxes
+	mux.Handle("/", auth)
+
 	// Compile the routes
 	mux.Compile()
 
