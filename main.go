@@ -15,6 +15,8 @@ import (
 	"github.com/zenazn/goji/graceful"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
+
+	"github.com/lavab/api/env"
 )
 
 // TODO: "Middleware that implements a few quick security wins"
@@ -47,7 +49,7 @@ func main() {
 	//  - RequestID assigns an unique ID for each request in order to identify errors.
 	//  - Glogrus logs each request
 	//  - Recoverer prevents panics from crashing the API
-	//  - AutomaticOptions
+	//  - AutomaticOptions automatically responds to OPTIONS requests
 	mux.Use(middleware.RequestID)
 	mux.Use(glogrus.NewGlogrus(log, "api"))
 	mux.Use(middleware.Recoverer)
@@ -112,6 +114,16 @@ func main() {
 
 	// Make the mux handle every request
 	http.Handle("/", DefaultMux)
+
+	// Set up a new environment object
+	env.G = &env.Environment{
+		Log: log,
+		Config: &env.Config{
+			BindAddress:      *bindAddress,
+			APIVersion:       *apiVersion,
+			LogFormatterType: *logFormatterType,
+		},
+	}
 
 	// Log that we're starting the server
 	log.WithFields(logrus.Fields{
