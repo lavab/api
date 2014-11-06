@@ -16,11 +16,3 @@ type File struct {
 	// Possible values: `file`, `audio`, `video`, `pdf`, `text`, `binary`
 	Type string `json:"type" gorethink:"type"`
 }
-
-// Avatar is a picture used to identify contacts
-type Avatar struct {
-	Resource
-	Large  File `json:"data" gorethink:"data"`
-	Medium File `json:"thumb_small" gorethink:"thumb_small"`
-	Small  File `json:"thumb_large" gorethink:"thumb_large"`
-}
