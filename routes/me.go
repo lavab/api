@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/context"
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/models"
@@ -14,8 +15,8 @@ import (
 
 // Me returns information about the current user (more exactly, a JSONized models.User)
 func Me(w http.ResponseWriter, r *http.Request) {
-	session := models.CurrentSession(r)
-	user, ok := dbutils.GetUser(session.UserID)
+	session, _ := context.Get(r, "session").(*models.AuthToken)
+	user, ok := dbutils.GetUser(session.AccountID)
 	if !ok {
 		debug := fmt.Sprintf("Session %s was deleted", session.ID)
 		if err := db.Delete("sessions", session.ID); err != nil {

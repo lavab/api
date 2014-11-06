@@ -23,8 +23,8 @@ func AuthWrapper(next handleFunc) handleFunc {
 			utils.ErrorResponse(w, 401, "Invalid auth token", "")
 			return
 		}
-		if session.HasExpired() {
-			utils.ErrorResponse(w, 419, "Authentication token has expired", "Session has expired on "+session.ExpDate)
+		if session.Expired() {
+			utils.ErrorResponse(w, 419, "Authentication token has expired", "")
 			db.Delete("sessions", session.ID)
 			return
 		}

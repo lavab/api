@@ -1,10 +1,8 @@
 package models
 
-import "github.com/lavab/api/models/base"
-
 // User stores essential data for a Lavaboom user, and is thus not encrypted.
 type User struct {
-	base.Resource
+	Resource
 
 	// Billing is a struct containing billing information.
 	Billing BillingData `json:"billing" gorethink:"billing"`

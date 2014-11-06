@@ -1,11 +1,9 @@
 package models
 
-import "github.com/lavab/api/models/base"
-
 // File is an encrypted file stored by Lavaboom
 type File struct {
-	base.Encrypted
-	base.Resource
+	Encrypted
+	Resource
 
 	// Mime is the Internet media type of the file
 	// Check out: http://en.wikipedia.org/wiki/Internet_media_type
@@ -21,7 +19,7 @@ type File struct {
 
 // Avatar is a picture used to identify contacts
 type Avatar struct {
-	base.Resource
+	Resource
 	Large  File `json:"data" gorethink:"data"`
 	Medium File `json:"thumb_small" gorethink:"thumb_small"`
 	Small  File `json:"thumb_large" gorethink:"thumb_large"`

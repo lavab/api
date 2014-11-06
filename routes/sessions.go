@@ -9,7 +9,6 @@ import (
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/models"
-	"github.com/lavab/api/models/base"
 	"github.com/lavab/api/utils"
 )
 
@@ -26,11 +25,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO check number of sessions for the current user here
-	session := models.Session{
-		Expiring: base.Expiring{utils.HoursFromNowString(SessionDurationInHours)},
-		Resource: base.MakeResource(user.ID, ""),
-	}
-	session.Name = fmt.Sprintf("Auth session expiring on %s", session.ExpDate)
+	session := models.AuthToken{Resource: models.MakeResource(user.ID, "")}
+	session.ExpireAfterNHours(SessionDurationInHours)
 	db.Insert("sessions", session)
 
 	utils.JSONResponse(w, 200, map[string]interface{}{
@@ -60,7 +56,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	// TODO: sanitize user name (i.e. remove caps, periods)
 
 	user := models.User{
-		Resource: base.MakeResource(utils.UUID(), username),
+		Resource: models.MakeResource(utils.UUID(), username),
 		Password: string(hash),
 	}
 
@@ -78,13 +74,13 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 
 // Logout destroys the current session token
 func Logout(w http.ResponseWriter, r *http.Request) {
-	session := context.Get(r, "session").(*models.Session)
+	session := context.Get(r, "session").(*models.AuthToken)
 	if err := db.Delete("sessions", session.ID); err != nil {
 		utils.ErrorResponse(w, 500, "Internal server error",
 			fmt.Sprint("Couldn't delete session %v. %v", session, err))
 	}
 	utils.JSONResponse(w, 410, map[string]interface{}{
-		"message": fmt.Sprintf("Successfully logged out", session.UserID),
+		"message": fmt.Sprintf("Successfully logged out", session.AccountID),
 		"success": true,
 		"deleted": session.ID,
 	})
