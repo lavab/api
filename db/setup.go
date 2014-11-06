@@ -33,7 +33,7 @@ var tablesAndIndexes = map[string][]string{
 	"keys":     []string{},
 }
 
-func Init() {
+func init() {
 	config.Url = "localhost:28015"
 	config.AuthKey = ""
 	config.Db = "dev"
