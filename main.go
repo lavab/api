@@ -26,6 +26,7 @@ var (
 	bindAddress      = flag.String("bind", ":5000", "Network address used to bind")
 	apiVersion       = flag.String("version", "v0", "Shown API version")
 	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
+	sessionDuration  = flag.Int("session_duration", 72, "Session duration expressed in hours")
 )
 
 func main() {
@@ -72,9 +73,9 @@ func main() {
 	auth.Get("/accounts/:id/sessions", routes.AccountsSessionsList)
 
 	// Tokens
-	auth.Get("/token", routes.TokenGet)
-	auth.Post("/token", routes.TokensCreate)
-	auth.Delete("/token", routes.TokensDelete)
+	auth.Get("/tokens", routes.TokenGet)
+	auth.Post("/tokens", routes.TokensCreate)
+	auth.Delete("/tokens", routes.TokensDelete)
 
 	// Threads
 	auth.Get("/threads", routes.ThreadsList)
@@ -123,6 +124,7 @@ func main() {
 			BindAddress:      *bindAddress,
 			APIVersion:       *apiVersion,
 			LogFormatterType: *logFormatterType,
+			SessionDuration:  *sessionDuration,
 		},
 	}
 
