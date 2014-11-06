@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/dchest/uniuri"
 )
 
 // RandomString returns a secure random string of a certain length
@@ -28,5 +28,5 @@ func FileExists(name string) bool {
 
 // UUID returns a new Universally Unique IDentifier (UUID)
 func UUID() string {
-	return uuid.New()
+	return uniuri.NewLen(uniuri.UUIDLen)
 }
