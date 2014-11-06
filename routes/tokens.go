@@ -31,7 +31,7 @@ func TokensGet(w http.ResponseWriter, r *http.Request) {
 	session := models.CurrentSession(r)
 
 	// Respond with the token information
-	utils.JSONResponse(200, &TokensGetResponse{
+	utils.JSONResponse(w, 200, &TokensGetResponse{
 		Success: true,
 		Created: session.DateCreated,
 		Expires: session.ExpirationDate,

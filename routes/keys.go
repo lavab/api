@@ -5,22 +5,44 @@ import (
 	"net/http"
 )
 
-// Keys TODO
-func Keys(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// KeysCreateResponse contains the result of the KeysCreate request.
+type KeysCreateResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
-// SubmitKey TODO
-func SubmitKey(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// KeysCreate does *something* - TODO
+func KeysCreate(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &KeysCreateResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
 }
 
-// Key TODO
-func Key(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// KeysGetResponse contains the result of the KeysGet request.
+type KeysGetResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
-// VoteKey TODO
-func VoteKey(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// KeysGet does *something* - TODO
+func KeysGet(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &KeysGetResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
+}
+
+// KeysVoteResponse contains the result of the KeysVote request.
+type KeysVoteResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// KeysVote does *something* - TODO
+func KeysVote(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &KeysVoteResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
 }

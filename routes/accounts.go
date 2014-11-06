@@ -123,7 +123,7 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
 	id, ok := c.URLParams["id"]
 	if !ok {
-		utils.JSONResponse(409, &AccountsGetResponse{
+		utils.JSONResponse(w, 409, &AccountsGetResponse{
 			Success: false,
 			Message: "Invalid user ID",
 		})
@@ -132,7 +132,7 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
-		utils.JSONResponse(501, &AccountsGetResponse{
+		utils.JSONResponse(w, 501, &AccountsGetResponse{
 			Success: false,
 			Message: `Only the "me" user is implemented`,
 		})
@@ -162,7 +162,7 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 			}).Info("Removed an orphaned session")
 		}
 
-		utils.JSONResponse(410, &AccountsGetResponse{
+		utils.JSONResponse(w, 410, &AccountsGetResponse{
 			Success: false,
 			Message: "Account disabled",
 		})
@@ -170,7 +170,7 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the user struct
-	utils.JSONResponse(200, &AccountsGetResponse{
+	utils.JSONResponse(w, 200, &AccountsGetResponse{
 		Success: true,
 		User:    user,
 	})
@@ -184,7 +184,7 @@ type AccountsUpdateResponse struct {
 
 // AccountsUpdate allows changing the account's information (password etc.)
 func AccountsUpdate(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(501, &AccountsUpdateResponse{
+	utils.JSONResponse(w, 501, &AccountsUpdateResponse{
 		Success: false,
 		Message: `Sorry, not implemented yet`,
 	})
@@ -198,7 +198,7 @@ type AccountsDeleteResponse struct {
 
 // AccountsDelete allows deleting an account.
 func AccountsDelete(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(501, &AccountsDeleteResponse{
+	utils.JSONResponse(w, 501, &AccountsDeleteResponse{
 		Success: false,
 		Message: `Sorry, not implemented yet`,
 	})
@@ -212,7 +212,7 @@ type AccountsWipeDataResponse struct {
 
 // AccountsWipeData allows getting rid of the all data related to the account.
 func AccountsWipeData(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(501, &AccountsWipeDataResponse{
+	utils.JSONResponse(w, 501, &AccountsWipeDataResponse{
 		Success: false,
 		Message: `Sorry, not implemented yet`,
 	})
@@ -226,7 +226,7 @@ type AccountsSessionsListResponse struct {
 
 // AccountsSessionsList returns a list of all opened sessions.
 func AccountsSessionsList(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(501, &AccountsSessionsListResponse{
+	utils.JSONResponse(w, 501, &AccountsSessionsListResponse{
 		Success: false,
 		Message: `Sorry, not implemented yet`,
 	})
