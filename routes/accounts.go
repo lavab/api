@@ -16,12 +16,13 @@ import (
 	"github.com/lavab/api/utils"
 )
 
-// Accounts list
+// AccountsListResponse contains the result of the AccountsList request.
 type AccountsListResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// AccountsList returns a list of accounts visible to an user
 func AccountsList(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 501, &AccountsListResponse{
 		Success: false,
@@ -29,18 +30,20 @@ func AccountsList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Account registration
+// AccountsCreateRequest contains the input for the AccountsCreate endpoint.
 type AccountsCreateRequest struct {
 	Username string `json:"username" schema:"username"`
 	Password string `json:"password" schema:"password"`
 }
 
+// AccountsCreateResponse contains the output of the AccountsCreate request.
 type AccountsCreateResponse struct {
 	Success bool         `json:"success"`
 	Message string       `json:"message"`
 	User    *models.User `json:"data,omitempty"`
 }
 
+// AccountsCreate creates a new account in the system.
 func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	// Decode the request
 	var input AccountsCreateRequest
@@ -108,13 +111,14 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// AccountsGet returns the information about the specified account
+// AccountsGetResponse contains the result of the AccountsGet request.
 type AccountsGetResponse struct {
 	Success bool         `json:"success"`
 	Message string       `json:"message,omitempty"`
 	User    *models.User `json:"user,omitempty"`
 }
 
+// AccountsGet returns the information about the specified account
 func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
 	id, ok := c.URLParams["id"]
@@ -172,12 +176,13 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// AccountsUpdate TODO
+// AccountsUpdateResponse contains the result of the AccountsUpdate request.
 type AccountsUpdateResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// AccountsUpdate allows changing the account's information (password etc.)
 func AccountsUpdate(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(501, &AccountsUpdateResponse{
 		Success: false,
@@ -185,12 +190,13 @@ func AccountsUpdate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// AccountsDelete TODO
+// AccountsDeleteResponse contains the result of the AccountsDelete request.
 type AccountsDeleteResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// AccountsDelete allows deleting an account.
 func AccountsDelete(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(501, &AccountsDeleteResponse{
 		Success: false,
@@ -198,12 +204,13 @@ func AccountsDelete(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// AccountsWipeData TODO
+// AccountsWipeDataResponse contains the result of the AccountsWipeData request.
 type AccountsWipeDataResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// AccountsWipeData allows getting rid of the all data related to the account.
 func AccountsWipeData(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(501, &AccountsWipeDataResponse{
 		Success: false,
@@ -211,12 +218,13 @@ func AccountsWipeData(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// AccountsSessionsList TODO
+// AccountsSessionsListResponse contains the result of the AccountsSessionsList request.
 type AccountsSessionsListResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// AccountsSessionsList returns a list of all opened sessions.
 func AccountsSessionsList(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(501, &AccountsSessionsListResponse{
 		Success: false,

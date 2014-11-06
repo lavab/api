@@ -17,6 +17,7 @@ import (
 	"github.com/lavab/api/utils"
 )
 
+// TokensGetResponse contains the result of the TokensGet request.
 type TokensGetResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message,omitempty"`
@@ -24,6 +25,7 @@ type TokensGetResponse struct {
 	Expires string `json:"expires,omitempty"`
 }
 
+// TokensGet returns information about the current token.
 func TokensGet(w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the database
 	session := models.CurrentSession(r)
@@ -36,17 +38,20 @@ func TokensGet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// TokensCreateRequest contains the input for the TokensCreate endpoint.
 type TokensCreateRequest struct {
 	Username string `json:"username" schema:"username"`
 	Password string `json:"password" schema:"password"`
 }
 
+// TokensCreateResponse contains the result of the TokensCreate request.
 type TokensCreateResponse struct {
 	Success bool            `json:"success"`
 	Message string          `json:"message,omitempty"`
 	Token   *models.Session `json:"token,omitempty"`
 }
 
+// TokensCreate allows logging in to an account.
 func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	// Decode the request
 	var input TokensCreateRequest
@@ -94,12 +99,13 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Logout destroys the current session token
+// TokensDeleteResponse contains the result of the TokensDelete request.
 type TokensDeleteResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// TokensDelete destroys the current session token.
 func TokensDelete(c *web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the session from the middleware
 	session := c.Env["session"].(*models.Session)
