@@ -1,38 +1,77 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/lavab/api/utils"
 )
 
-// Contacts TODO
-func Contacts(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// ContactsListResponse contains the result of the ContactsList request.
+type ContactsListResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
-// CreateContact TODO
-func CreateContact(w http.ResponseWriter, r *http.Request) {
-	reqData, err := utils.ReadJSON(r.Body)
-	if err == nil {
-		utils.FormatNotRecognizedResponse(w, err)
-		return
-	}
-	fmt.Println("TODO", reqData)
+// ContactsList does *something* - TODO
+func ContactsList(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ContactsListResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
 }
 
-// Contact TODO
-func Contact(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// ContactsCreateResponse contains the result of the ContactsCreate request.
+type ContactsCreateResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
-// UpdateContact TODO
-func UpdateContact(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// ContactsCreate does *something* - TODO
+func ContactsCreate(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ContactsCreateResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
 }
 
-// DeleteContact TODO
-func DeleteContact(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// ContactsGetResponse contains the result of the ContactsGet request.
+type ContactsGetResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// ContactsGet does *something* - TODO
+func ContactsGet(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ContactsGetResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
+}
+
+// ContactsUpdateResponse contains the result of the ContactsUpdate request.
+type ContactsUpdateResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// ContactsUpdate does *something* - TODO
+func ContactsUpdate(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ContactsUpdateResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
+}
+
+// ContactsDeleteResponse contains the result of the ContactsDelete request.
+type ContactsDeleteResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// ContactsDelete does *something* - TODO
+func ContactsDelete(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ContactsDeleteResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
 }
