@@ -1,21 +1,49 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/lavab/api/utils"
 )
 
-// Threads TODO
-func Threads(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// ThreadsListResponse contains the result of the ThreadsList request.
+type ThreadsListResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
-// Thread TODO
-func Thread(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// ThreadsList shows all threads
+func ThreadsList(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ThreadsListResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
 }
 
-// UpdateThread TODO
-func UpdateThread(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "{\"success\":false,\"message\":\"Sorry, not implemented yet\"}")
+// ThreadsGetResponse contains the result of the ThreadsGet request.
+type ThreadsGetResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// ThreadsGet returns information about a single thread.
+func ThreadsGet(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ThreadsGetResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
+}
+
+// ThreadsUpdateResponse contains the result of the ThreadsUpdate request.
+type ThreadsUpdateResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// ThreadsUpdate does *something* with a thread.
+func ThreadsUpdate(w http.ResponseWriter, r *http.Request) {
+	utils.JSONResponse(w, 501, &ThreadsUpdateResponse{
+		Success: false,
+		Message: "Sorry, not implemented yet",
+	})
 }
