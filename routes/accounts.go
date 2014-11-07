@@ -1,9 +1,6 @@
 package routes
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -13,6 +10,7 @@ import (
 	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
+	"github.com/lavab/api/models/base"
 	"github.com/lavab/api/utils"
 )
 
@@ -51,7 +49,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		env.G.Log.WithFields(logrus.Fields{
 			"error": err,
-		}).Warning("Unable to decode a request")
+		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
@@ -61,7 +59,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure that the user with requested username doesn't exist
-	if _, ok := dbutils.FindUserByName(username); ok {
+	if _, ok := dbutils.FindUserByName(input.Username); ok {
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
 			Message: "Username already exists",
@@ -70,7 +68,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try to hash the password
-	hash, err := utils.BcryptHash(password)
+	hash, err := utils.BcryptHash(input.Password)
 	if err != nil {
 		utils.JSONResponse(w, 500, &AccountsCreateResponse{
 			Success: false,
@@ -87,7 +85,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Create a new user object
 	user := &models.User{
-		Resource: base.MakeResource(utils.UUID(), username),
+		Resource: base.MakeResource(utils.UUID(), input.Username),
 		Password: string(hash),
 	}
 
@@ -148,7 +146,7 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 		// The session refers to a non-existing user
 		env.G.Log.WithFields(logrus.Fields{
 			"id": session.ID,
-		}).Warning("Valid session referred to a removed account")
+		}).Warn("Valid session referred to a removed account")
 
 		// Try to remove the orphaned session
 		if err := db.Delete("sessions", session.ID); err != nil {

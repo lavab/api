@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/lavab/api/models"
@@ -19,9 +18,9 @@ type EmailsListResponse struct {
 // EmailsList sends a list of the emails in the inbox.
 func EmailsList(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 200, &EmailsListResponse{
-		Success:   true,
-		ItemCount: 1,
-		Emails:    []*models.Email{},
+		Success:    true,
+		ItemsCount: 1,
+		Emails:     []*models.Email{},
 	})
 }
 

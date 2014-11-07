@@ -1,12 +1,9 @@
 package routes
 
 import (
-	"fmt"
-	"log"
 	"net/http"
-	"time"
 
-	"github.com/gorilla/context"
+	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/db"
@@ -59,7 +56,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		env.G.Log.WithFields(logrus.Fields{
 			"error": err,
-		}).Warning("Unable to decode a request")
+		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 409, &TokensCreateResponse{
 			Success: false,
@@ -69,8 +66,8 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authenticate the user
-	user, ok := dbutils.FindUserByName(username)
-	if !ok || user == nil || !utils.BcryptVerify(user.Password, password) {
+	user, ok := dbutils.FindUserByName(input.Username)
+	if !ok || user == nil || !utils.BcryptVerify(user.Password, input.Password) {
 		utils.JSONResponse(w, 403, &TokensCreateResponse{
 			Success: false,
 			Message: "Wrong username or password",
@@ -84,8 +81,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	// Create a new token
 	token := &models.Session{
 		Expiring: base.Expiring{expDate},
-		Resource: base.MakeResource(user.ID, ""),
-		Name:     "Auth token expiring on " + expDate,
+		Resource: base.MakeResource(user.ID, "Auth token expiring on "+expDate),
 	}
 
 	// Insert int into the database

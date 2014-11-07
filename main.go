@@ -1,22 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"net"
 	"net/http"
-	"os"
-	"strconv"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goji/glogrus"
 	"github.com/namsral/flag"
-	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/graceful"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 
 	"github.com/lavab/api/env"
+	"github.com/lavab/api/routes"
 )
 
 // TODO: "Middleware that implements a few quick security wins"
@@ -58,7 +54,7 @@ func main() {
 
 	// Set up an auth'd mux
 	auth := web.New()
-	mux.Use(models.AuthMiddleware)
+	mux.Use(routes.AuthMiddleware)
 
 	// Index route
 	mux.Get("/", routes.Hello)
@@ -69,11 +65,11 @@ func main() {
 	auth.Get("/accounts/:id", routes.AccountsGet)
 	auth.Put("/accounts/:id", routes.AccountsUpdate)
 	auth.Delete("/accounts/:id", routes.AccountsDelete)
-	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeUserData)
+	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
 	auth.Get("/accounts/:id/sessions", routes.AccountsSessionsList)
 
 	// Tokens
-	auth.Get("/tokens", routes.TokenGet)
+	auth.Get("/tokens", routes.TokensGet)
 	auth.Post("/tokens", routes.TokensCreate)
 	auth.Delete("/tokens", routes.TokensDelete)
 
@@ -115,7 +111,7 @@ func main() {
 	mux.Compile()
 
 	// Make the mux handle every request
-	http.Handle("/", DefaultMux)
+	http.Handle("/", mux)
 
 	// Set up a new environment object
 	env.G = &env.Environment{
@@ -146,8 +142,17 @@ func main() {
 		log.Info("Stopped the application")
 	})
 
+	// Listen to the passed address
+	listener, err := net.Listen("tcp", *bindAddress)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error":   err,
+			"address": *bindAddress,
+		}).Fatal("Cannot set up a TCP listener")
+	}
+
 	// Start the listening
-	err := graceful.Serve(listener, http.DefaultServeMux)
+	err = graceful.Serve(listener, http.DefaultServeMux)
 	if err != nil {
 		// Don't use .Fatal! We need the code to shut down properly.
 		log.Error(err)

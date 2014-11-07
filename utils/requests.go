@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/schema"
 
 	"github.com/lavab/api/env"
@@ -46,7 +47,7 @@ func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 
 func ParseRequest(r *http.Request, data interface{}) error {
 	// Get the contentType for comparsions
-	contentType = r.Header.Get("Content-Type")
+	contentType := r.Header.Get("Content-Type")
 
 	// Deterimine the passed ContentType
 	if strings.Contains(contentType, "application/json") {
