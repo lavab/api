@@ -49,7 +49,7 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 		}
 
 		// Check if it's expired
-		if session.HasExpired() {
+		if session.Expired() {
 			utils.JSONResponse(w, 419, &AuthMiddlewareResponse{
 				Success: false,
 				Message: "Authorization token has expired",

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
@@ -10,28 +11,27 @@ import (
 	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
-	"github.com/lavab/api/models/base"
 	"github.com/lavab/api/utils"
 )
 
 // TokensGetResponse contains the result of the TokensGet request.
 type TokensGetResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-	Created string `json:"created,omitempty"`
-	Expires string `json:"expires,omitempty"`
+	Success bool       `json:"success"`
+	Message string     `json:"message,omitempty"`
+	Created *time.Time `json:"created,omitempty"`
+	Expires *time.Time `json:"expires,omitempty"`
 }
 
 // TokensGet returns information about the current token.
-func TokensGet(w http.ResponseWriter, r *http.Request) {
+func TokensGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the database
-	session := models.CurrentSession(r)
+	session := c.Env["session"].(*models.AuthToken)
 
 	// Respond with the token information
 	utils.JSONResponse(w, 200, &TokensGetResponse{
 		Success: true,
-		Created: session.DateCreated,
-		Expires: session.ExpirationDate,
+		Created: &session.DateCreated,
+		Expires: &session.ExpiryDate,
 	})
 }
 
@@ -43,9 +43,9 @@ type TokensCreateRequest struct {
 
 // TokensCreateResponse contains the result of the TokensCreate request.
 type TokensCreateResponse struct {
-	Success bool            `json:"success"`
-	Message string          `json:"message,omitempty"`
-	Token   *models.Session `json:"token,omitempty"`
+	Success bool              `json:"success"`
+	Message string            `json:"message,omitempty"`
+	Token   *models.AuthToken `json:"token,omitempty"`
 }
 
 // TokensCreate allows logging in to an account.
@@ -75,13 +75,13 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Calculate the expiration date
-	expDate := utils.HoursFromNowString(env.G.Config.SessionDuration)
+	// Calculate the expiry date
+	expDate := time.Now().Add(time.Hour * time.Duration(env.G.Config.SessionDuration))
 
 	// Create a new token
-	token := &models.Session{
-		Expiring: base.Expiring{expDate},
-		Resource: base.MakeResource(user.ID, "Auth token expiring on "+expDate),
+	token := &models.AuthToken{
+		Expiring: models.Expiring{expDate},
+		Resource: models.MakeResource(user.ID, "Auth token expiring on "+expDate.Format(time.RFC3339)),
 	}
 
 	// Insert int into the database
@@ -104,7 +104,7 @@ type TokensDeleteResponse struct {
 // TokensDelete destroys the current session token.
 func TokensDelete(c *web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the session from the middleware
-	session := c.Env["session"].(*models.Session)
+	session := c.Env["session"].(*models.AuthToken)
 
 	// Delete it from the database
 	if err := db.Delete("sessions", session.ID); err != nil {

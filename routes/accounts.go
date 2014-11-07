@@ -10,7 +10,6 @@ import (
 	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
-	"github.com/lavab/api/models/base"
 	"github.com/lavab/api/utils"
 )
 
@@ -85,7 +84,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Create a new user object
 	user := &models.User{
-		Resource: base.MakeResource(utils.UUID(), input.Username),
+		Resource: models.MakeResource(utils.UUID(), input.Username),
 		Password: string(hash),
 	}
 
@@ -138,10 +137,10 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := models.CurrentSession(r)
+	session := c.Env["session"].(*models.AuthToken)
 
 	// Fetch the user object from the database
-	user, ok := dbutils.GetUser(session.UserID)
+	user, ok := dbutils.GetUser(session.AccountID)
 	if !ok {
 		// The session refers to a non-existing user
 		env.G.Log.WithFields(logrus.Fields{

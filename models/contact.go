@@ -4,7 +4,4 @@ package models
 type Contact struct {
 	Encrypted
 	Resource
-
-	// Picture is a profile picture
-	Picture Avatar `json:"picture" gorethink:"picture"`
 }
