@@ -7,30 +7,30 @@ import (
 	"github.com/lavab/api/models"
 )
 
-func GetUser(id string) (*models.User, bool) {
-	var result models.User
-	response, err := db.Get("users", id)
-	if err == nil && !response.IsNil() {
-		err := response.One(&result)
-		if err != nil {
-			log.Fatalln("[utils.GetUser] Error when unfolding cursor")
-			return nil, false
-		}
-		return &result, true
-	}
-	return nil, false
+//implements the base crud interface
+type UsersTable struct {
+	db.RethinkCrud
 }
 
-func FindUserByName(username string) (*models.User, bool) {
+func (users *UsersTable) GetUser(id string) (*models.User, bool) {
 	var result models.User
-	response, err := db.GetAll("users", "name", username)
-	if err == nil && response != nil && !response.IsNil() {
-		err := response.One(&result)
-		if err != nil {
-			log.Fatalln("[utils.FindUserByName] Error when unfolding cursor")
-			return nil, false
-		}
-		return &result, true
+
+	if err := users.FindFetchOne(id, &result); err != nil {
+		log.Println(err.Error())
+		return nil, false
 	}
-	return nil, false
+
+	return &result, true
+
+}
+
+func (users *UsersTable) FindUserByName(username string) (*models.User, bool) {
+	var result models.User
+
+	if err := users.FindByIndexFetchOne(result, "name", username); err != nil {
+		log.Println(err.Error())
+		return nil, false
+	}
+
+	return &result, true
 }

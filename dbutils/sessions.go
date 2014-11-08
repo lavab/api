@@ -7,16 +7,17 @@ import (
 	"github.com/lavab/api/models"
 )
 
-func GetSession(id string) (*models.Session, bool) {
+type SessionTable struct {
+	db.RethinkCrud
+}
+
+func (sessions *SessionTable) GetSession(id string) (*models.Session, bool) {
 	var result models.Session
-	response, err := db.Get("sessions", id)
-	if err == nil && response != nil && !response.IsNil() {
-		err := response.One(&result)
-		if err != nil {
-			log.Fatalln("[utils.GetSession] Error when unfolding cursor")
-			return nil, false
-		}
-		return &result, true
+
+	if err := sessions.FindFetchOne(id, &result); err != nil {
+		log.Println(err.Error())
+		return nil, false
 	}
-	return nil, false
+
+	return &result, true
 }

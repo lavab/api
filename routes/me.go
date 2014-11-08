@@ -3,22 +3,19 @@ package routes
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
-
-	"github.com/lavab/api/db"
-	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
+	"log"
+	"net/http"
 )
 
 // Me returns information about the current user (more exactly, a JSONized models.User)
 func Me(w http.ResponseWriter, r *http.Request) {
 	session := models.CurrentSession(r)
-	user, ok := dbutils.GetUser(session.UserID)
+	user, ok := users.GetUser(session.UserID)
 	if !ok {
 		debug := fmt.Sprintf("Session %s was deleted", session.ID)
-		if err := db.Delete("sessions", session.ID); err != nil {
+		if err := sessions.DeleteId(session.ID); err != nil {
 			debug = "Error when trying to delete session associated with inactive account"
 			log.Println("[routes.Me]", debug, err)
 		}
