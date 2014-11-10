@@ -1,106 +1,56 @@
 package db
 
 import (
-	"fmt"
-	"log"
-	"os"
-	"time"
-
-	r "github.com/dancannon/gorethink"
+	"github.com/dancannon/gorethink"
 )
 
-const (
-	TABLE_SESSIONS = "sessions"
-	TABLE_USERS    = "users"
-	TABLE_EMAILS   = "emails"
-	TABLE_DRAFTS   = "drafts"
-	TABLE_CONTACTS = "contacts"
-	TABLE_THREADS  = "threads"
-	TABLE_LABELS   = "labels"
-	TABLE_KEYS     = "keys"
+// Publicly exported table models
+var (
+	Accounts *AccountsTable
+	Sessions *TokensTable
 )
 
-var config struct {
-	Session *r.Session
-	Url     string
-	AuthKey string
-	Db      string
+// Indexes of tables in the database
+var tableIndexes = map[string][]string{
+	"tokens":   []string{"user", "user_id"},
+	"accounts": []string{"name"},
+	"emails":   []string{"user_id"},
+	"drafts":   []string{"user_id"},
+	"contacts": []string{},
+	"threads":  []string{"user_id"},
+	"labels":   []string{},
+	"keys":     []string{},
 }
 
-var CurrentConfig = config
-
-var dbs = []string{
+// List of names of databases
+var databaseNames = []string{
 	"prod",
 	"staging",
 	"dev",
 }
 
-var tablesAndIndexes = map[string][]string{
-	TABLE_SESSIONS: []string{"user", "user_id"},
-	TABLE_USERS:    []string{"name"},
-	TABLE_EMAILS:   []string{"user_id"},
-	TABLE_DRAFTS:   []string{"user_id"},
-	TABLE_CONTACTS: []string{},
-	TABLE_THREADS:  []string{"user_id"},
-	TABLE_LABELS:   []string{},
-	TABLE_KEYS:     []string{},
-}
-
-func init() {
-	config.Url = "localhost:28015"
-	config.AuthKey = ""
-	config.Db = "dev"
-
-	if tmp := os.Getenv("RETHINKDB_URL"); tmp != "" {
-		config.Url = tmp
-	} else if tmp := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR"); tmp != "" {
-		config.Url = fmt.Sprintf("%s:28015", tmp)
-	} else {
-		log.Printf("No database URL specified, using %s.\n", config.Url)
-	}
-	if tmp := os.Getenv("RETHINKDB_AUTHKEY"); tmp != "" {
-		config.AuthKey = tmp
-	} else {
-		log.Fatalln("Variable RETHINKDB_AUTHKEY not set.")
-	}
-	if tmp := os.Getenv("API_ENV"); tmp != "" {
-		// TODO add check that tmp is in dbs
-		config.Db = tmp
-	} else {
-		log.Printf("No database specified, using %s.\n", config.Db)
-	}
-
-	// Initialise databases, tables, and indexes. This might take a while if they don't exist
-	setupSession, err := r.Connect(r.ConnectOpts{
-		Address:     config.Url,
-		AuthKey:     config.AuthKey,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
-	})
+// Setup configures the RethinkDB server
+func Setup(opts gorethink.ConnectOpts) error {
+	// Initialize a new setup connection
+	setupSession, err := gorethink.Connect(opts)
 	if err != nil {
-		log.Fatalf("Error connecting to DB: %s", err)
+		return err
 	}
-	log.Println("Creating dbs \\ tables \\ indexes")
-	for _, d := range dbs {
-		log.Println(d)
-		r.DbCreate(d).Run(setupSession)
-		for t, indexes := range tablesAndIndexes {
-			log.Println("›  ", t)
-			r.Db(d).TableCreate(t).RunWrite(setupSession)
+
+	// Create databases
+	for _, d := range databaseNames {
+		gorethink.DbCreate(d).Run(setupSession)
+
+		// Create tables
+		for t, indexes := range tableIndexes {
+			gorethink.Db(d).TableCreate(t).RunWrite(setupSession)
+
+			// Create indexes
 			for _, index := range indexes {
-				log.Println("›  ›  ", index)
-				r.Db(d).Table(t).IndexCreate(index).Exec(setupSession)
+				gorethink.Db(d).Table(t).IndexCreate(index).Exec(setupSession)
 			}
 		}
 	}
-	setupSession.Close()
 
-	// Setting up the main session
-	config.Session, err = r.Connect(r.ConnectOpts{
-		Address:     config.Url,
-		AuthKey:     config.AuthKey,
-		Database:    config.Db,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
-	})
+	return setupSession.Close()
 }

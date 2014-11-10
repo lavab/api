@@ -4,33 +4,27 @@ import (
 	"fmt"
 )
 
-type DbError struct {
-	err   error
-	msg   string
-	table RethinkTable
+type DatabaseError struct {
+	err     error
+	message string
+	table   RethinkTable
 }
 
-func (derr *DbError) Error() string {
+func (d *DatabaseError) Error() string {
 	return fmt.Sprintf(
-		"%s - Db: %s - Table : %s - %s ",
-		derr.msg,
-		derr.table.GetDbName(),
-		derr.table.GetTableName(),
-		derr.err)
+		"%s - DB: %s - Table : %s - %s",
+		d.message,
+		d.table.GetDBName(),
+		d.table.GetTableName(),
+		d.err,
+	)
 }
 
-func NewDbErr(t RethinkTable, err error) *DbError {
-	return &DbError{
-		err:   err,
-		table: t,
-	}
-}
-
-func NewDbErrWithMsg(t RethinkTable, err error, msg string) *DbError {
-	return &DbError{
-		err:   err,
-		table: t,
-		msg:   msg,
+func NewDatabaseError(t RethinkTable, err error, message string) *DatabaseError {
+	return &DatabaseError{
+		err:     err,
+		table:   t,
+		message: message,
 	}
 }
 

@@ -6,8 +6,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
-	"github.com/lavab/api/db"
-	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
@@ -37,7 +35,7 @@ type AccountsCreateRequest struct {
 type AccountsCreateResponse struct {
 	Success bool            `json:"success"`
 	Message string          `json:"message"`
-	User    *models.Account `json:"data,omitempty"`
+	Account *models.Account `json:"account,omitempty"`
 }
 
 // AccountsCreate creates a new account in the system.
@@ -58,7 +56,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure that the user with requested username doesn't exist
-	if _, ok := dbutils.FindAccountByUsername(input.Username); ok {
+	if _, err := env.G.R.Accounts.FindAccountByName(input.Username); err != nil {
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
 			Message: "Username already exists",
@@ -83,13 +81,13 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	// TODO: sanitize user name (i.e. remove caps, periods)
 
 	// Create a new user object
-	user := &models.Account{
-		Resource: models.MakeResource(utils.UUID(), input.Username),
+	account := &models.Account{
+		Resource: models.MakeResource("", input.Username),
 		Password: string(hash),
 	}
 
 	// Try to save it in the database
-	if err := db.Insert("users", user); err != nil {
+	if err := env.G.R.Accounts.Insert(account); err != nil {
 		utils.JSONResponse(w, 500, &AccountsCreateResponse{
 			Success: false,
 			Message: "Internal server error - AC/CR/02",
@@ -104,7 +102,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 201, &AccountsCreateResponse{
 		Success: true,
 		Message: "A new account was successfully created",
-		User:    user,
+		Account: account,
 	})
 }
 
@@ -140,15 +138,16 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["session"].(*models.Token)
 
 	// Fetch the user object from the database
-	user, ok := dbutils.GetAccount(session.Owner)
-	if !ok {
+	user, err := env.G.R.Accounts.GetAccount(session.Owner)
+	if err != nil {
 		// The session refers to a non-existing user
 		env.G.Log.WithFields(logrus.Fields{
-			"id": session.ID,
+			"id":    session.ID,
+			"error": err,
 		}).Warn("Valid session referred to a removed account")
 
 		// Try to remove the orphaned session
-		if err := db.Delete("sessions", session.ID); err != nil {
+		if err := env.G.R.Tokens.DeleteID(session.ID); err != nil {
 			env.G.Log.WithFields(logrus.Fields{
 				"id":    session.ID,
 				"error": err,

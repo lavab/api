@@ -7,8 +7,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
-	"github.com/lavab/api/db"
-	"github.com/lavab/api/dbutils"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
@@ -66,8 +64,8 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authenticate the user
-	user, ok := dbutils.FindAccountByUsername(input.Username)
-	if !ok || user == nil || !utils.BcryptVerify(user.Password, input.Password) {
+	user, err := env.G.R.Accounts.FindAccountByName(input.Username)
+	if err != nil || !utils.BcryptVerify(user.Password, input.Password) {
 		utils.JSONResponse(w, 403, &TokensCreateResponse{
 			Success: false,
 			Message: "Wrong username or password",
@@ -85,7 +83,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert int into the database
-	db.Insert("sessions", token)
+	env.G.R.Tokens.Insert(token)
 
 	// Respond with the freshly created token
 	utils.JSONResponse(w, 201, &TokensCreateResponse{
@@ -107,7 +105,7 @@ func TokensDelete(c *web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["session"].(*models.Token)
 
 	// Delete it from the database
-	if err := db.Delete("sessions", session.ID); err != nil {
+	if err := env.G.R.Tokens.DeleteID(session.ID); err != nil {
 		env.G.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Unable to delete a session")

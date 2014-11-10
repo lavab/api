@@ -35,7 +35,7 @@ type EmailsCreateResponse struct {
 func EmailsCreate(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 200, &EmailsCreateResponse{
 		Success: true,
-		Created: []string{utils.UUID()},
+		Created: []string{"123"},
 	})
 }
 

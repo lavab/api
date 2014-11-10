@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 // Expiring is a base struct for resources that expires e.g. sessions.
 type Expiring struct {

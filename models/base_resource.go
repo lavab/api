@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"github.com/lavab/api/utils"
+	"github.com/dchest/uniuri"
 )
 
 // Resource is the base type for API resources.
@@ -29,7 +29,7 @@ type Resource struct {
 func MakeResource(ownerID, name string) Resource {
 	t := time.Now()
 	return Resource{
-		ID:           utils.UUID(),
+		ID:           uniuri.NewLen(uniuri.UUIDLen),
 		DateModified: t,
 		DateCreated:  t,
 		Name:         name,

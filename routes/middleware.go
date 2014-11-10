@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
-	"github.com/lavab/api/db"
-	"github.com/lavab/api/dbutils"
+	"github.com/lavab/api/env"
 	"github.com/lavab/api/utils"
 )
 
@@ -38,9 +38,13 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 			return
 		}
 
-		// Get the session from the database
-		session, ok := dbutils.GetSession(headerParts[1])
-		if !ok {
+		// Get the token from the database
+		token, err := env.G.R.Tokens.GetToken(headerParts[1])
+		if err != nil {
+			env.G.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Cannot retrieve session from the database")
+
 			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
 				Success: false,
 				Message: "Invalid authorization token",
@@ -49,17 +53,17 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 		}
 
 		// Check if it's expired
-		if session.Expired() {
+		if token.Expired() {
 			utils.JSONResponse(w, 419, &AuthMiddlewareResponse{
 				Success: false,
 				Message: "Authorization token has expired",
 			})
-			db.Delete("sessions", session.ID)
+			env.G.R.Tokens.DeleteID(token.ID)
 			return
 		}
 
 		// Continue to the next middleware/route
-		c.Env["session"] = session
+		c.Env["session"] = token
 		h.ServeHTTP(w, r)
 	})
 }

@@ -3,14 +3,18 @@ package main
 import (
 	"net"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/dancannon/gorethink"
 	"github.com/goji/glogrus"
 	"github.com/namsral/flag"
 	"github.com/zenazn/goji/graceful"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 
+	"github.com/lavab/api/db"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/routes"
 )
@@ -19,10 +23,27 @@ import (
 // 		 https://github.com/unrolled/secure
 
 var (
+	// General flags
 	bindAddress      = flag.String("bind", ":5000", "Network address used to bind")
 	apiVersion       = flag.String("version", "v0", "Shown API version")
 	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
 	sessionDuration  = flag.Int("session_duration", 72, "Session duration expressed in hours")
+	// Database-related flags
+	rethinkdbURL = flag.String("rethinkdb_url", func() string {
+		address := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR")
+		if address == "" {
+			address = "localhost"
+		}
+		return address + ":28015"
+	}(), "Address of the RethinkDB database")
+	rethinkdbKey      = flag.String("rethinkdb_key", os.Getenv("RETHINKDB_AUTHKEY"), "Authentication key of the RethinkDB database")
+	rethinkdbDatabase = flag.String("rethinkdb_db", func() string {
+		database := os.Getenv("RETHINKDB_NAME")
+		if database == "" {
+			database = "dev"
+		}
+		return database
+	}(), "Database name on the RethinkDB server")
 )
 
 func main() {
@@ -37,6 +58,47 @@ func main() {
 		log.Formatter = &logrus.TextFormatter{}
 	} else if *logFormatterType == "json" {
 		log.Formatter = &logrus.JSONFormatter{}
+	}
+
+	// Set up the database
+	rethinkOpts := gorethink.ConnectOpts{
+		Address:     *rethinkdbURL,
+		AuthKey:     *rethinkdbKey,
+		MaxIdle:     10,
+		IdleTimeout: time.Second * 10,
+	}
+	err := db.Setup(rethinkOpts)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to set up the database")
+	}
+
+	// Initialize the actual connection
+	rethinkOpts.Database = *rethinkdbDatabase
+	rethinkSession, err := gorethink.Connect(rethinkOpts)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to connect to the database")
+	}
+
+	// Initialize the tables
+	tables := &env.R{
+		Accounts: &db.AccountsTable{
+			RethinkCRUD: db.NewCRUDTable(
+				rethinkSession,
+				rethinkOpts.Database,
+				"accounts",
+			),
+		},
+		Tokens: &db.TokensTable{
+			RethinkCRUD: db.NewCRUDTable(
+				rethinkSession,
+				rethinkOpts.Database,
+				"tokens",
+			),
+		},
 	}
 
 	// Create a new goji mux
@@ -122,6 +184,8 @@ func main() {
 			LogFormatterType: *logFormatterType,
 			SessionDuration:  *sessionDuration,
 		},
+		Rethink: rethinkSession,
+		R:       tables,
 	}
 
 	// Log that we're starting the server
