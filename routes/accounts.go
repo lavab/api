@@ -64,8 +64,14 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try to hash the password
-	hash, err := utils.BcryptHash(input.Password)
+	// TODO: sanitize user name (i.e. remove caps, periods)
+
+	// Create a new user object
+	account := &models.Account{
+		Resource: models.MakeResource("", input.Username),
+	}
+
+	err = account.SetPassword(input.Password)
 	if err != nil {
 		utils.JSONResponse(w, 500, &AccountsCreateResponse{
 			Success: false,
@@ -74,16 +80,8 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		env.G.Log.WithFields(logrus.Fields{
 			"error": err,
-		}).Error("Unable to hash a password")
+		}).Error("Unable to hash the password")
 		return
-	}
-
-	// TODO: sanitize user name (i.e. remove caps, periods)
-
-	// Create a new user object
-	account := &models.Account{
-		Resource: models.MakeResource("", input.Username),
-		Password: string(hash),
 	}
 
 	// Try to save it in the database

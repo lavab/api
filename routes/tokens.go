@@ -63,14 +63,35 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Authenticate the user
+	// Check if account exists
 	user, err := env.G.R.Accounts.FindAccountByName(input.Username)
-	if err != nil || !utils.BcryptVerify(user.Password, input.Password) {
+	if err != nil {
 		utils.JSONResponse(w, 403, &TokensCreateResponse{
 			Success: false,
 			Message: "Wrong username or password",
 		})
 		return
+	}
+
+	// Verify the password
+	valid, updated, err := user.VerifyPassword(input.Password)
+	if err != nil || !valid {
+		utils.JSONResponse(w, 403, &TokensCreateResponse{
+			Success: false,
+			Message: "Wrong username or password",
+		})
+		return
+	}
+
+	// Update the user if password was updated
+	if updated {
+		err := env.G.R.Accounts.UpdateID(user.ID, user)
+		if err != nil {
+			env.G.Log.WithFields(logrus.Fields{
+				"user":  user.Name,
+				"error": err,
+			}).Error("Could not update user")
+		}
 	}
 
 	// Calculate the expiry date
