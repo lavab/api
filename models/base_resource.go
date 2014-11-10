@@ -26,14 +26,14 @@ type Resource struct {
 }
 
 // MakeResource creates a new Resource object with sane defaults.
-func MakeResource(accountID, name string) Resource {
+func MakeResource(ownerID, name string) Resource {
 	t := time.Now()
 	return Resource{
 		ID:           utils.UUID(),
 		DateModified: t,
 		DateCreated:  t,
 		Name:         name,
-		Owner:        accountID,
+		Owner:        ownerID,
 	}
 }
 

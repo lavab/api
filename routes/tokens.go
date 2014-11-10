@@ -25,7 +25,7 @@ type TokensGetResponse struct {
 // TokensGet returns information about the current token.
 func TokensGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.AuthToken)
+	session := c.Env["session"].(*models.Token)
 
 	// Respond with the token information
 	utils.JSONResponse(w, 200, &TokensGetResponse{
@@ -43,9 +43,9 @@ type TokensCreateRequest struct {
 
 // TokensCreateResponse contains the result of the TokensCreate request.
 type TokensCreateResponse struct {
-	Success bool              `json:"success"`
-	Message string            `json:"message,omitempty"`
-	Token   *models.AuthToken `json:"token,omitempty"`
+	Success bool          `json:"success"`
+	Message string        `json:"message,omitempty"`
+	Token   *models.Token `json:"token,omitempty"`
 }
 
 // TokensCreate allows logging in to an account.
@@ -66,7 +66,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authenticate the user
-	user, ok := dbutils.FindUserByName(input.Username)
+	user, ok := dbutils.FindAccountByUsername(input.Username)
 	if !ok || user == nil || !utils.BcryptVerify(user.Password, input.Password) {
 		utils.JSONResponse(w, 403, &TokensCreateResponse{
 			Success: false,
@@ -79,7 +79,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	expDate := time.Now().Add(time.Hour * time.Duration(env.G.Config.SessionDuration))
 
 	// Create a new token
-	token := &models.AuthToken{
+	token := &models.Token{
 		Expiring: models.Expiring{expDate},
 		Resource: models.MakeResource(user.ID, "Auth token expiring on "+expDate.Format(time.RFC3339)),
 	}
@@ -104,7 +104,7 @@ type TokensDeleteResponse struct {
 // TokensDelete destroys the current session token.
 func TokensDelete(c *web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the session from the middleware
-	session := c.Env["session"].(*models.AuthToken)
+	session := c.Env["session"].(*models.Token)
 
 	// Delete it from the database
 	if err := db.Delete("sessions", session.ID); err != nil {

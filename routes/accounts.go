@@ -35,9 +35,9 @@ type AccountsCreateRequest struct {
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
 type AccountsCreateResponse struct {
-	Success bool         `json:"success"`
-	Message string       `json:"message"`
-	User    *models.User `json:"data,omitempty"`
+	Success bool            `json:"success"`
+	Message string          `json:"message"`
+	User    *models.Account `json:"data,omitempty"`
 }
 
 // AccountsCreate creates a new account in the system.
@@ -58,7 +58,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure that the user with requested username doesn't exist
-	if _, ok := dbutils.FindUserByName(input.Username); ok {
+	if _, ok := dbutils.FindAccountByUsername(input.Username); ok {
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
 			Message: "Username already exists",
@@ -83,7 +83,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	// TODO: sanitize user name (i.e. remove caps, periods)
 
 	// Create a new user object
-	user := &models.User{
+	user := &models.Account{
 		Resource: models.MakeResource(utils.UUID(), input.Username),
 		Password: string(hash),
 	}
@@ -110,9 +110,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 // AccountsGetResponse contains the result of the AccountsGet request.
 type AccountsGetResponse struct {
-	Success bool         `json:"success"`
-	Message string       `json:"message,omitempty"`
-	User    *models.User `json:"user,omitempty"`
+	Success bool            `json:"success"`
+	Message string          `json:"message,omitempty"`
+	User    *models.Account `json:"user,omitempty"`
 }
 
 // AccountsGet returns the information about the specified account
@@ -137,10 +137,10 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.AuthToken)
+	session := c.Env["session"].(*models.Token)
 
 	// Fetch the user object from the database
-	user, ok := dbutils.GetUser(session.AccountID)
+	user, ok := dbutils.GetAccount(session.Owner)
 	if !ok {
 		// The session refers to a non-existing user
 		env.G.Log.WithFields(logrus.Fields{
