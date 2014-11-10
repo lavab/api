@@ -27,7 +27,7 @@ func (users *UsersTable) GetUser(id string) (*models.User, bool) {
 func (users *UsersTable) FindUserByName(username string) (*models.User, bool) {
 	var result models.User
 
-	if err := users.FindByIndexFetchOne(result, "name", username); err != nil {
+	if err := users.FindByIndexFetchOne(&result, "name", username); err != nil {
 		log.Println(err.Error())
 		return nil, false
 	}
