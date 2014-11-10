@@ -17,15 +17,15 @@ const SessionDurationInHours = 72
 // Login gets a username and password and returns a session token on success
 func Login(w http.ResponseWriter, r *http.Request) {
 	username, password := r.FormValue("username"), r.FormValue("password")
-	user, ok := dbutils.FindUserByName(username)
-	if !ok || user == nil || !utils.BcryptVerify(user.Password, password) {
+	account, ok := dbutils.FindAccountByUsername(username)
+	if !ok || account == nil || !utils.BcryptVerify(account.Password, password) {
 		utils.ErrorResponse(w, 403, "Wrong username or password",
-			fmt.Sprintf("user: %+v", user))
+			fmt.Sprintf("account: %+v", account))
 		return
 	}
 
-	// TODO check number of sessions for the current user here
-	session := models.AuthToken{Resource: models.MakeResource(user.ID, "")}
+	// TODO check number of sessions for the current account here
+	session := models.Token{Resource: models.MakeResource(account.ID, "")}
 	session.ExpireAfterNHours(SessionDurationInHours)
 	db.Insert("sessions", session)
 
@@ -39,9 +39,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 // Signup gets a username and password and creates a user account on success
 func Signup(w http.ResponseWriter, r *http.Request) {
 	username, password := r.FormValue("username"), r.FormValue("password")
-	// regt := r.FormValue("reg_token")
 
-	if _, ok := dbutils.FindUserByName(username); ok {
+	if _, ok := dbutils.FindAccountByUsername(username); ok {
 		utils.ErrorResponse(w, 409, "Username already exists", "")
 		return
 	}
@@ -55,32 +54,32 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: sanitize user name (i.e. remove caps, periods)
 
-	user := models.User{
+	account := models.Account{
 		Resource: models.MakeResource(utils.UUID(), username),
 		Password: string(hash),
 	}
 
-	if err := db.Insert("users", user); err != nil {
+	if err := db.Insert("account", account); err != nil {
 		utils.ErrorResponse(w, 500, "Internal server error",
-			fmt.Sprintf("Couldn't insert %+v to database", user))
+			fmt.Sprintf("Couldn't insert %+v to database", account))
 	}
 
 	utils.JSONResponse(w, 201, map[string]interface{}{
 		"message": "Signup successful",
 		"success": true,
-		"data":    user,
+		"data":    account,
 	})
 }
 
 // Logout destroys the current session token
 func Logout(w http.ResponseWriter, r *http.Request) {
-	session := context.Get(r, "session").(*models.AuthToken)
+	session := context.Get(r, "session").(*models.Token)
 	if err := db.Delete("sessions", session.ID); err != nil {
 		utils.ErrorResponse(w, 500, "Internal server error",
 			fmt.Sprint("Couldn't delete session %v. %v", session, err))
 	}
 	utils.JSONResponse(w, 410, map[string]interface{}{
-		"message": fmt.Sprintf("Successfully logged out", session.AccountID),
+		"message": fmt.Sprintf("Successfully logged out", session.Owner),
 		"success": true,
 		"deleted": session.ID,
 	})

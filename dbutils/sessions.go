@@ -8,8 +8,8 @@ import (
 )
 
 // TODO change names to auth tokens instead of sessions
-func GetSession(id string) (*models.AuthToken, bool) {
-	var result models.AuthToken
+func GetSession(id string) (*models.Token, bool) {
+	var result models.Token
 	response, err := db.Get("sessions", id)
 	if err == nil && response != nil && !response.IsNil() {
 		err := response.One(&result)

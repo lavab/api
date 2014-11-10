@@ -16,7 +16,12 @@ func (e *Expiring) Expired() bool {
 	return false
 }
 
-// ExpireAfterNHours sets e.ExpiryDate to time.Now().UTC() + n hours
+// ExpireAfterNHours sets the expiry date to time.Now().UTC() + n hours
 func (e *Expiring) ExpireAfterNHours(n int) {
 	e.ExpiryDate = time.Now().UTC().Add(time.Duration(n) * time.Hour)
+}
+
+// ExpireSoon sets the expiry date to something in the near future.
+func (e *Expiring) ExpireSoon() {
+	e.ExpiryDate = time.Now().UTC().Add(time.Duration(2) * time.Minute)
 }

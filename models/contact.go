@@ -5,6 +5,6 @@ type Contact struct {
 	Encrypted
 	Resource
 
-	// Picture is a profile picture
-	Picture Avatar `json:"picture" gorethink:"picture"`
+	// ProfilePicture is an encrypted picture associated with a contact.
+	ProfilePicture File `json:"profile_picture" gorethink:"profile_picture"`
 }
