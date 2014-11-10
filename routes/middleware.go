@@ -1,0 +1,69 @@
+package routes
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/zenazn/goji/web"
+
+	"github.com/lavab/api/env"
+	"github.com/lavab/api/utils"
+)
+
+type AuthMiddlewareResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Read the Authorization header
+		header := r.Header.Get("Authorization")
+		if header == "" {
+			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
+				Success: false,
+				Message: "Missing auth token",
+			})
+			return
+		}
+
+		// Split it into two parts
+		headerParts := strings.Split(header, " ")
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
+				Success: false,
+				Message: "Invalid authorization header",
+			})
+			return
+		}
+
+		// Get the token from the database
+		token, err := env.G.R.Tokens.GetToken(headerParts[1])
+		if err != nil {
+			env.G.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Cannot retrieve session from the database")
+
+			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
+				Success: false,
+				Message: "Invalid authorization token",
+			})
+			return
+		}
+
+		// Check if it's expired
+		if token.Expired() {
+			utils.JSONResponse(w, 419, &AuthMiddlewareResponse{
+				Success: false,
+				Message: "Authorization token has expired",
+			})
+			env.G.R.Tokens.DeleteID(token.ID)
+			return
+		}
+
+		// Continue to the next middleware/route
+		c.Env["session"] = token
+		h.ServeHTTP(w, r)
+	})
+}
