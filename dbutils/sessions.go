@@ -7,17 +7,17 @@ import (
 	"github.com/lavab/api/models"
 )
 
-// TODO change names to auth tokens instead of sessions
-func GetSession(id string) (*models.Token, bool) {
-	var result models.Token
-	response, err := db.Get("sessions", id)
-	if err == nil && response != nil && !response.IsNil() {
-		err := response.One(&result)
-		if err != nil {
-			log.Fatalln("[utils.GetSession] Error when unfolding cursor")
-			return nil, false
-		}
-		return &result, true
+type SessionTable struct {
+	db.RethinkCrud
+}
+
+func (sessions *SessionTable) GetSession(id string) (*models.Session, bool) {
+	var result models.Session
+
+	if err := sessions.FindFetchOne(id, &result); err != nil {
+		log.Println(err.Error())
+		return nil, false
 	}
-	return nil, false
+
+	return &result, true
 }

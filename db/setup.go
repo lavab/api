@@ -9,12 +9,25 @@ import (
 	r "github.com/dancannon/gorethink"
 )
 
+const (
+	TABLE_SESSIONS = "sessions"
+	TABLE_USERS    = "users"
+	TABLE_EMAILS   = "emails"
+	TABLE_DRAFTS   = "drafts"
+	TABLE_CONTACTS = "contacts"
+	TABLE_THREADS  = "threads"
+	TABLE_LABELS   = "labels"
+	TABLE_KEYS     = "keys"
+)
+
 var config struct {
 	Session *r.Session
 	Url     string
 	AuthKey string
 	Db      string
 }
+
+var CurrentConfig = config
 
 var dbs = []string{
 	"prod",
@@ -23,14 +36,14 @@ var dbs = []string{
 }
 
 var tablesAndIndexes = map[string][]string{
-	"sessions": []string{"user", "user_id"},
-	"users":    []string{"name"},
-	"emails":   []string{"user_id"},
-	"drafts":   []string{"user_id"},
-	"contacts": []string{},
-	"threads":  []string{"user_id"},
-	"labels":   []string{},
-	"keys":     []string{},
+	TABLE_SESSIONS: []string{"user", "user_id"},
+	TABLE_USERS:    []string{"name"},
+	TABLE_EMAILS:   []string{"user_id"},
+	TABLE_DRAFTS:   []string{"user_id"},
+	TABLE_CONTACTS: []string{},
+	TABLE_THREADS:  []string{"user_id"},
+	TABLE_LABELS:   []string{},
+	TABLE_KEYS:     []string{},
 }
 
 func init() {

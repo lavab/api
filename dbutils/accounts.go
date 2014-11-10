@@ -5,28 +5,30 @@ import (
 	"github.com/lavab/api/models"
 )
 
-func GetAccount(id string) (*models.Account, bool) {
-	var result models.Account
-	response, err := db.Get("accounts", id)
-	if err == nil && !response.IsNil() {
-		err := response.One(&result)
-		if err != nil {
-			return nil, false
-		}
-		return &result, true
-	}
-	return nil, false
+//implements the base crud interface
+type UsersTable struct {
+	db.RethinkCrud
 }
 
-func FindAccountByUsername(username string) (*models.Account, bool) {
-	var result models.Account
-	response, err := db.GetAll("accounts", "name", username)
-	if err == nil && response != nil && !response.IsNil() {
-		err := response.One(&result)
-		if err != nil {
-			return nil, false
-		}
-		return &result, true
+func (users *UsersTable) GetUser(id string) (*models.User, bool) {
+	var result models.User
+
+	if err := users.FindFetchOne(id, &result); err != nil {
+		log.Println(err.Error())
+		return nil, false
 	}
-	return nil, false
+
+	return &result, true
+
+}
+
+func (users *UsersTable) FindUserByName(username string) (*models.User, bool) {
+	var result models.User
+
+	if err := users.FindByIndexFetchOne(&result, "name", username); err != nil {
+		log.Println(err.Error())
+		return nil, false
+	}
+
+	return &result, true
 }
