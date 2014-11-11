@@ -37,6 +37,7 @@ func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
 type TokensCreateRequest struct {
 	Username string `json:"username" schema:"username"`
 	Password string `json:"password" schema:"password"`
+	Type     string `json:"type" schema:"type"`
 }
 
 // TokensCreateResponse contains the result of the TokensCreate request.
@@ -59,6 +60,15 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, 409, &TokensCreateResponse{
 			Success: false,
 			Message: "Invalid input format",
+		})
+		return
+	}
+
+	// We can only create "auth" tokens now
+	if input.Type != "auth" {
+		utils.JSONResponse(w, 409, &TokensCreateResponse{
+			Success: false,
+			Message: "Only auth tokens are implemented",
 		})
 		return
 	}
@@ -101,6 +111,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	token := &models.Token{
 		Expiring: models.Expiring{expDate},
 		Resource: models.MakeResource(user.ID, "Auth token expiring on "+expDate.Format(time.RFC3339)),
+		Type:     input.Type,
 	}
 
 	// Insert int into the database

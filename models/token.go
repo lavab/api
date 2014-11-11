@@ -5,7 +5,7 @@ type Token struct {
 	Expiring
 	Resource
 
-	// Type describes the token's purpose: auth, invite, upgrade, etc.
+	// Type describes the token's purpose: auth, invite, confirm, upgrade.
 	Type string `json:"type" gorethink:"type"`
 }
 
