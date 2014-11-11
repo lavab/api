@@ -18,4 +18,6 @@ var (
 	Accounts *db.AccountsTable
 	// Tokens is the global instance of TokensTable
 	Tokens *db.TokensTable
+	// Keys is the global instance of KeysTable
+	Keys *db.KeysTable
 )
