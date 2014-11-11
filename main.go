@@ -8,7 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dancannon/gorethink"
-	"github.com/goji/glogrus"
+	"github.com/lavab/glogrus"
 	"github.com/namsral/flag"
 	"github.com/zenazn/goji/graceful"
 	"github.com/zenazn/goji/web"
@@ -28,6 +28,7 @@ var (
 	apiVersion       = flag.String("version", "v0", "Shown API version")
 	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
 	sessionDuration  = flag.Int("session_duration", 72, "Session duration expressed in hours")
+	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
 	// Database-related flags
 	rethinkdbURL = flag.String("rethinkdb_url", func() string {
 		address := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR")
@@ -63,7 +64,9 @@ func main() {
 
 	// Set the formatter depending on the passed flag's value
 	if *logFormatterType == "text" {
-		log.Formatter = &logrus.TextFormatter{}
+		log.Formatter = &logrus.TextFormatter{
+			ForceColors: *forceColors,
+		}
 	} else if *logFormatterType == "json" {
 		log.Formatter = &logrus.JSONFormatter{}
 	}
@@ -128,7 +131,7 @@ func main() {
 
 	// Set up an auth'd mux
 	auth := web.New()
-	mux.Use(routes.AuthMiddleware)
+	auth.Use(routes.AuthMiddleware)
 
 	// Index route
 	mux.Get("/", routes.Hello)
@@ -179,7 +182,7 @@ func main() {
 	auth.Post("/keys/:id/vote", routes.KeysVote)
 
 	// Merge the muxes
-	mux.Handle("/", auth)
+	mux.Handle("/*", auth)
 
 	// Compile the routes
 	mux.Compile()

@@ -21,7 +21,7 @@ type TokensGetResponse struct {
 }
 
 // TokensGet returns information about the current token.
-func TokensGet(c *web.C, w http.ResponseWriter, r *http.Request) {
+func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the database
 	session := c.Env["session"].(*models.Token)
 
@@ -121,7 +121,7 @@ type TokensDeleteResponse struct {
 }
 
 // TokensDelete destroys the current session token.
-func TokensDelete(c *web.C, w http.ResponseWriter, r *http.Request) {
+func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the session from the middleware
 	session := c.Env["session"].(*models.Token)
 

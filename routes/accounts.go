@@ -112,7 +112,7 @@ type AccountsGetResponse struct {
 }
 
 // AccountsGet returns the information about the specified account
-func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
+func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
 	id, ok := c.URLParams["id"]
 	if !ok {
