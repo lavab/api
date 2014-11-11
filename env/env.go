@@ -8,9 +8,14 @@ import (
 )
 
 var (
-	Config   *Flags
-	Log      *logrus.Logger
-	Rethink  *gorethink.Session
+	// Config contains flags passed to the API
+	Config *Flags
+	// Log is the API's logrus instance
+	Log *logrus.Logger
+	// Rethink contains the RethinkDB session used in the API
+	Rethink *gorethink.Session
+	// Accounts is the global instance of AccountsTable
 	Accounts *db.AccountsTable
-	Tokens   *db.TokensTable
+	// Tokens is the global instance of TokensTable
+	Tokens *db.TokensTable
 )

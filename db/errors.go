@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// DatabaseError is the wrapper for RethinkDB errors that allows passing more data with the message
 type DatabaseError struct {
 	err     error
 	message string
@@ -20,23 +21,11 @@ func (d *DatabaseError) Error() string {
 	)
 }
 
+// NewDatabaseError creates a new DatabaseError, wraps err and adds a message
 func NewDatabaseError(t RethinkTable, err error, message string) *DatabaseError {
 	return &DatabaseError{
 		err:     err,
 		table:   t,
 		message: message,
 	}
-}
-
-type ConnectionError struct {
-	error
-	WrongAuthKey bool
-	Unreachable  bool
-}
-
-type NotFound struct {
-	error
-	Database bool
-	Table    bool
-	Item     bool
 }

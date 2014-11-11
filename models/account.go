@@ -2,7 +2,7 @@ package models
 
 import (
 	"github.com/gyepisam/mcf"
-	_ "github.com/gyepisam/mcf/scrypt"
+	_ "github.com/gyepisam/mcf/scrypt" // Required to have mcf hash the password into scrypt
 )
 
 // Account stores essential data for a Lavaboom user, and is thus not encrypted.

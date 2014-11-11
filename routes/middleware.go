@@ -11,11 +11,13 @@ import (
 	"github.com/lavab/api/utils"
 )
 
+// AuthMiddlewareResponse is the response sent by the middleware if user is not logged in
 type AuthMiddlewareResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// AuthMiddleware checks whether the token passed with the request is valid
 func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Read the Authorization header

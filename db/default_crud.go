@@ -137,7 +137,7 @@ func (d *Default) FindByAndFetch(key string, value interface{}, results interfac
 	return nil
 }
 
-// FindByFetchOne retrieves a value by key and then fills result with the first row of the result
+// FindByAndFetchOne retrieves a value by key and then fills result with the first row of the result
 func (d *Default) FindByAndFetchOne(key string, value interface{}, result interface{}) error {
 	cursor, err := d.FindBy(key, value)
 	if err != nil {

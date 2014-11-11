@@ -7,7 +7,7 @@ func TimeNowString() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
 
-// HoursFromNow returns time.Now + n hours in string format. The result is RFC3339
+// HoursFromNowString returns time.Now + n hours in string format. The result is RFC3339
 // encoded and in UTC. This makes it possible to compare the times with a simple
 // string comparison. Example: "2006-12-30T15:34:45Z00:00"
 func HoursFromNowString(n int) string {
