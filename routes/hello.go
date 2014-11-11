@@ -19,6 +19,6 @@ func Hello(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 200, &HelloResponse{
 		Message: "Lavaboom API",
 		DocsURL: "http://lavaboom.readme.io/",
-		Version: env.G.Config.APIVersion,
+		Version: env.Config.APIVersion,
 	})
 }

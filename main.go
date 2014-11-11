@@ -50,6 +50,14 @@ func main() {
 	// Parse the flags
 	flag.Parse()
 
+	// Put config into the environment package
+	env.Config = &env.Flags{
+		BindAddress:      *bindAddress,
+		APIVersion:       *apiVersion,
+		LogFormatterType: *logFormatterType,
+		SessionDuration:  *sessionDuration,
+	}
+
 	// Set up a new logger
 	log := logrus.New()
 
@@ -59,6 +67,9 @@ func main() {
 	} else if *logFormatterType == "json" {
 		log.Formatter = &logrus.JSONFormatter{}
 	}
+
+	// Pass it to the environment package
+	env.Log = log
 
 	// Set up the database
 	rethinkOpts := gorethink.ConnectOpts{
@@ -83,22 +94,23 @@ func main() {
 		}).Fatal("Unable to connect to the database")
 	}
 
+	// Put the RethinkDB session into the environment package
+	env.Rethink = rethinkSession
+
 	// Initialize the tables
-	tables := &env.R{
-		Accounts: &db.AccountsTable{
-			RethinkCRUD: db.NewCRUDTable(
-				rethinkSession,
-				rethinkOpts.Database,
-				"accounts",
-			),
-		},
-		Tokens: &db.TokensTable{
-			RethinkCRUD: db.NewCRUDTable(
-				rethinkSession,
-				rethinkOpts.Database,
-				"tokens",
-			),
-		},
+	env.Accounts = &db.AccountsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"accounts",
+		),
+	}
+	env.Tokens = &db.TokensTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"tokens",
+		),
 	}
 
 	// Create a new goji mux
@@ -174,19 +186,6 @@ func main() {
 
 	// Make the mux handle every request
 	http.Handle("/", mux)
-
-	// Set up a new environment object
-	env.G = &env.Environment{
-		Log: log,
-		Config: &env.Config{
-			BindAddress:      *bindAddress,
-			APIVersion:       *apiVersion,
-			LogFormatterType: *logFormatterType,
-			SessionDuration:  *sessionDuration,
-		},
-		Rethink: rethinkSession,
-		R:       tables,
-	}
 
 	// Log that we're starting the server
 	log.WithFields(logrus.Fields{

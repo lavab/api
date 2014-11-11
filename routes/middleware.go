@@ -39,9 +39,9 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 		}
 
 		// Get the token from the database
-		token, err := env.G.R.Tokens.GetToken(headerParts[1])
+		token, err := env.Tokens.GetToken(headerParts[1])
 		if err != nil {
-			env.G.Log.WithFields(logrus.Fields{
+			env.Log.WithFields(logrus.Fields{
 				"error": err,
 			}).Error("Cannot retrieve session from the database")
 
@@ -58,7 +58,7 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 				Success: false,
 				Message: "Authorization token has expired",
 			})
-			env.G.R.Tokens.DeleteID(token.ID)
+			env.Tokens.DeleteID(token.ID)
 			return
 		}
 

@@ -1,6 +1,6 @@
 package env
 
-type Config struct {
+type Flags struct {
 	BindAddress      string
 	APIVersion       string
 	LogFormatterType string
