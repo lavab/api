@@ -42,7 +42,7 @@ type AccountsCreateResponse struct {
 func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	// Decode the request
 	var input AccountsCreateRequest
-	err := utils.ParseRequest(r, input)
+	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
@@ -56,7 +56,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure that the user with requested username doesn't exist
-	if _, err := env.Accounts.FindAccountByName(input.Username); err != nil {
+	if _, err := env.Accounts.FindAccountByName(input.Username); err == nil {
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
 			Message: "Username already exists",

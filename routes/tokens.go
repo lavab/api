@@ -50,7 +50,7 @@ type TokensCreateResponse struct {
 func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	// Decode the request
 	var input TokensCreateRequest
-	err := utils.ParseRequest(r, input)
+	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
