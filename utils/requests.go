@@ -40,6 +40,9 @@ func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 		result = []byte(`{"status":500,"message":"Error occured while marshalling the response body"}`)
 	}
 
+	// Set the response's content type to JSON
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
 	// Write the result
 	w.WriteHeader(status)
 	w.Write(result)
