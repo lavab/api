@@ -147,7 +147,7 @@ func main() {
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)
-	auth.Post("/tokens", routes.TokensCreate)
+	mux.Post("/tokens", routes.TokensCreate)
 	auth.Delete("/tokens", routes.TokensDelete)
 
 	// Threads
