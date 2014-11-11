@@ -44,7 +44,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	var input AccountsCreateRequest
 	err := utils.ParseRequest(r, input)
 	if err != nil {
-		env.G.Log.WithFields(logrus.Fields{
+		env.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Warn("Unable to decode a request")
 
@@ -56,25 +56,11 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure that the user with requested username doesn't exist
-	if _, err := env.G.R.Accounts.FindAccountByName(input.Username); err != nil {
+	if _, err := env.Accounts.FindAccountByName(input.Username); err != nil {
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
 			Message: "Username already exists",
 		})
-		return
-	}
-
-	// Try to hash the password
-	hash, err := utils.BcryptHash(input.Password)
-	if err != nil {
-		utils.JSONResponse(w, 500, &AccountsCreateResponse{
-			Success: false,
-			Message: "Internal server error - AC/CR/01",
-		})
-
-		env.G.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("Unable to hash a password")
 		return
 	}
 
@@ -83,17 +69,29 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	// Create a new user object
 	account := &models.Account{
 		Resource: models.MakeResource("", input.Username),
-		Password: string(hash),
+	}
+
+	err = account.SetPassword(input.Password)
+	if err != nil {
+		utils.JSONResponse(w, 500, &AccountsCreateResponse{
+			Success: false,
+			Message: "Internal server error - AC/CR/01",
+		})
+
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to hash the password")
+		return
 	}
 
 	// Try to save it in the database
-	if err := env.G.R.Accounts.Insert(account); err != nil {
+	if err := env.Accounts.Insert(account); err != nil {
 		utils.JSONResponse(w, 500, &AccountsCreateResponse{
 			Success: false,
 			Message: "Internal server error - AC/CR/02",
 		})
 
-		env.G.Log.WithFields(logrus.Fields{
+		env.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Could not insert an user to the database")
 		return
@@ -114,7 +112,7 @@ type AccountsGetResponse struct {
 }
 
 // AccountsGet returns the information about the specified account
-func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
+func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
 	id, ok := c.URLParams["id"]
 	if !ok {
@@ -138,22 +136,22 @@ func AccountsGet(c *web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["session"].(*models.Token)
 
 	// Fetch the user object from the database
-	user, err := env.G.R.Accounts.GetAccount(session.Owner)
+	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
 		// The session refers to a non-existing user
-		env.G.Log.WithFields(logrus.Fields{
+		env.Log.WithFields(logrus.Fields{
 			"id":    session.ID,
 			"error": err,
 		}).Warn("Valid session referred to a removed account")
 
 		// Try to remove the orphaned session
-		if err := env.G.R.Tokens.DeleteID(session.ID); err != nil {
-			env.G.Log.WithFields(logrus.Fields{
+		if err := env.Tokens.DeleteID(session.ID); err != nil {
+			env.Log.WithFields(logrus.Fields{
 				"id":    session.ID,
 				"error": err,
 			}).Error("Unable to remove an orphaned session")
 		} else {
-			env.G.Log.WithFields(logrus.Fields{
+			env.Log.WithFields(logrus.Fields{
 				"id": session.ID,
 			}).Info("Removed an orphaned session")
 		}

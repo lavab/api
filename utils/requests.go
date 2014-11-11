@@ -32,7 +32,7 @@ func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	result, err := json.Marshal(data)
 	if err != nil {
 		// Log the error
-		env.G.Log.WithFields(logrus.Fields{
+		env.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Unable to marshal a message")
 

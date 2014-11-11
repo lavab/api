@@ -7,16 +7,10 @@ import (
 	"github.com/lavab/api/db"
 )
 
-type Environment struct {
-	Log     *logrus.Logger
-	Config  *Config
-	Rethink *gorethink.Session
-	R       *R
-}
-
-type R struct {
+var (
+	Config   *Flags
+	Log      *logrus.Logger
+	Rethink  *gorethink.Session
 	Accounts *db.AccountsTable
 	Tokens   *db.TokensTable
-}
-
-var G *Environment
+)

@@ -8,7 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dancannon/gorethink"
-	"github.com/goji/glogrus"
+	"github.com/lavab/glogrus"
 	"github.com/namsral/flag"
 	"github.com/zenazn/goji/graceful"
 	"github.com/zenazn/goji/web"
@@ -28,6 +28,7 @@ var (
 	apiVersion       = flag.String("version", "v0", "Shown API version")
 	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
 	sessionDuration  = flag.Int("session_duration", 72, "Session duration expressed in hours")
+	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
 	// Database-related flags
 	rethinkdbURL = flag.String("rethinkdb_url", func() string {
 		address := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR")
@@ -50,15 +51,28 @@ func main() {
 	// Parse the flags
 	flag.Parse()
 
+	// Put config into the environment package
+	env.Config = &env.Flags{
+		BindAddress:      *bindAddress,
+		APIVersion:       *apiVersion,
+		LogFormatterType: *logFormatterType,
+		SessionDuration:  *sessionDuration,
+	}
+
 	// Set up a new logger
 	log := logrus.New()
 
 	// Set the formatter depending on the passed flag's value
 	if *logFormatterType == "text" {
-		log.Formatter = &logrus.TextFormatter{}
+		log.Formatter = &logrus.TextFormatter{
+			ForceColors: *forceColors,
+		}
 	} else if *logFormatterType == "json" {
 		log.Formatter = &logrus.JSONFormatter{}
 	}
+
+	// Pass it to the environment package
+	env.Log = log
 
 	// Set up the database
 	rethinkOpts := gorethink.ConnectOpts{
@@ -83,22 +97,23 @@ func main() {
 		}).Fatal("Unable to connect to the database")
 	}
 
+	// Put the RethinkDB session into the environment package
+	env.Rethink = rethinkSession
+
 	// Initialize the tables
-	tables := &env.R{
-		Accounts: &db.AccountsTable{
-			RethinkCRUD: db.NewCRUDTable(
-				rethinkSession,
-				rethinkOpts.Database,
-				"accounts",
-			),
-		},
-		Tokens: &db.TokensTable{
-			RethinkCRUD: db.NewCRUDTable(
-				rethinkSession,
-				rethinkOpts.Database,
-				"tokens",
-			),
-		},
+	env.Accounts = &db.AccountsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"accounts",
+		),
+	}
+	env.Tokens = &db.TokensTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"tokens",
+		),
 	}
 
 	// Create a new goji mux
@@ -116,7 +131,7 @@ func main() {
 
 	// Set up an auth'd mux
 	auth := web.New()
-	mux.Use(routes.AuthMiddleware)
+	auth.Use(routes.AuthMiddleware)
 
 	// Index route
 	mux.Get("/", routes.Hello)
@@ -167,26 +182,13 @@ func main() {
 	auth.Post("/keys/:id/vote", routes.KeysVote)
 
 	// Merge the muxes
-	mux.Handle("/", auth)
+	mux.Handle("/*", auth)
 
 	// Compile the routes
 	mux.Compile()
 
 	// Make the mux handle every request
 	http.Handle("/", mux)
-
-	// Set up a new environment object
-	env.G = &env.Environment{
-		Log: log,
-		Config: &env.Config{
-			BindAddress:      *bindAddress,
-			APIVersion:       *apiVersion,
-			LogFormatterType: *logFormatterType,
-			SessionDuration:  *sessionDuration,
-		},
-		Rethink: rethinkSession,
-		R:       tables,
-	}
 
 	// Log that we're starting the server
 	log.WithFields(logrus.Fields{

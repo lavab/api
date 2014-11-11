@@ -21,7 +21,7 @@ type TokensGetResponse struct {
 }
 
 // TokensGet returns information about the current token.
-func TokensGet(c *web.C, w http.ResponseWriter, r *http.Request) {
+func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the database
 	session := c.Env["session"].(*models.Token)
 
@@ -52,7 +52,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	var input TokensCreateRequest
 	err := utils.ParseRequest(r, input)
 	if err != nil {
-		env.G.Log.WithFields(logrus.Fields{
+		env.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Warn("Unable to decode a request")
 
@@ -63,9 +63,9 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Authenticate the user
-	user, err := env.G.R.Accounts.FindAccountByName(input.Username)
-	if err != nil || !utils.BcryptVerify(user.Password, input.Password) {
+	// Check if account exists
+	user, err := env.Accounts.FindAccountByName(input.Username)
+	if err != nil {
 		utils.JSONResponse(w, 403, &TokensCreateResponse{
 			Success: false,
 			Message: "Wrong username or password",
@@ -73,8 +73,29 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify the password
+	valid, updated, err := user.VerifyPassword(input.Password)
+	if err != nil || !valid {
+		utils.JSONResponse(w, 403, &TokensCreateResponse{
+			Success: false,
+			Message: "Wrong username or password",
+		})
+		return
+	}
+
+	// Update the user if password was updated
+	if updated {
+		err := env.Accounts.UpdateID(user.ID, user)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"user":  user.Name,
+				"error": err,
+			}).Error("Could not update user")
+		}
+	}
+
 	// Calculate the expiry date
-	expDate := time.Now().Add(time.Hour * time.Duration(env.G.Config.SessionDuration))
+	expDate := time.Now().Add(time.Hour * time.Duration(env.Config.SessionDuration))
 
 	// Create a new token
 	token := &models.Token{
@@ -83,7 +104,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert int into the database
-	env.G.R.Tokens.Insert(token)
+	env.Tokens.Insert(token)
 
 	// Respond with the freshly created token
 	utils.JSONResponse(w, 201, &TokensCreateResponse{
@@ -100,13 +121,13 @@ type TokensDeleteResponse struct {
 }
 
 // TokensDelete destroys the current session token.
-func TokensDelete(c *web.C, w http.ResponseWriter, r *http.Request) {
+func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the session from the middleware
 	session := c.Env["session"].(*models.Token)
 
 	// Delete it from the database
-	if err := env.G.R.Tokens.DeleteID(session.ID); err != nil {
-		env.G.Log.WithFields(logrus.Fields{
+	if err := env.Tokens.DeleteID(session.ID); err != nil {
+		env.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Unable to delete a session")
 
