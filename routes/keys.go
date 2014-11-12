@@ -3,7 +3,11 @@ package routes
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/zenazn/goji/web"
+
 	"github.com/lavab/api/env"
+	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
 )
 
@@ -61,15 +65,41 @@ func KeysCreate(w http.ResponseWriter, r *http.Request) {
 
 // KeysGetResponse contains the result of the KeysGet request.
 type KeysGetResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool        `json:"success"`
+	Message string      `json:"message,omitempty"`
+	Key     *models.Key `json:"key,omitempty"`
 }
 
 // KeysGet does *something* - TODO
-func KeysGet(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &KeysGetResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get ID from the passed URL params
+	id, ok := c.URLParams["id"]
+	if !ok {
+		utils.JSONResponse(w, 404, &KeysGetResponse{
+			Success: false,
+			Message: "Requested key does not exist on our server",
+		})
+		return
+	}
+
+	// Fetch the requested key from the database
+	key, err := env.Keys.FindByFingerprint(id)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Warn("Unable to fetch the requested key from the database")
+
+		utils.JSONResponse(w, 404, &KeysGetResponse{
+			Success: false,
+			Message: "Requested key does not exist on our server",
+		})
+		return
+	}
+
+	// Return the requested key
+	utils.JSONResponse(w, 200, &KeysGetResponse{
+		Success: true,
+		Key:     key,
 	})
 }
 
