@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
@@ -8,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/packet"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
@@ -87,9 +87,9 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["session"].(*models.Token)
 
 	// Parse the armored key
-	entity, err := openpgp.ReadEntity(packet.NewReader(strings.NewReader(input.Key)))
+	entityList, err := openpgp.ReadArmoredKeyRing(strings.NewReader(input.Key))
 	//block, err := armor.Decode(strings.NewReader(input.Key))
-	if err != nil {
+	if err != nil { //|| len(entityList.DecryptionKeys()) == 0 {
 		utils.JSONResponse(w, 409, &KeysCreateResponse{
 			Success: false,
 			Message: "Invalid key format",
@@ -97,6 +97,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
+			"list":  entityList,
 		}).Warn("Cannot parse an armored key")
 		return
 	}
@@ -116,21 +117,23 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := string(entity.PrimaryKey.Fingerprint[:])
-	bitLength, _ := entity.PrimaryKey.BitLength()
+	publicKey := entityList[0] //entityList.DecryptionKeys()[0]
+
+	id := hex.EncodeToString(publicKey.PrimaryKey.Fingerprint[:])
+	bitLength, _ := publicKey.PrimaryKey.BitLength()
 	key := &models.Key{
 		Resource: models.MakeResource(
 			session.Owner,
 			fmt.Sprintf(
 				"%d/%s public key",
 				bitLength,
-				entity.PrimaryKey.KeyIdString(),
+				publicKey.PrimaryKey.KeyIdString(),
 			),
 		),
 		OwnerName:  account.Name,
 		Key:        input.Key,
-		KeyID:      entity.PrimaryKey.KeyIdString(),
-		KeyIDShort: entity.PrimaryKey.KeyIdShortString(),
+		KeyID:      publicKey.PrimaryKey.KeyIdString(),
+		KeyIDShort: publicKey.PrimaryKey.KeyIdShortString(),
 	}
 
 	key.ID = id
