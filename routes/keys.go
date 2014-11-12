@@ -24,6 +24,7 @@ type KeysListResponse struct {
 
 // KeysList responds with the list of keys assigned to the spiecified email
 func KeysList(w http.ResponseWriter, r *http.Request) {
+	// Get the username from the GET query
 	user := r.URL.Query().Get("user")
 	if user == "" {
 		utils.JSONResponse(w, 409, &KeysListResponse{
@@ -33,6 +34,7 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Find all keys owner by user
 	keys, err := env.Keys.FindByName(user)
 	if err != nil {
 		utils.JSONResponse(w, 500, &KeysListResponse{
@@ -42,11 +44,13 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Equivalent of _.keys(keys) in JavaScript with underscore.js
 	keyIDs := []string{}
 	for _, key := range keys {
 		keyIDs = append(keyIDs, key.ID)
 	}
 
+	// Respond with list of keys
 	utils.JSONResponse(w, 200, &KeysListResponse{
 		Success: true,
 		Keys:    &keyIDs,
@@ -88,8 +92,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Parse the armored key
 	entityList, err := openpgp.ReadArmoredKeyRing(strings.NewReader(input.Key))
-	//block, err := armor.Decode(strings.NewReader(input.Key))
-	if err != nil { //|| len(entityList.DecryptionKeys()) == 0 {
+	if err != nil {
 		utils.JSONResponse(w, 409, &KeysCreateResponse{
 			Success: false,
 			Message: "Invalid key format",
@@ -117,10 +120,16 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	publicKey := entityList[0] //entityList.DecryptionKeys()[0]
+	// Let's hope that the user is capable of sending proper armored keys
+	publicKey := entityList[0]
 
+	// Encode the fingerprint
 	id := hex.EncodeToString(publicKey.PrimaryKey.Fingerprint[:])
+
+	// Get the key's bit length - should not return an error
 	bitLength, _ := publicKey.PrimaryKey.BitLength()
+
+	// Allocate a new key
 	key := &models.Key{
 		Resource: models.MakeResource(
 			session.Owner,
@@ -136,8 +145,10 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		KeyIDShort: publicKey.PrimaryKey.KeyIdShortString(),
 	}
 
+	// Update id as we can't do it directly during allocation
 	key.ID = id
 
+	// Try to insert it into the database
 	if err := env.Keys.Insert(key); err != nil {
 		utils.JSONResponse(w, 500, &KeysCreateResponse{
 			Success: false,
@@ -150,6 +161,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Return the inserted key
 	utils.JSONResponse(w, 201, &KeysCreateResponse{
 		Success: true,
 		Message: "A new key has been successfully inserted",
