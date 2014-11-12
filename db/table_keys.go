@@ -11,7 +11,7 @@ type KeysTable struct {
 func (k *KeysTable) FindByName(name string) ([]*models.Key, error) {
 	var results []*models.Key
 
-	if err := k.FindByAndFetch("name", name, &results); err != nil {
+	if err := k.FindByAndFetch("owner_name", name, &results); err != nil {
 		return nil, err
 	}
 
