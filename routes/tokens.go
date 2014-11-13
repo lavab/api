@@ -117,6 +117,10 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	// Insert int into the database
 	env.Tokens.Insert(token)
 
+	// Insert the token into the cache
+	// Should check for errors ? Does it make sense ?
+	env.TokensCache.SetToken(token)
+
 	// Respond with the freshly created token
 	utils.JSONResponse(w, 201, &TokensCreateResponse{
 		Success: true,
@@ -141,6 +145,19 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Unable to delete a session")
+
+		utils.JSONResponse(w, 500, &TokensDeleteResponse{
+			Success: true,
+			Message: "Internal server error - TO/DE/01",
+		})
+		return
+	}
+
+	//There is a lot of code repetition here ?
+	if err := env.TokensCache.InvalidateToken(session.ID); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to delete a session from cache")
 
 		utils.JSONResponse(w, 500, &TokensDeleteResponse{
 			Success: true,

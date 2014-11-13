@@ -41,7 +41,7 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 		}
 
 		// Get the token from the database
-		token, err := env.Tokens.GetToken(headerParts[1])
+		token, err := env.TokensCache.GetToken(headerParts[1])
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"error": err,
@@ -54,15 +54,9 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 			return
 		}
 
-		// Check if it's expired
-		if token.Expired() {
-			utils.JSONResponse(w, 419, &AuthMiddlewareResponse{
-				Success: false,
-				Message: "Authorization token has expired",
-			})
-			env.Tokens.DeleteID(token.ID)
-			return
-		}
+		// We don't need to invalidate the those in db since
+		// Redis expires them automatically, probably need a
+		// goroutine that checks for the expired ones ?
 
 		// Continue to the next middleware/route
 		c.Env["session"] = token

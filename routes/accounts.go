@@ -150,6 +150,11 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 				"id":    session.ID,
 				"error": err,
 			}).Error("Unable to remove an orphaned session")
+		} else if err := env.TokensCache.InvalidateToken(session.ID); err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"id":    session.ID,
+				"error": err,
+			}).Error("Unable to remove an orphaned session from cache")
 		} else {
 			env.Log.WithFields(logrus.Fields{
 				"id": session.ID,
