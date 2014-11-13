@@ -10,10 +10,10 @@ type TokensTable struct {
 }
 
 // GetToken returns a token with specified name
-func (s *TokensTable) GetToken(id string) (*models.Token, error) {
+func (t *TokensTable) GetToken(id string) (*models.Token, error) {
 	var result models.Token
 
-	if err := s.FindFetchOne(id, &result); err != nil {
+	if err := t.FindFetchOne(id, &result); err != nil {
 		return nil, err
 	}
 

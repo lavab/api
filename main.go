@@ -115,6 +115,13 @@ func main() {
 			"tokens",
 		),
 	}
+	env.Keys = &db.KeysTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"keys",
+		),
+	}
 
 	// Create a new goji mux
 	mux := web.New()
@@ -177,6 +184,7 @@ func main() {
 	auth.Delete("/contacts/:id", routes.ContactsDelete)
 
 	// Keys
+	mux.Get("/keys", routes.KeysList)
 	auth.Post("/keys", routes.KeysCreate)
 	mux.Get("/keys/:id", routes.KeysGet)
 	auth.Post("/keys/:id/vote", routes.KeysVote)
