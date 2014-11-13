@@ -11,7 +11,7 @@ const (
 	tokenKey = "token:%s"
 )
 
-// The interface for caching the tokens in system
+// TokenCache is the interface for caching the tokens in system
 type TokenCache interface {
 	//Gets the token from store
 	GetToken(key string) (*models.Token, error)
@@ -21,12 +21,12 @@ type TokenCache interface {
 	InvalidateToken(key string) error
 }
 
-// The redis implementation of TokenCache
+// DefaultTokenCache is the redis implementation of TokenCache
 type DefaultTokenCache struct {
 	Cache
 }
 
-// Creates a new instance of cache with db index 0
+// NewTokenCache creates a new instance of cache with db index 0
 func NewTokenCache(cache Cache) (*DefaultTokenCache, error) {
 	return &DefaultTokenCache{
 		Cache: cache,
@@ -34,7 +34,7 @@ func NewTokenCache(cache Cache) (*DefaultTokenCache, error) {
 
 }
 
-// Sets the given model into
+// SetToken sets the given model into store
 func (tc *DefaultTokenCache) SetToken(token *models.Token) error {
 
 	// generate the key
@@ -57,7 +57,7 @@ func (tc *DefaultTokenCache) SetToken(token *models.Token) error {
 	return nil
 }
 
-// Gets a token from db
+// GetToken gets a token from db
 func (tc *DefaultTokenCache) GetToken(key string) (*models.Token, error) {
 
 	tokenBytes, err := tc.Get(key)
@@ -76,7 +76,7 @@ func (tc *DefaultTokenCache) GetToken(key string) (*models.Token, error) {
 
 }
 
-// Removes the key from Redis
+// InvalidateToken removes the key from Redis
 func (tc *DefaultTokenCache) InvalidateToken(key string) error {
 	if err := tc.Del(key); err != nil {
 		return err

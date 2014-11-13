@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Cache is a basic key/value cache interface
 type Cache interface {
 	Get(key string) ([]byte, error)
 	Set(key string, value interface{}, i int64) error
@@ -14,13 +15,14 @@ type Cache interface {
 	Close() error
 }
 
+// RedisCache is the Redis implementation of Cache interface
 type RedisCache struct {
 	redisPool *redis.Pool
 	//The index of the database
 	dbIndex int
 }
 
-// Creates a new instance of cache with db index 0
+// NewRedisCache creates a new instance of cache with db index 0
 func NewRedisCache(server string) (*RedisCache, error) {
 	pool, err := newRedisPool(server)
 	if err != nil {
@@ -35,8 +37,8 @@ func NewRedisCache(server string) (*RedisCache, error) {
 
 }
 
-// Creates a new instance of cache with specified db index
-// useful for testing
+// NewRedisCacheWithIndex Creates a new instance of cache
+// with specified db index ,useful for testing
 func NewRedisCacheWithIndex(server string, idx int) (*RedisCache, error) {
 	pool, err := newRedisPool(server)
 	if err != nil {
@@ -50,7 +52,7 @@ func NewRedisCacheWithIndex(server string, idx int) (*RedisCache, error) {
 	}, nil
 }
 
-// Sets the given model into
+// Set fn sets the given key > value with expire
 func (tc *RedisCache) Set(redisKey string, value interface{}, expiresAfter int64) error {
 	conn, _ := tc.getConn()
 	defer conn.Close()
@@ -80,7 +82,7 @@ func (tc *RedisCache) Set(redisKey string, value interface{}, expiresAfter int64
 	return nil
 }
 
-// Gets a token from db
+// Get pulls byte stream of selected key
 func (tc *RedisCache) Get(redisKey string) ([]byte, error) {
 	conn, _ := tc.getConn()
 	defer conn.Close()
@@ -90,7 +92,7 @@ func (tc *RedisCache) Get(redisKey string) ([]byte, error) {
 		return nil, fmt.Errorf("The %s token is not in the cache", redisKey)
 	}
 
-	//Get the key from redis
+	// Get the key from redis
 	rep, err := conn.Do("GET", redisKey)
 	if err != nil {
 		return nil, err
@@ -105,7 +107,7 @@ func (tc *RedisCache) Get(redisKey string) ([]byte, error) {
 
 }
 
-// Removes the key from Redis
+// Del removes the key from Redis
 func (tc *RedisCache) Del(redisKey string) error {
 	conn, _ := tc.getConn()
 	defer conn.Close()
@@ -125,7 +127,7 @@ func (tc *RedisCache) Del(redisKey string) error {
 
 }
 
-//simple fn for checking if some key exists
+// Exists check for presence of given key
 func (tc *RedisCache) Exists(key string) bool {
 	conn, _ := tc.getConn()
 	defer conn.Close()
@@ -139,7 +141,7 @@ func (tc *RedisCache) Exists(key string) bool {
 	return replyInt == 1
 }
 
-//Closes the pool and releases the resources
+// Close releases the resources
 func (tc *RedisCache) Close() error {
 	tc.redisPool.Close()
 	return nil
