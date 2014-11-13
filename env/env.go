@@ -4,6 +4,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/dancannon/gorethink"
 
+	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
 )
 
@@ -20,4 +21,7 @@ var (
 	Tokens *db.TokensTable
 	// Keys is the global instance of KeysTable
 	Keys *db.KeysTable
+	// TokenCache is an instance of TokenCache interface to
+	// keep the tokens in Redis instance
+	TokensCache cache.TokenCache
 )
