@@ -324,18 +324,3 @@ func AccountsWipeData(w http.ResponseWriter, r *http.Request) {
 		Message: `Sorry, not implemented yet`,
 	})
 }
-
-// AccountsSessionsListResponse contains the result of the AccountsSessionsList request.
-type AccountsSessionsListResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
-//
-// AccountsSessionsList returns a list of all opened sessions.
-func AccountsSessionsList(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &AccountsSessionsListResponse{
-		Success: false,
-		Message: `Sorry, not implemented yet`,
-	})
-}
