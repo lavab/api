@@ -39,6 +39,8 @@ type Account struct {
 	Type string `json:"type" gorethink:"type"`
 
 	Email string `json:"email" gorethink:"email"`
+
+	Status string `json:"status" gorethink:"status"`
 }
 
 // SetPassword changes the account's password
