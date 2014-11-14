@@ -58,7 +58,8 @@ func (tc *DefaultTokenCache) SetToken(token *models.Token) error {
 
 // GetToken gets a token from db
 func (tc *DefaultTokenCache) GetToken(key string) (*models.Token, error) {
-	tokenBytes, err := tc.Get(key)
+	redisKey := fmt.Sprintf(tokenKey, key)
+	tokenBytes, err := tc.Get(redisKey)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,9 @@ func (tc *DefaultTokenCache) GetToken(key string) (*models.Token, error) {
 
 // InvalidateToken removes the key from Redis
 func (tc *DefaultTokenCache) InvalidateToken(key string) error {
-	if err := tc.Delete(key); err != nil {
+	redisKey := fmt.Sprintf(tokenKey, key)
+
+	if err := tc.Delete(redisKey); err != nil {
 		return err
 	}
 	return nil
