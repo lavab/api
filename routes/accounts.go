@@ -170,17 +170,130 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// AccountsUpdateRequest contains the input for the AccountsUpdate endpoint.
+type AccountsUpdateRequest struct {
+	Type            string `json:"type" schema:"type"`
+	Email           string `json:"email" schema:"email"`
+	CurrentPassword string `json:"current_password" schema:"current_password"`
+	NewPassword     string `json:"new_password" schema:"new_password"`
+}
+
 // AccountsUpdateResponse contains the result of the AccountsUpdate request.
 type AccountsUpdateResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool            `json:"success"`
+	Message string          `json:"message"`
+	Account *models.Account `json:"account"`
 }
 
 // AccountsUpdate allows changing the account's information (password etc.)
-func AccountsUpdate(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &AccountsUpdateResponse{
+func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Decode the request
+	var input AccountsUpdateRequest
+	err := utils.ParseRequest(r, &input)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Warn("Unable to decode a request")
+
+		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Invalid input format",
+		})
+		return
+	}
+
+	// Get the account ID from the request
+	id, ok := c.URLParams["id"]
+	if !ok {
+		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Invalid user ID",
+		})
+		return
+	}
+
+	// Right now we only support "me" as the ID
+	if id != "me" {
+		utils.JSONResponse(w, 501, &AccountsUpdateResponse{
+			Success: false,
+			Message: `Only the "me" user is implemented`,
+		})
+		return
+	}
+
+	// Fetch the current session from the database
+	session := c.Env["session"].(*models.Token)
+
+	// Fetch the user object from the database
+	user, err := env.Accounts.GetAccount(session.Owner)
+	if err != nil {
+		// The session refers to a non-existing user
+		env.Log.WithFields(logrus.Fields{
+			"id":    session.ID,
+			"error": err,
+		}).Warn("Valid session referred to a removed account")
+
+		// Try to remove the orphaned session
+		if err := env.Tokens.DeleteID(session.ID); err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"id":    session.ID,
+				"error": err,
+			}).Error("Unable to remove an orphaned session")
+		} else {
+			env.Log.WithFields(logrus.Fields{
+				"id": session.ID,
+			}).Info("Removed an orphaned session")
+		}
+
+		utils.JSONResponse(w, 410, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Account disabled",
+		})
+		return
+	}
+
+	if valid, _, err := user.VerifyPassword(input.CurrentPassword); err != nil || !valid {
+		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Invalid current password",
+		})
+		return
+	}
+
+	err = user.SetPassword(input.NewPassword)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to hash a password")
+
+		utils.JSONResponse(w, 500, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Internal error (code AC/UP/01)",
+		})
+		return
+	}
+
+	if input.Email != "" {
+		user.Email = input.Email
+	}
+
+	err = env.Accounts.UpdateID(session.Owner, user)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to update an account")
+
+		utils.JSONResponse(w, 500, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Internal error (code AC/UP/02)",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &AccountsUpdateResponse{
 		Success: false,
-		Message: `Sorry, not implemented yet`,
+		Message: "Your account has been successfully updated",
+		Account: user,
 	})
 }
 
@@ -218,6 +331,7 @@ type AccountsSessionsListResponse struct {
 	Message string `json:"message"`
 }
 
+//
 // AccountsSessionsList returns a list of all opened sessions.
 func AccountsSessionsList(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 501, &AccountsSessionsListResponse{
