@@ -115,7 +115,13 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert the token into the cache
-	env.TokensCache.SetToken(token)
+	err = env.TokensCache.SetToken(token)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"user":  user.Name,
+			"error": err,
+		}).Error("Could add token to the store")
+	}
 
 	// Insert int into the database
 	env.Tokens.Insert(token)
