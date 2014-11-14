@@ -49,7 +49,7 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 
 			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
 				Success: false,
-				Message: "Invalid authorization token",
+				Message: "Non existing authorization token",
 			})
 			return
 		}
