@@ -150,7 +150,6 @@ func main() {
 	auth.Put("/accounts/:id", routes.AccountsUpdate)
 	auth.Delete("/accounts/:id", routes.AccountsDelete)
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
-	auth.Get("/accounts/:id/sessions", routes.AccountsSessionsList)
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)
