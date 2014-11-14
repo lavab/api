@@ -18,37 +18,23 @@ type Cache interface {
 // RedisCache is the Redis implementation of Cache interface
 type RedisCache struct {
 	redisPool *redis.Pool
-	//The index of the database
-	dbIndex int
 }
 
 // NewRedisCache creates a new instance of cache with db index 0
 func NewRedisCache(server string) (*RedisCache, error) {
-	pool, err := newRedisPool(server)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RedisCache{
-		redisPool: pool,
-		//Set the default db index
-		dbIndex: 0,
-	}, nil
-
+	return NewRedisCacheWithIndex(server, 0)
 }
 
 // NewRedisCacheWithIndex Creates a new instance of cache
 // with specified db index ,useful for testing
 func NewRedisCacheWithIndex(server string, idx int) (*RedisCache, error) {
-	pool, err := newRedisPool(server)
+	pool, err := newRedisPool(server, idx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &RedisCache{
 		redisPool: pool,
-		//Set the default db index
-		dbIndex: idx,
 	}, nil
 }
 
@@ -152,18 +138,13 @@ func (tc *RedisCache) Close() error {
 //We need this step to be able to inject select db
 func (tc *RedisCache) getConn() (redis.Conn, error) {
 	conn := tc.redisPool.Get()
-	_, err := conn.Do("SELECT", tc.dbIndex)
-	if err != nil {
-		return nil, err
-	}
-
 	return conn, nil
 }
 
 //some private utils
 
 // Creates a new pool
-func newRedisPool(server string) (*redis.Pool, error) {
+func newRedisPool(server string, idx int) (*redis.Pool, error) {
 	return &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
@@ -172,6 +153,13 @@ func newRedisPool(server string) (*redis.Pool, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			//select the db
+			_, err = c.Do("SELECT", idx)
+			if err != nil {
+				return nil, err
+			}
+
 			return c, err
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
