@@ -114,12 +114,11 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		Type:     input.Type,
 	}
 
+	// Insert the token into the cache
+	env.TokensCache.SetToken(token)
+
 	// Insert int into the database
 	env.Tokens.Insert(token)
-
-	// Insert the token into the cache
-	// Should check for errors ? Does it make sense ?
-	env.TokensCache.SetToken(token)
 
 	// Respond with the freshly created token
 	utils.JSONResponse(w, 201, &TokensCreateResponse{
