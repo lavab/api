@@ -10,7 +10,7 @@ import (
 type Cache interface {
 	Get(key string) ([]byte, error)
 	Set(key string, value interface{}, i int64) error
-	Del(key string) error
+	Delete(key string) error
 	Exists(key string) bool
 	Close() error
 }
@@ -48,19 +48,8 @@ func (tc *RedisCache) Set(redisKey string, value interface{}, expiresAfter int64
 		return fmt.Errorf("The %s token is already in cache", redisKey)
 	}
 
-	// Run set and expire functions on KEY
-	err := redisPipeline(conn, func() error {
-		err := conn.Send("SET", redisKey, value)
-		if err != nil {
-			return err
-		}
-		err = conn.Send("EXPIRE", redisKey, expiresAfter)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+	// Execute SETEX command here
+	_, err := conn.Do("SETEX", redisKey, value, expiresAfter)
 	if err != nil {
 		return err
 	}
@@ -93,8 +82,8 @@ func (tc *RedisCache) Get(redisKey string) ([]byte, error) {
 
 }
 
-// Del removes the key from Redis
-func (tc *RedisCache) Del(redisKey string) error {
+// Delete removes the key from Redis
+func (tc *RedisCache) Delete(redisKey string) error {
 	conn, _ := tc.getConn()
 	defer conn.Close()
 
@@ -103,7 +92,7 @@ func (tc *RedisCache) Del(redisKey string) error {
 		return fmt.Errorf("The %s token is not in the cache", redisKey)
 	}
 
-	//now delete it from redis
+	// Now delete it from redis
 	_, err := conn.Do("DEL", redisKey)
 	if err != nil {
 		return err
