@@ -49,7 +49,7 @@ func (tc *RedisCache) Set(redisKey string, value interface{}, expiresAfter int64
 	}
 
 	// Execute SETEX command here
-	_, err := conn.Do("SETEX", redisKey, value, expiresAfter)
+	_, err := conn.Do("SETEX", redisKey, expiresAfter, value)
 	if err != nil {
 		return err
 	}
@@ -112,8 +112,8 @@ func (tc *RedisCache) Exists(key string) bool {
 		return false
 	}
 
-	replyInt, err := redis.Int(reply, nil)
-	return replyInt == 1
+	replyBool, err := redis.Bool(reply, nil)
+	return replyBool
 }
 
 // Close releases the resources
