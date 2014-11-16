@@ -147,6 +147,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	// Both username and password are filled, so we can create a new account.
 	account := &models.Account{
 		Resource: models.MakeResource("", input.Username),
+		Type:     "beta",
 	}
 
 	// Set the password
