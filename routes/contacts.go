@@ -76,7 +76,7 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the current session from the database
+	// Fetch the current session from the middleware
 	session := c.Env["session"].(*models.Token)
 
 	// Ensure that the input data isn't empty
@@ -123,15 +123,38 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 // ContactsGetResponse contains the result of the ContactsGet request.
 type ContactsGetResponse struct {
 	Success bool            `json:"success"`
-	Message string          `json:"message"`
-	Contact *models.Contact `json:"contact"`
+	Message string          `json:"message,omitempty"`
+	Contact *models.Contact `json:"contact,omitempty"`
 }
 
-// ContactsGet does *something* - TODO
-func ContactsGet(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &ContactsGetResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+// ContactsGet gets the requested contact from the database
+func ContactsGet(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the contact from the database
+	contact, err := env.Contacts.GetContact(c.URLParams["id"])
+	if err != nil {
+		utils.JSONResponse(w, 404, &ContactsGetResponse{
+			Success: false,
+			Message: "Contact not found",
+		})
+		return
+	}
+
+	// Fetch the current session from the middleware
+	session := c.Env["session"].(*models.Token)
+
+	// Check for ownership
+	if contact.Owner != session.Owner {
+		utils.JSONResponse(w, 404, &ContactsGetResponse{
+			Success: false,
+			Message: "Contact not found",
+		})
+		return
+	}
+
+	// Write the contact to the response
+	utils.JSONResponse(w, 200, &ContactsGetResponse{
+		Success: true,
+		Contact: contact,
 	})
 }
 
