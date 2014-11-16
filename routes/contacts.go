@@ -43,6 +43,14 @@ func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type ContactsCreateRequest struct {
+	Data         string `json:"data" schema:"data"`
+	Name         string `json:"name" schema:"name"`
+	Encoding     string `json:"encoding" schema:"encoding"`
+	VersionMajor int    `json:"version_major" schema:"version_major"`
+	VersionMinor int    `json:"version_minor" schema:"version_minor"`
+}
+
 // ContactsCreateResponse contains the result of the ContactsCreate request.
 type ContactsCreateResponse struct {
 	Success bool   `json:"success"`
@@ -59,8 +67,9 @@ func ContactsCreate(w http.ResponseWriter, r *http.Request) {
 
 // ContactsGetResponse contains the result of the ContactsGet request.
 type ContactsGetResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool            `json:"success"`
+	Message string          `json:"message"`
+	Contact *models.Contact `json:"contact"`
 }
 
 // ContactsGet does *something* - TODO
@@ -69,6 +78,14 @@ func ContactsGet(w http.ResponseWriter, r *http.Request) {
 		Success: false,
 		Message: "Sorry, not implemented yet",
 	})
+}
+
+type ContactsUpdateRequest struct {
+	Data         string `json:"data" schema:"data"`
+	Name         string `json:"name" schema:"name"`
+	Encoding     string `json:"encoding" schema:"encoding"`
+	VersionMajor int    `json:"version_major" schema:"version_major"`
+	VersionMinor int    `json:"version_minor" schema:"version_minor"`
 }
 
 // ContactsUpdateResponse contains the result of the ContactsUpdate request.
