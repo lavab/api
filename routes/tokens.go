@@ -155,6 +155,7 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 				Success: true,
 				Message: "Internal server error - TO/DE/01",
 			})
+			return
 		}
 	}
 
