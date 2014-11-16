@@ -21,7 +21,7 @@ type ContactsListResponse struct {
 // ContactsList does *something* - TODO
 func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Get contacts from the database
 	contacts, err := env.Contacts.GetOwnedBy(session.Owner)
@@ -77,7 +77,7 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the middleware
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Ensure that the input data isn't empty
 	if input.Data != "" || input.Name != "" || input.Encoding != "" || input.VersionMajor != nil || input.VersionMinor != nil {
@@ -140,7 +140,7 @@ func ContactsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the middleware
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Check for ownership
 	if contact.Owner != session.Owner {
@@ -202,7 +202,7 @@ func ContactsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the middleware
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Check for ownership
 	if contact.Owner != session.Owner {

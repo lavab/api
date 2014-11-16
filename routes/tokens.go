@@ -23,7 +23,7 @@ type TokensGetResponse struct {
 // TokensGet returns information about the current token.
 func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Respond with the token information
 	utils.JSONResponse(w, 200, &TokensGetResponse{
@@ -142,7 +142,7 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	id, ok := c.URLParams["id"]
 	if !ok || id == "" {
 		// Get the token from the middleware
-		token = c.Env["session"].(*models.Token)
+		token = c.Env["token"].(*models.Token)
 	} else {
 		token, err = env.Tokens.GetToken(id)
 		if err != nil {

@@ -88,7 +88,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the session
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Parse the armored key
 	entityList, err := openpgp.ReadArmoredKeyRing(strings.NewReader(input.Key))

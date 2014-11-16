@@ -247,7 +247,7 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
@@ -336,7 +336,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
@@ -439,7 +439,7 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
@@ -540,7 +540,7 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetTokenOwner(session)
