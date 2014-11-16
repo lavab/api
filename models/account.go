@@ -37,6 +37,10 @@ type Account struct {
 	//		* premium: premium account
 	//		* superuser: Lavaboom staff
 	Type string `json:"type" gorethink:"type"`
+
+	AltEmail string `json:"alt_email" gorethink:"alt_email"`
+
+	Status string `json:"status" gorethink:"status"`
 }
 
 // SetPassword changes the account's password

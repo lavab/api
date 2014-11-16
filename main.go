@@ -29,6 +29,8 @@ var (
 	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
 	sessionDuration  = flag.Int("session_duration", 72, "Session duration expressed in hours")
 	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
+	// Registration settings
+	classicRegistration = flag.Bool("classic_registration", false, "Classic registration enabled?")
 	// Database-related flags
 	rethinkdbURL = flag.String("rethinkdb_url", func() string {
 		address := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR")
@@ -53,10 +55,11 @@ func main() {
 
 	// Put config into the environment package
 	env.Config = &env.Flags{
-		BindAddress:      *bindAddress,
-		APIVersion:       *apiVersion,
-		LogFormatterType: *logFormatterType,
-		SessionDuration:  *sessionDuration,
+		BindAddress:         *bindAddress,
+		APIVersion:          *apiVersion,
+		LogFormatterType:    *logFormatterType,
+		SessionDuration:     *sessionDuration,
+		ClassicRegistration: *classicRegistration,
 	}
 
 	// Set up a new logger
@@ -150,12 +153,12 @@ func main() {
 	auth.Put("/accounts/:id", routes.AccountsUpdate)
 	auth.Delete("/accounts/:id", routes.AccountsDelete)
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
-	auth.Get("/accounts/:id/sessions", routes.AccountsSessionsList)
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)
 	mux.Post("/tokens", routes.TokensCreate)
 	auth.Delete("/tokens", routes.TokensDelete)
+	auth.Delete("/tokens/:id", routes.TokensDelete)
 
 	// Threads
 	auth.Get("/threads", routes.ThreadsList)

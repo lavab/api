@@ -131,20 +131,43 @@ type TokensDeleteResponse struct {
 	Message string `json:"message"`
 }
 
-// TokensDelete destroys the current session token.
+// TokensDelete destroys either the current auth token or the one passed as an URL param
 func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
-	// Get the session from the middleware
-	session := c.Env["session"].(*models.Token)
+	// Initialize
+	var (
+		token *models.Token
+		err   error
+	)
+
+	id, ok := c.URLParams["id"]
+	if !ok || id == "" {
+		// Get the token from the middleware
+		token = c.Env["session"].(*models.Token)
+	} else {
+		token, err = env.Tokens.GetToken(id)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+				"id":    id,
+			}).Warn("Unable to find the token")
+
+			utils.JSONResponse(w, 500, &TokensDeleteResponse{
+				Success: true,
+				Message: "Internal server error - TO/DE/01",
+			})
+			return
+		}
+	}
 
 	// Delete it from the database
-	if err := env.Tokens.DeleteID(session.ID); err != nil {
+	if err := env.Tokens.DeleteID(token.ID); err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
-		}).Error("Unable to delete a session")
+		}).Error("Unable to delete a token")
 
 		utils.JSONResponse(w, 500, &TokensDeleteResponse{
 			Success: true,
-			Message: "Internal server error - TO/DE/01",
+			Message: "Internal server error - TO/DE/02",
 		})
 		return
 	}
