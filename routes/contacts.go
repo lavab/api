@@ -158,6 +158,7 @@ func ContactsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ContactsUpdateRequest is the payload passed to PUT /contacts/:id
 type ContactsUpdateRequest struct {
 	Data         string `json:"data" schema:"data"`
 	Name         string `json:"name" schema:"name"`
@@ -168,15 +169,82 @@ type ContactsUpdateRequest struct {
 
 // ContactsUpdateResponse contains the result of the ContactsUpdate request.
 type ContactsUpdateResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool            `json:"success"`
+	Message string          `json:"message,omitempty"`
+	Contact *models.Contact `json:"contact,omitempty"`
 }
 
-// ContactsUpdate does *something* - TODO
-func ContactsUpdate(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &ContactsUpdateResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+// ContactsUpdate updates an existing contact in the database
+func ContactsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Decode the request
+	var input ContactsUpdateRequest
+	err := utils.ParseRequest(r, &input)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Warn("Unable to decode a request")
+
+		utils.JSONResponse(w, 400, &ContactsUpdateResponse{
+			Success: false,
+			Message: "Invalid input format",
+		})
+		return
+	}
+
+	// Get the contact from the database
+	contact, err := env.Contacts.GetContact(c.URLParams["id"])
+	if err != nil {
+		utils.JSONResponse(w, 404, &ContactsUpdateResponse{
+			Success: false,
+			Message: "Contact not found",
+		})
+		return
+	}
+
+	// Fetch the current session from the middleware
+	session := c.Env["session"].(*models.Token)
+
+	// Check for ownership
+	if contact.Owner != session.Owner {
+		utils.JSONResponse(w, 404, &ContactsUpdateResponse{
+			Success: false,
+			Message: "Contact not found",
+		})
+		return
+	}
+
+	// Perform the update
+	err = env.Contacts.UpdateID(c.URLParams["id"], map[string]interface{}{
+		"data":          input.Data,
+		"name":          input.Name,
+		"encoding":      input.Encoding,
+		"version_major": input.VersionMajor,
+		"version_minor": input.VersionMinor,
+	})
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+			"id":    c.URLParams["id"],
+		}).Error("Unable to update a contact")
+
+		utils.JSONResponse(w, 500, &ContactsUpdateResponse{
+			Success: false,
+			Message: "Internal error (code CO/UP/01)",
+		})
+		return
+	}
+
+	// Update the original struct for the response
+	contact.Data = input.Data
+	contact.Name = input.Name
+	contact.Encoding = input.Encoding
+	contact.VersionMajor = input.VersionMajor
+	contact.VersionMinor = input.VersionMinor
+
+	// Write the contact to the response
+	utils.JSONResponse(w, 200, &ContactsUpdateResponse{
+		Success: true,
+		Contact: contact,
 	})
 }
 
