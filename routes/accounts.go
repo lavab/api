@@ -183,7 +183,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
-		}).Error("Could not insert an user to the database")
+		}).Error("Could not insert an user into the database")
 		return
 	}
 
