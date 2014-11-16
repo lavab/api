@@ -27,8 +27,10 @@ func AccountsList(w http.ResponseWriter, r *http.Request) {
 
 // AccountsCreateRequest contains the input for the AccountsCreate endpoint.
 type AccountsCreateRequest struct {
+	Token    string `json:"token" schema:"token"`
 	Username string `json:"username" schema:"username"`
 	Password string `json:"password" schema:"password"`
+	AltEmail string `json:"alt_email" schema:"alt_email"`
 }
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
@@ -48,14 +50,83 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			"error": err,
 		}).Warn("Unable to decode a request")
 
-		utils.JSONResponse(w, 409, &AccountsCreateResponse{
+		utils.JSONResponse(w, 400, &AccountsCreateResponse{
 			Success: false,
 			Message: "Invalid input format",
 		})
 		return
 	}
 
-	// Ensure that the user with requested username doesn't exist
+	// Detect the request type
+	// 1) username + token + password     - invite
+	// 2) username + password + alt_email - register with confirmation
+	// 3) alt_email only                  - register for beta (add to queue)
+	requestType := "unknown"
+	if input.AltEmail == "" && input.Username != "" && input.Password != "" && input.Token != "" {
+		requestType = "invited"
+	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token != "" {
+		requestType = "classic"
+	} else if input.AltEmail != "" && input.Username == "" && input.Password == "" && input.Token == "" {
+		requestType = "queue"
+	}
+
+	// "unknown" requests are empty and invalid
+	if requestType == "invalid" {
+		utils.JSONResponse(w, 400, &AccountsCreateResponse{
+			Success: false,
+			Message: "Invalid request",
+		})
+		return
+	}
+
+	// Adding to queue will be implemented soon
+	if requestType == "queue" {
+		// Implementation awaits https://trello.com/c/SLM0qK1O/91-account-registration-queue
+		utils.JSONResponse(w, 501, &AccountsCreateResponse{
+			Success: false,
+			Message: "Sorry, not implemented yet",
+		})
+		return
+	}
+
+	// Check "invited" for token validity
+	if requestType == "invited" {
+		// Fetch the token from the database
+		token, err := env.Tokens.GetToken(input.Token)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Warn("Unable to fetch a registration token from the database")
+
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation token",
+			})
+			return
+		}
+
+		// Ensure that the token's type is valid
+		if token.Type != "invite" {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation token",
+			})
+			return
+		}
+
+		// Check if it's expired
+		if token.Expired() {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Expired invitation token",
+			})
+			return
+		}
+	}
+
+	// TODO: sanitize user name (i.e. remove caps, periods)
+
+	// Both invited and classic require an unique username, so ensure that the user with requested username isn't already used
 	if _, err := env.Accounts.FindAccountByName(input.Username); err == nil {
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
@@ -64,13 +135,12 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: sanitize user name (i.e. remove caps, periods)
-
-	// Create a new user object
+	// Both username and password are filled, so we can create a new account.
 	account := &models.Account{
 		Resource: models.MakeResource("", input.Username),
 	}
 
+	// Set the password
 	err = account.SetPassword(input.Password)
 	if err != nil {
 		utils.JSONResponse(w, 500, &AccountsCreateResponse{
@@ -82,6 +152,16 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			"error": err,
 		}).Error("Unable to hash the password")
 		return
+	}
+
+	// User won't be able to log in until the account gets verified
+	if requestType == "classic" {
+		account.Status = "unverified"
+	}
+
+	// Set the status to invited, because of stats
+	if requestType == "invited" {
+		account.Status = "invited"
 	}
 
 	// Try to save it in the database
@@ -97,11 +177,35 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSONResponse(w, 201, &AccountsCreateResponse{
-		Success: true,
-		Message: "A new account was successfully created",
-		Account: account,
-	})
+	// Send the email if classic and return a response
+	if requestType == "classic" {
+		// TODO: Send emails
+
+		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+			Success: true,
+			Message: "A new account was successfully created, you should receive a confirmation email soon™.",
+			Account: account,
+		})
+		return
+	}
+
+	// Remove the token and return a response
+	if requestType == "invited" {
+		err := env.Tokens.DeleteID(input.Token)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+				"id":    input.Token,
+			}).Error("Could not remove token from database")
+		}
+
+		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+			Success: true,
+			Message: "A new account was successfully created",
+			Account: account,
+		})
+		return
+	}
 }
 
 // AccountsGetResponse contains the result of the AccountsGet request.
@@ -173,7 +277,7 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 // AccountsUpdateRequest contains the input for the AccountsUpdate endpoint.
 type AccountsUpdateRequest struct {
 	Type            string `json:"type" schema:"type"`
-	Email           string `json:"email" schema:"email"`
+	AltEmail        string `json:"alt_email" schema:"alt_email"`
 	CurrentPassword string `json:"current_password" schema:"current_password"`
 	NewPassword     string `json:"new_password" schema:"new_password"`
 }
@@ -273,8 +377,8 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if input.Email != "" {
-		user.Email = input.Email
+	if input.AltEmail != "" {
+		user.AltEmail = input.AltEmail
 	}
 
 	err = env.Accounts.UpdateID(session.Owner, user)

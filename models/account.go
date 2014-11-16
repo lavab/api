@@ -38,7 +38,7 @@ type Account struct {
 	//		* superuser: Lavaboom staff
 	Type string `json:"type" gorethink:"type"`
 
-	Email string `json:"email" gorethink:"email"`
+	AltEmail string `json:"alt_email" gorethink:"alt_email"`
 
 	Status string `json:"status" gorethink:"status"`
 }
