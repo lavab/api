@@ -413,12 +413,11 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // AccountsDeleteResponse contains the result of the AccountsDelete request.
 type AccountsDeleteResponse struct {
-	Success bool            `json:"success"`
-	Message string          `json:"message"`
-	Account *models.Account `json:"account"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
-// AccountsDelete allows deleting an account.
+// AccountsDelete deletes an account and everything related to it.
 func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
 	id, ok := c.URLParams["id"]
@@ -470,25 +469,46 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.Status = "suspended"
+	// TODO: Delete contacts
 
-	err = env.Accounts.UpdateID(session.Owner, user)
+	// TODO: Delete emails
+
+	// TODO: Delete labels
+
+	// TODO: Delete threads
+
+	// Delete tokens
+	err = env.Tokens.DeleteByOwner(user.ID)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
+			"id":    user.ID,
 			"error": err,
-		}).Error("Unable to update an account")
+		}).Error("Unable to remove account's tokens")
 
 		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
 			Success: false,
-			Message: "Internal error (code AC/UP/02)",
+			Message: "Internal error (code AC/DE/05)",
+		})
+		return
+	}
+
+	// Delete account
+	err = env.Accounts.DeleteID(user.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to delete an account")
+
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code AC/DE/06)",
 		})
 		return
 	}
 
 	utils.JSONResponse(w, 200, &AccountsDeleteResponse{
-		Success: false,
-		Message: "Your account has been successfully updated",
-		Account: user,
+		Success: true,
+		Message: "Your account has been successfully deleted",
 	})
 }
 
@@ -498,7 +518,7 @@ type AccountsWipeDataResponse struct {
 	Message string `json:"message"`
 }
 
-// AccountsWipeData allows getting rid of the all data related to the account.
+// AccountsWipeData wipes all data except the actual account and billing info.
 func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
 	id, ok := c.URLParams["id"]
@@ -550,24 +570,31 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.Status = "delete"
+	// TODO: Delete contacts
 
-	err = env.Accounts.UpdateID(session.Owner, user)
+	// TODO: Delete emails
+
+	// TODO: Delete labels
+
+	// TODO: Delete threads
+
+	// Delete tokens
+	err = env.Tokens.DeleteByOwner(user.ID)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
+			"id":    user.ID,
 			"error": err,
-		}).Error("Unable to update an account")
+		}).Error("Unable to remove account's tokens")
 
 		utils.JSONResponse(w, 500, &AccountsWipeDataResponse{
 			Success: false,
-			Message: "Internal error (code AC/UP/02)",
+			Message: "Internal error (code AC/WD/05)",
 		})
 		return
 	}
 
-	utils.JSONResponse(w, 200, &AccountsDeleteResponse{
-		Success: false,
-		Message: "Your account has been successfully updated",
-		Account: user,
+	utils.JSONResponse(w, 200, &AccountsWipeDataResponse{
+		Success: true,
+		Message: "Your account has been successfully wiped",
 	})
 }
