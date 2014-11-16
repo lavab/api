@@ -30,7 +30,7 @@ var (
 	sessionDuration  = flag.Int("session_duration", 72, "Session duration expressed in hours")
 	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
 	// Registration settings
-	classicRegistration = flag.Bool("classic_registartion", false, "Classic registration enabled?")
+	classicRegistration = flag.Bool("classic_registration", false, "Classic registration enabled?")
 	// Database-related flags
 	rethinkdbURL = flag.String("rethinkdb_url", func() string {
 		address := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR")
