@@ -20,8 +20,8 @@ func (t *TokensTable) GetToken(id string) (*models.Token, error) {
 	return &result, nil
 }
 
-// DeleteByOwner deletes all tokens owned by id
-func (t *TokensTable) DeleteByOwner(id string) error {
+// DeleteOwnedBy deletes all tokens owned by id
+func (t *TokensTable) DeleteOwnedBy(id string) error {
 	return t.Delete(map[string]interface{}{
 		"owner": id,
 	})

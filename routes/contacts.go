@@ -3,20 +3,43 @@ package routes
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/zenazn/goji/web"
+
+	"github.com/lavab/api/env"
+	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
 )
 
 // ContactsListResponse contains the result of the ContactsList request.
 type ContactsListResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success  bool               `json:"success"`
+	Message  string             `json:"message,omitempty"`
+	Contacts *[]*models.Contact `json:"contacts,omitempty"`
 }
 
 // ContactsList does *something* - TODO
-func ContactsList(w http.ResponseWriter, r *http.Request) {
+func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Fetch the current session from the database
+	session := c.Env["session"].(*models.Token)
+
+	// Get contacts from the database
+	contacts, err := env.Contacts.GetOwnedBy(session.Owner)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to fetch contacts")
+
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code CO/LI/01)",
+		})
+		return
+	}
+
 	utils.JSONResponse(w, 501, &ContactsListResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+		Success:  false,
+		Contacts: &contacts,
 	})
 }
 
