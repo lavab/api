@@ -254,10 +254,48 @@ type ContactsDeleteResponse struct {
 	Message string `json:"message"`
 }
 
-// ContactsDelete does *something* - TODO
-func ContactsDelete(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &ContactsDeleteResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+// ContactsDelete removes a contact from the database
+func ContactsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the contact from the database
+	contact, err := env.Contacts.GetContact(c.URLParams["id"])
+	if err != nil {
+		utils.JSONResponse(w, 404, &ContactsDeleteResponse{
+			Success: false,
+			Message: "Contact not found",
+		})
+		return
+	}
+
+	// Fetch the current session from the middleware
+	session := c.Env["token"].(*models.Token)
+
+	// Check for ownership
+	if contact.Owner != session.Owner {
+		utils.JSONResponse(w, 404, &ContactsDeleteResponse{
+			Success: false,
+			Message: "Contact not found",
+		})
+		return
+	}
+
+	// Perform the deletion
+	err = env.Contacts.DeleteID(c.URLParams["id"])
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+			"id":    c.URLParams["id"],
+		}).Error("Unable to delete a contact")
+
+		utils.JSONResponse(w, 500, &ContactsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code CO/DE/01)",
+		})
+		return
+	}
+
+	// Write the contact to the response
+	utils.JSONResponse(w, 200, &ContactsDeleteResponse{
+		Success: true,
+		Message: "Contact successfully removed",
 	})
 }
