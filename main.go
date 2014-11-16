@@ -29,6 +29,8 @@ var (
 	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
 	sessionDuration  = flag.Int("session_duration", 72, "Session duration expressed in hours")
 	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
+	// Registration settings
+	classicRegistration = flag.Bool("classic_registartion", false, "Classic registration enabled?")
 	// Database-related flags
 	rethinkdbURL = flag.String("rethinkdb_url", func() string {
 		address := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR")
@@ -53,10 +55,11 @@ func main() {
 
 	// Put config into the environment package
 	env.Config = &env.Flags{
-		BindAddress:      *bindAddress,
-		APIVersion:       *apiVersion,
-		LogFormatterType: *logFormatterType,
-		SessionDuration:  *sessionDuration,
+		BindAddress:         *bindAddress,
+		APIVersion:          *apiVersion,
+		LogFormatterType:    *logFormatterType,
+		SessionDuration:     *sessionDuration,
+		ClassicRegistration: *classicRegistration,
 	}
 
 	// Set up a new logger

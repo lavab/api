@@ -89,6 +89,15 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if classic registration is enabled
+	if requestType == "classic" && !env.Config.ClassicRegistration {
+		utils.JSONResponse(w, 403, &AccountsCreateResponse{
+			Success: false,
+			Message: "Classic registration is disabled",
+		})
+		return
+	}
+
 	// Check "invited" for token validity
 	if requestType == "invited" {
 		// Fetch the token from the database
