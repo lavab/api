@@ -65,7 +65,7 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 		}
 
 		// Continue to the next middleware/route
-		c.Env["session"] = token
+		c.Env["token"] = token
 		h.ServeHTTP(w, r)
 	})
 }

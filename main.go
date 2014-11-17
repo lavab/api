@@ -104,13 +104,6 @@ func main() {
 	env.Rethink = rethinkSession
 
 	// Initialize the tables
-	env.Accounts = &db.AccountsTable{
-		RethinkCRUD: db.NewCRUDTable(
-			rethinkSession,
-			rethinkOpts.Database,
-			"accounts",
-		),
-	}
 	env.Tokens = &db.TokensTable{
 		RethinkCRUD: db.NewCRUDTable(
 			rethinkSession,
@@ -118,11 +111,26 @@ func main() {
 			"tokens",
 		),
 	}
+	env.Accounts = &db.AccountsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"accounts",
+		),
+		Tokens: env.Tokens,
+	}
 	env.Keys = &db.KeysTable{
 		RethinkCRUD: db.NewCRUDTable(
 			rethinkSession,
 			rethinkOpts.Database,
 			"keys",
+		),
+	}
+	env.Contacts = &db.ContactsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"contacts",
 		),
 	}
 

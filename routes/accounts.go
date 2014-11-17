@@ -183,7 +183,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
-		}).Error("Could not insert an user to the database")
+		}).Error("Could not insert an user into the database")
 		return
 	}
 
@@ -247,7 +247,7 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
@@ -336,7 +336,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
@@ -439,7 +439,7 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
@@ -478,7 +478,7 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// TODO: Delete threads
 
 	// Delete tokens
-	err = env.Tokens.DeleteByOwner(user.ID)
+	err = env.Tokens.DeleteOwnedBy(user.ID)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"id":    user.ID,
@@ -540,28 +540,16 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
-	user, err := env.Accounts.GetAccount(session.Owner)
+	user, err := env.Accounts.GetTokenOwner(session)
 	if err != nil {
 		// The session refers to a non-existing user
 		env.Log.WithFields(logrus.Fields{
 			"id":    session.ID,
 			"error": err,
 		}).Warn("Valid session referred to a removed account")
-
-		// Try to remove the orphaned session
-		if err := env.Tokens.DeleteID(session.ID); err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"id":    session.ID,
-				"error": err,
-			}).Error("Unable to remove an orphaned session")
-		} else {
-			env.Log.WithFields(logrus.Fields{
-				"id": session.ID,
-			}).Info("Removed an orphaned session")
-		}
 
 		utils.JSONResponse(w, 410, &AccountsWipeDataResponse{
 			Success: false,
@@ -579,7 +567,7 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	// TODO: Delete threads
 
 	// Delete tokens
-	err = env.Tokens.DeleteByOwner(user.ID)
+	err = env.Tokens.DeleteOwnedBy(user.ID)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"id":    user.ID,

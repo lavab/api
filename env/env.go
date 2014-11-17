@@ -20,4 +20,6 @@ var (
 	Tokens *db.TokensTable
 	// Keys is the global instance of KeysTable
 	Keys *db.KeysTable
+	// Contacts is the global instance of ContactsTable
+	Contacts *db.ContactsTable
 )
