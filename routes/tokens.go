@@ -114,6 +114,15 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		Type:     input.Type,
 	}
 
+	// Insert the token into the cache
+	err = env.TokensCache.SetToken(token)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"user":  user.Name,
+			"error": err,
+		}).Error("Could add token to the store")
+	}
+
 	// Insert int into the database
 	env.Tokens.Insert(token)
 
@@ -168,6 +177,19 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, 500, &TokensDeleteResponse{
 			Success: true,
 			Message: "Internal server error - TO/DE/02",
+		})
+		return
+	}
+
+	//There is a lot of code repetition here ?
+	if err := env.TokensCache.InvalidateToken(session.ID); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to delete a session from cache")
+
+		utils.JSONResponse(w, 500, &TokensDeleteResponse{
+			Success: true,
+			Message: "Internal server error - TO/DE/01",
 		})
 		return
 	}

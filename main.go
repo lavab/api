@@ -14,6 +14,7 @@ import (
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 
+	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/routes"
@@ -47,6 +48,15 @@ var (
 		}
 		return database
 	}(), "Database name on the RethinkDB server")
+
+	// Redis configuration variable
+	redisURL = flag.String("redis_url", func() string {
+		address := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
+		if address == "" {
+			address = "localhost"
+		}
+		return address + ":6379"
+	}(), "Address of the Redis database")
 )
 
 func main() {
@@ -124,6 +134,14 @@ func main() {
 			rethinkOpts.Database,
 			"keys",
 		),
+	}
+
+	// Set up the redis Cache
+	env.TokensCache, err = cache.Setup(*redisURL)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to connect to the redis database")
 	}
 
 	// Create a new goji mux
