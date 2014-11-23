@@ -64,7 +64,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	requestType := "unknown"
 	if input.AltEmail == "" && input.Username != "" && input.Password != "" && input.Token != "" {
 		requestType = "invited"
-	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token != "" {
+	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token == "" {
 		requestType = "classic"
 	} else if input.AltEmail != "" && input.Username == "" && input.Password == "" && input.Token == "" {
 		requestType = "queue"

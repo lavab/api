@@ -90,13 +90,13 @@ func TestHello(t *testing.T) {
 func TestAccounts(t *testing.T) {
 	// Constants for input data
 	const (
-		usernameInvited = "jeremy"
-		passwordInvited = "potato"
+		username = "jeremy"
+		password = "potato"
 	)
 
 	// Hash the passwords
-	passwordClassicHashed, err := mcf.Create(passwordInvited)
-	require.Nil(t, err, "hashing passwordInvited should not return an error")
+	passwordHashed, err := mcf.Create(password)
+	require.Nil(t, err, "hashing password should not return an error")
 
 	// Prepare a token
 	inviteToken := models.Token{
@@ -107,17 +107,34 @@ func TestAccounts(t *testing.T) {
 	err = env.Tokens.Insert(inviteToken)
 	require.Nil(t, err, "inserting a new invitation token should not return an error")
 
+	// POST /accounts - unknown
+	createUnknownResult, err := goreq.Request{
+		Method: "POST",
+		Uri:    server.URL + "/accounts",
+	}.Do()
+	require.Nil(t, err, "querying unknown /accounts should not return an error")
+
+	// Unmarshal the response
+	var createUnknownResponse routes.AccountsCreateResponse
+	err = createUnknownResult.Body.FromJsonTo(&createUnknownResponse)
+	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+
+	// Check values
+	require.False(t, createUnknownResponse.Success, "unknown request should return success false")
+	require.Equal(t, "Invalid request", createUnknownResponse.Message, "unknown request should return proper error msg")
+
 	// POST /accounts - invited
 	createInvitedResult, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
-			Username: usernameInvited,
-			Password: passwordClassicHashed,
+			Username: username + "invited",
+			Password: passwordHashed,
 			Token:    inviteToken.ID,
 		},
 	}.Do()
+	require.Nil(t, err, "querying invited /accounts should not return an error")
 
 	// Unmarshal the response
 	var createInvitedResponse routes.AccountsCreateResponse
@@ -128,4 +145,27 @@ func TestAccounts(t *testing.T) {
 	require.True(t, createInvitedResponse.Success, "creating a new account using inv registration failed")
 	require.Equal(t, "A new account was successfully created", createInvitedResponse.Message, "invalid message returned by invited acc creation")
 	require.NotEmpty(t, createInvitedResponse.Account.ID, "newly created account's id should not be empty")
+
+	// POST /accounts - classic
+	createClassicResult, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username: username + "classic",
+			Password: passwordHashed,
+			AltEmail: "something@example.com",
+		},
+	}.Do()
+	require.Nil(t, err, "querying invited /accounts should not return an error")
+
+	// Unmarshal the response
+	var createClassicResponse routes.AccountsCreateResponse
+	err = createClassicResult.Body.FromJsonTo(&createClassicResponse)
+	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+
+	// Check the result's contents
+	require.True(t, createClassicResponse.Success, "creating a new account using classic registration failed")
+	require.Equal(t, "A new account was successfully created, you should receive a confirmation email soon™.", createClassicResponse.Message, "invalid message returned by invited acc creation")
+	require.NotEmpty(t, createClassicResponse.Account.ID, "newly created account's id should not be empty")
 }
