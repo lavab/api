@@ -27,10 +27,10 @@ func AccountsList(w http.ResponseWriter, r *http.Request) {
 
 // AccountsCreateRequest contains the input for the AccountsCreate endpoint.
 type AccountsCreateRequest struct {
-	Token    string `json:"token" schema:"token"`
-	Username string `json:"username" schema:"username"`
-	Password string `json:"password" schema:"password"`
-	AltEmail string `json:"alt_email" schema:"alt_email"`
+	Token    string `json:"token,omitempty" schema:"token"`
+	Username string `json:"username,omitempty" schema:"username"`
+	Password string `json:"password,omitempty" schema:"password"`
+	AltEmail string `json:"alt_email,omitempty" schema:"alt_email"`
 }
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
@@ -71,7 +71,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// "unknown" requests are empty and invalid
-	if requestType == "invalid" {
+	if requestType == "unknown" {
 		utils.JSONResponse(w, 400, &AccountsCreateResponse{
 			Success: false,
 			Message: "Invalid request",

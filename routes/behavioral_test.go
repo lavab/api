@@ -9,7 +9,7 @@ import (
 	"github.com/franela/goreq"
 	"github.com/gyepisam/mcf"
 	_ "github.com/gyepisam/mcf/scrypt"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
@@ -78,13 +78,13 @@ func TestHello(t *testing.T) {
 		Method: "GET",
 		Uri:    server.URL,
 	}.Do()
-	assert.Nil(t, err, "requesting / should not return an error")
+	require.Nil(t, err, "requesting / should not return an error")
 
 	// Unmarshal the response
 	var helloResponse routes.HelloResponse
 	err = helloResult.Body.FromJsonTo(&helloResponse)
-	assert.Nil(t, err, "unmarshaling / result should not return an error")
-	assert.Equal(t, "Lavaboom API", helloResponse.Message)
+	require.Nil(t, err, "unmarshaling / result should not return an error")
+	require.Equal(t, "Lavaboom API", helloResponse.Message)
 }
 
 func TestAccounts(t *testing.T) {
@@ -96,37 +96,36 @@ func TestAccounts(t *testing.T) {
 
 	// Hash the passwords
 	passwordClassicHashed, err := mcf.Create(passwordInvited)
-	assert.Nil(t, err, "hashing passwordInvited should not return an error")
+	require.Nil(t, err, "hashing passwordInvited should not return an error")
 
 	// Prepare a token
 	inviteToken := models.Token{
 		Resource: models.MakeResource("", "test invite token"),
 		Type:     "invite",
 	}
+	inviteToken.ExpireSoon()
 	err = env.Tokens.Insert(inviteToken)
-	assert.Nil(t, err, "inserting a new invitation token should not return an error")
+	require.Nil(t, err, "inserting a new invitation token should not return an error")
 
 	// POST /accounts - invited
 	createInvitedResult, err := goreq.Request{
-		Method: "POST",
-		Uri:    server.URL + "/accounts",
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
 			Username: usernameInvited,
 			Password: passwordClassicHashed,
 			Token:    inviteToken.ID,
 		},
 	}.Do()
-	
-	x, _ := createInvitedResult.Body.ToString()
-	env.Log.Print(x)
 
 	// Unmarshal the response
 	var createInvitedResponse routes.AccountsCreateResponse
 	err = createInvitedResult.Body.FromJsonTo(&createInvitedResponse)
-	assert.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
 
 	// Check the result's contents
-	assert.True(t, createInvitedResponse.Success, "creating a new account using inv registration failed")
-	assert.Equal(t, "A new account was successfully created", createInvitedResponse.Message, "invalid message returned by invited acc creation")
-	assert.NotEmpty(t, createInvitedResponse.Account.ID, "newly created account's id should not be empty")
+	require.True(t, createInvitedResponse.Success, "creating a new account using inv registration failed")
+	require.Equal(t, "A new account was successfully created", createInvitedResponse.Message, "invalid message returned by invited acc creation")
+	require.NotEmpty(t, createInvitedResponse.Account.ID, "newly created account's id should not be empty")
 }

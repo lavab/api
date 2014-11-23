@@ -3,7 +3,7 @@ package setup
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/lavab/api/env"
 )
@@ -25,5 +25,5 @@ func TestSetup(t *testing.T) {
 
 	// Prepare a new mux (initialize the API)
 	mux := PrepareMux(env.Config)
-	assert.NotNil(t, mux, "mux should not be nil")
+	require.NotNil(t, mux, "mux should not be nil")
 }
