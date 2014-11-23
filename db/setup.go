@@ -27,6 +27,7 @@ var databaseNames = []string{
 	"prod",
 	"staging",
 	"dev",
+	"test",
 }
 
 // Setup configures the RethinkDB server
