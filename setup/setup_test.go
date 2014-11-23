@@ -13,7 +13,7 @@ func TestSetup(t *testing.T) {
 	env.Config = &env.Flags{
 		APIVersion:       "v0",
 		LogFormatterType: "text",
-		ForceColors:      false,
+		ForceColors:      true,
 
 		SessionDuration:     72,
 		ClassicRegistration: true,

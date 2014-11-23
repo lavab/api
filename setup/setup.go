@@ -5,13 +5,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dancannon/gorethink"
-	"github.com/goji/glogrus"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/routes"
+	"github.com/lavab/glogrus"
 )
 
 func PrepareMux(flags *env.Flags) *web.Mux {
