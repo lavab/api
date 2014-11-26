@@ -7,7 +7,6 @@ import (
 
 	"github.com/dancannon/gorethink"
 	"github.com/franela/goreq"
-	_ "github.com/gyepisam/mcf/scrypt"
 	"github.com/stretchr/testify/require"
 
 	"github.com/lavab/api/env"
@@ -247,5 +246,36 @@ func TestAccountsGetMe(t *testing.T) {
 
 	// Check the result's contents
 	require.True(t, response.Success, "getting /accounts/me should succeed")
-	require.Equal(t, "jeremy", response.User.Name, "username should be the previously registered one")
+	require.Equal(t, "jeremy", response.Account.Name, "username should be the previously registered one")
+}
+
+func TestAccountUpdateMe(t *testing.T) {
+	// PUT /accounts/me
+	request := goreq.Request{
+		Method:      "PUT",
+		Uri:         server.URL + "/accounts/me",
+		ContentType: "application/json",
+		Body: &routes.AccountsUpdateRequest{
+			CurrentPassword: "potato",
+			NewPassword:     "cabbage",
+			AltEmail:        "john.cabbage@example.com",
+		},
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err, "updating account should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsUpdateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling account update response should not return an error")
+
+	// Check the result's contents
+	require.Equal(t, "Your account has been successfully updated", response.Message, "response message should be valid")
+	require.True(t, response.Success, "updating /accounts/me should succeed")
+	require.Equal(t, "jeremy", response.Account.Name, "username should not be changed")
+	require.Equal(t, "john.cabbage@example.com", response.Account.AltEmail, "alt email should be changed")
+	//valid, _, err := response.Account.VerifyPassword("cabbage")
+	//require.Nil(t, err, "verifying the password should not return an error")
+	//require.True(t, valid, "password should be changed")
 }

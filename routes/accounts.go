@@ -222,7 +222,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 type AccountsGetResponse struct {
 	Success bool            `json:"success"`
 	Message string          `json:"message,omitempty"`
-	User    *models.Account `json:"user,omitempty"`
+	Account *models.Account `json:"user,omitempty"`
 }
 
 // AccountsGet returns the information about the specified account
@@ -280,13 +280,12 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Return the user struct
 	utils.JSONResponse(w, 200, &AccountsGetResponse{
 		Success: true,
-		User:    user,
+		Account: user,
 	})
 }
 
 // AccountsUpdateRequest contains the input for the AccountsUpdate endpoint.
 type AccountsUpdateRequest struct {
-	Type            string `json:"type" schema:"type"`
 	AltEmail        string `json:"alt_email" schema:"alt_email"`
 	CurrentPassword string `json:"current_password" schema:"current_password"`
 	NewPassword     string `json:"new_password" schema:"new_password"`
@@ -374,17 +373,19 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = user.SetPassword(input.NewPassword)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("Unable to hash a password")
+	if input.NewPassword != "" {
+		err = user.SetPassword(input.NewPassword)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Unable to hash a password")
 
-		utils.JSONResponse(w, 500, &AccountsUpdateResponse{
-			Success: false,
-			Message: "Internal error (code AC/UP/01)",
-		})
-		return
+			utils.JSONResponse(w, 500, &AccountsUpdateResponse{
+				Success: false,
+				Message: "Internal error (code AC/UP/01)",
+			})
+			return
+		}
 	}
 
 	if input.AltEmail != "" {
@@ -405,7 +406,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, 200, &AccountsUpdateResponse{
-		Success: false,
+		Success: true,
 		Message: "Your account has been successfully updated",
 		Account: user,
 	})
