@@ -17,6 +17,7 @@ import (
 
 var (
 	server    *httptest.Server
+	accountID string
 	authToken string
 )
 
@@ -142,6 +143,8 @@ func TestAccountsCreateInvited(t *testing.T) {
 	require.True(t, response1.Success, "creating a new account using inv registration failed")
 	require.Equal(t, "A new account was successfully created", response1.Message, "invalid message returned by invited acc creation")
 	require.NotEmpty(t, response1.Account.ID, "newly created account's id should not be empty")
+
+	accountID = response1.Account.ID
 
 	// POST /accounts - invited with wrong token
 	result2, err := goreq.Request{
@@ -278,4 +281,54 @@ func TestAccountUpdateMe(t *testing.T) {
 	//valid, _, err := response.Account.VerifyPassword("cabbage")
 	//require.Nil(t, err, "verifying the password should not return an error")
 	//require.True(t, valid, "password should be changed")
+}
+
+func TestAccountsWipeData(t *testing.T) {
+	// POST /accounts/me/wipe-data
+	request := goreq.Request{
+		Method: "POST",
+		Uri:    server.URL + "/accounts/me/wipe-data",
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err, "wiping account should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsWipeDataResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling account wipe response should not return an error")
+
+	// Check the result's contents
+	require.Equal(t, "Your account has been successfully wiped", response.Message, "response message should be valid")
+	require.True(t, response.Success, "triggering /accounts/wipe-data should succeed")
+}
+
+func TestAccountsDelete(t *testing.T) {
+	// Prepare a token
+	token := models.Token{
+		Resource: models.MakeResource(accountID, "test invite token"),
+		Type:     "auth",
+	}
+	token.ExpireSoon()
+
+	err := env.Tokens.Insert(token)
+	require.Nil(t, err, "inserting a new auth toekn token should not return an error")
+
+	// DELETE /accounts/me
+	request := goreq.Request{
+		Method: "DELETE",
+		Uri:    server.URL + "/accounts/me",
+	}
+	request.AddHeader("Authorization", "Bearer "+token.ID)
+	result, err := request.Do()
+	require.Nil(t, err, "deleting account should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsWipeDataResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling account delete response should not return an error")
+
+	// Check the result's contents
+	require.Equal(t, "Your account has been successfully deleted", response.Message, "response message should be valid")
+	require.True(t, response.Success, "triggering delete /account/me should succeed")
 }
