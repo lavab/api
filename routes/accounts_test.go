@@ -87,6 +87,25 @@ func TestHello(t *testing.T) {
 	require.Equal(t, "Lavaboom API", helloResponse.Message)
 }
 
+func TestAccountsCreateInvalid(t *testing.T) {
+	// POST /accounts - invalid
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body:        "!@#!@#",
+	}.Do()
+	require.Nil(t, err, "querying invalid /accounts should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	env.Log.Print(response)
+	require.Nil(t, err, "unmarshaling invalid account creation should not return an error")
+	require.False(t, response.Success, "request should fail")
+	require.Equal(t, "Invalid input format", response.Message, "proper message should be returned")
+}
+
 func TestAccountsCreateUnknown(t *testing.T) {
 	// POST /accounts - unknown
 	result, err := goreq.Request{
@@ -169,6 +188,123 @@ func TestAccountsCreateInvited(t *testing.T) {
 	require.Equal(t, "Invalid invitation token", response2.Message, "invalid message returned by invalid token acc creation")
 }
 
+func TestAccountsCreateInvitedExisting(t *testing.T) {
+	const (
+		username = "jeremy"
+		password = "potato"
+	)
+
+	// Prepare a token
+	inviteToken := models.Token{
+		Resource: models.MakeResource("", "test invite token"),
+		Type:     "invite",
+	}
+	inviteToken.ExpireSoon()
+
+	err := env.Tokens.Insert(inviteToken)
+	require.Nil(t, err, "inserting a new invitation token should not return an error")
+
+	// POST /accounts - invited
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username: username,
+			Password: password,
+			Token:    inviteToken.ID,
+		},
+	}.Do()
+	require.Nil(t, err, "querying existing invited /accounts should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling existing invited account creation should not return an error")
+
+	// Check the result's contents
+	require.False(t, response.Success, "creating a new account using inv registration should fail")
+	require.Equal(t, "Username already exists", response.Message, "invalid message returned by existing invited acc creation")
+}
+
+func TestAccountsCreateInvitedExpired(t *testing.T) {
+	const (
+		username = "jeremy2"
+		password = "potato2"
+	)
+
+	// Prepare a token
+	inviteToken := models.Token{
+		Resource: models.MakeResource("", "test invite token"),
+		Type:     "invite",
+	}
+	inviteToken.ExpiryDate = time.Now().Truncate(time.Hour)
+
+	err := env.Tokens.Insert(inviteToken)
+	require.Nil(t, err, "inserting a new invitation token should not return an error")
+
+	// POST /accounts - invited
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username: username,
+			Password: password,
+			Token:    inviteToken.ID,
+		},
+	}.Do()
+	require.Nil(t, err, "querying expired invited /accounts should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling expired invited account creation should not return an error")
+
+	// Check the result's contents
+	require.False(t, response.Success, "creating a new account using inv registration should fail")
+	require.Equal(t, "Expired invitation token", response.Message, "invalid message returned by expired invited acc creation")
+}
+
+func TestAccountsCreateInvitedWrongType(t *testing.T) {
+	const (
+		username = "jeremy2"
+		password = "potato2"
+	)
+
+	// Prepare a token
+	inviteToken := models.Token{
+		Resource: models.MakeResource("", "test not invite token"),
+		Type:     "not invite",
+	}
+	inviteToken.ExpiryDate = time.Now().Truncate(time.Hour)
+
+	err := env.Tokens.Insert(inviteToken)
+	require.Nil(t, err, "inserting a new not invitation token should not return an error")
+
+	// POST /accounts - invited
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username: username,
+			Password: password,
+			Token:    inviteToken.ID,
+		},
+	}.Do()
+	require.Nil(t, err, "querying wrong type invited /accounts should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling wrong type invited account creation should not return an error")
+
+	// Check the result's contents
+	require.False(t, response.Success, "creating a new account using inv registration should fail")
+	require.Equal(t, "Invalid invitation token", response.Message, "invalid message returned by wrong type invited acc creation")
+}
+
 func TestAccountsCreateClassic(t *testing.T) {
 	const (
 		username = "jeremy_was_invited"
@@ -197,6 +333,28 @@ func TestAccountsCreateClassic(t *testing.T) {
 	require.True(t, createClassicResponse.Success, "creating a new account using classic registration failed")
 	require.Equal(t, "A new account was successfully created, you should receive a confirmation email soon™.", createClassicResponse.Message, "invalid message returned by invited acc creation")
 	require.NotEmpty(t, createClassicResponse.Account.ID, "newly created account's id should not be empty")
+}
+
+func TestAccountsCreateQueue(t *testing.T) {
+	// POST /accounts - queue
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			AltEmail: "something@example.com",
+		},
+	}.Do()
+	require.Nil(t, err, "querying /accounts to queue")
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling queue response create should not fail")
+
+	// Check the result's contents
+	require.False(t, response.Success, "creating a new account using queue registration failed")
+	require.Equal(t, "Sorry, not implemented yet", response.Message, "invalid message returned by queue acc creation")
 }
 
 func TestTokensCreate(t *testing.T) {
