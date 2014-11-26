@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	server *httptest.Server
+	server    *httptest.Server
+	authToken string
 )
 
 func init() {
@@ -220,10 +221,31 @@ func TestTokensCreate(t *testing.T) {
 	err = request.Body.FromJsonTo(&response)
 	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
 
-	env.Log.Print(response.Message)
-
 	// Check the result's contents
 	require.True(t, response.Success, "creating a new token using existing account failed")
 	require.Equal(t, "Authentication successful", response.Message, "invalid message returned by invited acc creation")
 	require.NotEmpty(t, response.Token.ID, "newly created token's id should not be empty")
+
+	// Populate the global token variable
+	authToken = response.Token.ID
+}
+
+func TestAccountsGetMe(t *testing.T) {
+	// GET /accounts/me
+	request := goreq.Request{
+		Method: "GET",
+		Uri:    server.URL + "/accounts/me",
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err, "querying /accounts/me should not return an error")
+
+	// Unmarshal the response
+	var response routes.AccountsGetResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling /accounts/me should not return an error")
+
+	// Check the result's contents
+	require.True(t, response.Success, "getting /accounts/me should succeed")
+	require.Equal(t, "jeremy", response.User.Name, "username should be the previously registered one")
 }
