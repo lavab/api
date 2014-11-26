@@ -390,6 +390,26 @@ func TestTokensCreate(t *testing.T) {
 	authToken = response.Token.ID
 }
 
+func TestAccountsList(t *testing.T) {
+	// GET /accounts
+	request := goreq.Request{
+		Method: "GET",
+		Uri:    server.URL + "/accounts",
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err, "querying /accounts should not fail")
+
+	// Unmarshal the response
+	var response routes.AccountsListResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err, "unmarshaling queue response create should not fail")
+
+	// Check the result's contents
+	require.False(t, response.Success, "creating a new account using queue registration failed")
+	require.Equal(t, "Sorry, not implemented yet", response.Message, "invalid message returned by queue acc creation")
+}
+
 func TestAccountsGetMe(t *testing.T) {
 	// GET /accounts/me
 	request := goreq.Request{
