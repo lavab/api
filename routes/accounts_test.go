@@ -1,91 +1,16 @@
 package routes_test
 
 import (
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/dancannon/gorethink"
 	"github.com/franela/goreq"
 	"github.com/stretchr/testify/require"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/routes"
-	"github.com/lavab/api/setup"
 )
-
-var (
-	server    *httptest.Server
-	accountID string
-	authToken string
-)
-
-func init() {
-	// Mock data
-	env.Config = &env.Flags{
-		APIVersion:       "v0",
-		LogFormatterType: "text",
-		ForceColors:      true,
-
-		SessionDuration:     72,
-		ClassicRegistration: true,
-
-		RethinkDBURL:      "127.0.0.1:28015",
-		RethinkDBKey:      "",
-		RethinkDBDatabase: "test",
-	}
-
-	// Connect to the RethinkDB server
-	rdbSession, err := gorethink.Connect(gorethink.ConnectOpts{
-		Address:     env.Config.RethinkDBURL,
-		AuthKey:     env.Config.RethinkDBKey,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
-	})
-	if err != nil {
-		panic("connecting to RethinkDB should not return an error, got " + err.Error())
-	}
-
-	// Clear the test database
-	err = gorethink.DbDrop("test").Exec(rdbSession)
-	if err != nil {
-		panic("removing the test database should not return an error, got " + err.Error())
-	}
-
-	// Disconnect
-	err = rdbSession.Close()
-	if err != nil {
-		panic("closing the RethinkDB session should not return an error, got " + err.Error())
-	}
-
-	// Prepare a new mux (initialize the API)
-	mux := setup.PrepareMux(env.Config)
-	if mux == nil {
-		panic("returned mux was nil")
-	}
-
-	// Set up a new temporary HTTP test server
-	server = httptest.NewServer(mux)
-	if server == nil {
-		panic("returned httptest server was nil")
-	}
-}
-
-func TestHello(t *testing.T) {
-	// Request the / route
-	helloResult, err := goreq.Request{
-		Method: "GET",
-		Uri:    server.URL,
-	}.Do()
-	require.Nil(t, err, "requesting / should not return an error")
-
-	// Unmarshal the response
-	var helloResponse routes.HelloResponse
-	err = helloResult.Body.FromJsonTo(&helloResponse)
-	require.Nil(t, err, "unmarshaling / result should not return an error")
-	require.Equal(t, "Lavaboom API", helloResponse.Message)
-}
 
 func TestAccountsCreateInvalid(t *testing.T) {
 	// POST /accounts - invalid
@@ -390,7 +315,7 @@ func TestAccountsCreateQueue(t *testing.T) {
 	require.Equal(t, "Sorry, not implemented yet", response.Message, "invalid message returned by queue acc creation")
 }
 
-func TestTokensCreate(t *testing.T) {
+func TestAccountsPrepareToken(t *testing.T) {
 	// log in as mr jeremy potato
 	const (
 		username = "jeremy"
