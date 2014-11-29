@@ -11,6 +11,11 @@ import (
 	"github.com/lavab/api/routes"
 )
 
+var (
+	contactID         string
+	notOwnedContactID string
+)
+
 func TestContactsPrepareAccount(t *testing.T) {
 	const (
 		username = "jeremy-contacts"
@@ -95,6 +100,8 @@ func TestContactsCreate(t *testing.T) {
 	require.Equal(t, "A new contact was successfully created", response.Message)
 	require.True(t, response.Success)
 	require.NotEmpty(t, response.Contact.ID)
+
+	contactID = response.Contact.ID
 }
 
 func TestContactsCreateMissingParts(t *testing.T) {
@@ -156,4 +163,216 @@ func TestContactsList(t *testing.T) {
 
 	require.True(t, response.Success)
 	require.True(t, len(*response.Contacts) > 0)
+}
+
+func TestContactsGet(t *testing.T) {
+	request := goreq.Request{
+		Method: "GET",
+		Uri:    server.URL + "/contacts/" + contactID,
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsGetResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.True(t, response.Success)
+	require.Equal(t, "John Doe", response.Contact.Name)
+}
+
+func TestContactsGetNotOwned(t *testing.T) {
+	contact := &models.Contact{
+		Encrypted: models.Encrypted{
+			Encoding:     "json",
+			Data:         "carp",
+			Schema:       "contact",
+			VersionMajor: 1,
+			VersionMinor: 0,
+		},
+		Resource: models.MakeResource("not", "Carpeus Caesar"),
+	}
+
+	err := env.Contacts.Insert(contact)
+	require.Nil(t, err)
+
+	notOwnedContactID = contact.ID
+
+	request := goreq.Request{
+		Method: "GET",
+		Uri:    server.URL + "/contacts/" + contact.ID,
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsGetResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.False(t, response.Success)
+	require.Equal(t, "Contact not found", response.Message)
+}
+
+func TestContactsGetWrongID(t *testing.T) {
+	request := goreq.Request{
+		Method: "GET",
+		Uri:    server.URL + "/contacts/gibberish",
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsGetResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.False(t, response.Success)
+	require.Equal(t, "Contact not found", response.Message)
+}
+
+func TestContactsUpdate(t *testing.T) {
+	request := goreq.Request{
+		Method:      "PUT",
+		Uri:         server.URL + "/contacts/" + contactID,
+		ContentType: "application/json",
+		Body: routes.ContactsUpdateRequest{
+			Data:         "random stuff2",
+			Name:         "John Doez",
+			Encoding:     "json",
+			VersionMajor: 1,
+			VersionMinor: 0,
+		},
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsUpdateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.True(t, response.Success)
+	require.Equal(t, "John Doez", response.Contact.Name)
+}
+
+func TestContactsUpdateInvalid(t *testing.T) {
+	request := goreq.Request{
+		Method:      "PUT",
+		Uri:         server.URL + "/contacts/" + contactID,
+		ContentType: "application/json",
+		Body:        "123123!@#!@#",
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsUpdateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.False(t, response.Success)
+	require.Equal(t, "Invalid input format", response.Message)
+}
+
+func TestContactsUpdateNotOwned(t *testing.T) {
+	request := goreq.Request{
+		Method:      "PUT",
+		Uri:         server.URL + "/contacts/" + notOwnedContactID,
+		ContentType: "application/json",
+		Body: routes.ContactsUpdateRequest{
+			Data:         "random stuff2",
+			Name:         "John Doez",
+			Encoding:     "json",
+			VersionMajor: 1,
+			VersionMinor: 0,
+		},
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsUpdateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.False(t, response.Success)
+	require.Equal(t, "Contact not found", response.Message)
+}
+
+func TestContactsUpdateNotExisting(t *testing.T) {
+	request := goreq.Request{
+		Method:      "PUT",
+		Uri:         server.URL + "/contacts/gibberish",
+		ContentType: "application/json",
+		Body: routes.ContactsUpdateRequest{
+			Data:         "random stuff2",
+			Name:         "John Doez",
+			Encoding:     "json",
+			VersionMajor: 1,
+			VersionMinor: 0,
+		},
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsUpdateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.False(t, response.Success)
+	require.Equal(t, "Contact not found", response.Message)
+}
+
+func TestContactsDelete(t *testing.T) {
+	request := goreq.Request{
+		Method: "DELETE",
+		Uri:    server.URL + "/contacts/" + contactID,
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsDeleteResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.True(t, response.Success)
+	require.Equal(t, "Contact successfully removed", response.Message)
+}
+
+func TestContactsDeleteNotOwned(t *testing.T) {
+	request := goreq.Request{
+		Method: "DELETE",
+		Uri:    server.URL + "/contacts/" + notOwnedContactID,
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsDeleteResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.False(t, response.Success)
+	require.Equal(t, "Contact not found", response.Message)
+}
+
+func TestContactsDeleteNotExisting(t *testing.T) {
+	request := goreq.Request{
+		Method: "DELETE",
+		Uri:    server.URL + "/contacts/gibberish",
+	}
+	request.AddHeader("Authorization", "Bearer "+authToken)
+	result, err := request.Do()
+	require.Nil(t, err)
+
+	var response routes.ContactsDeleteResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	require.False(t, response.Success)
+	require.Equal(t, "Contact not found", response.Message)
 }
