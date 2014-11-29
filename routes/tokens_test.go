@@ -87,6 +87,25 @@ func TestTokensCreate(t *testing.T) {
 	authToken = response.Token.ID
 }
 
+func TestTokensCreateInvalid(t *testing.T) {
+    request, err := goreq.Request{
+        Method:      "POST",
+        Uri:         server.URL + "/tokens",
+        ContentType: "application/json",
+        Body: "123123123###434$#$",
+    }.Do()
+    require.Nil(t, err, "querying existing /tokens should not return an error")
+
+    // Unmarshal the response
+    var response routes.TokensCreateResponse
+    err = request.Body.FromJsonTo(&response)
+    require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+
+    // Check the result's contents
+    require.False(t, response.Success)
+    require.Equal(t, "Invalid input format", response.Message)
+}
+
 func TestTokensGet(t *testing.T) {
 	request := goreq.Request{
 		Method: "GET",
