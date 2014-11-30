@@ -15,11 +15,11 @@ func TestHello(t *testing.T) {
 		Method: "GET",
 		Uri:    server.URL,
 	}.Do()
-	require.Nil(t, err, "requesting / should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var helloResponse routes.HelloResponse
 	err = helloResult.Body.FromJsonTo(&helloResponse)
-	require.Nil(t, err, "unmarshaling / result should not return an error")
+	require.Nil(t, err)
 	require.Equal(t, "Lavaboom API", helloResponse.Message)
 }

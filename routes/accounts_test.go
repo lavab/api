@@ -13,22 +13,20 @@ import (
 )
 
 func TestAccountsCreateInvalid(t *testing.T) {
-	// POST /accounts - invalid
 	result, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body:        "!@#!@#",
 	}.Do()
-	require.Nil(t, err, "querying invalid /accounts should not return an error")
+	require.Nil(t, err)
 
-	// Unmarshal the response
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
 	env.Log.Print(response)
-	require.Nil(t, err, "unmarshaling invalid account creation should not return an error")
-	require.False(t, response.Success, "request should fail")
-	require.Equal(t, "Invalid input format", response.Message, "proper message should be returned")
+	require.Nil(t, err)
+	require.False(t, response.Success)
+	require.Equal(t, "Invalid input format", response.Message)
 }
 
 func TestAccountsCreateUnknown(t *testing.T) {
@@ -37,16 +35,16 @@ func TestAccountsCreateUnknown(t *testing.T) {
 		Method: "POST",
 		Uri:    server.URL + "/accounts",
 	}.Do()
-	require.Nil(t, err, "querying unknown /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check values
-	require.False(t, response.Success, "unknown request should return success false")
-	require.Equal(t, "Invalid request", response.Message, "unknown request should return proper error msg")
+	require.False(t, response.Success)
+	require.Equal(t, "Invalid request", response.Message)
 }
 
 func TestAccountsCreateInvited(t *testing.T) {
@@ -63,7 +61,7 @@ func TestAccountsCreateInvited(t *testing.T) {
 	inviteToken.ExpireSoon()
 
 	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err, "inserting a new invitation token should not return an error")
+	require.Nil(t, err)
 
 	// POST /accounts - invited
 	result1, err := goreq.Request{
@@ -76,17 +74,17 @@ func TestAccountsCreateInvited(t *testing.T) {
 			Token:    inviteToken.ID,
 		},
 	}.Do()
-	require.Nil(t, err, "querying invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response1 routes.AccountsCreateResponse
 	err = result1.Body.FromJsonTo(&response1)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response1.Success, "creating a new account using inv registration failed")
-	require.Equal(t, "A new account was successfully created", response1.Message, "invalid message returned by invited acc creation")
-	require.NotEmpty(t, response1.Account.ID, "newly created account's id should not be empty")
+	require.True(t, response1.Success)
+	require.Equal(t, "A new account was successfully created", response1.Message)
+	require.NotEmpty(t, response1.Account.ID)
 
 	accountID = response1.Account.ID
 
@@ -101,16 +99,16 @@ func TestAccountsCreateInvited(t *testing.T) {
 			Token:    "asdasdasd",
 		},
 	}.Do()
-	require.Nil(t, err, "querying invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response2 routes.AccountsCreateResponse
 	err = result2.Body.FromJsonTo(&response2)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response2.Success, "creating a new account using invalid token should fail")
-	require.Equal(t, "Invalid invitation token", response2.Message, "invalid message returned by invalid token acc creation")
+	require.False(t, response2.Success)
+	require.Equal(t, "Invalid invitation token", response2.Message)
 }
 
 func TestAccountsCreateInvitedExisting(t *testing.T) {
@@ -127,7 +125,7 @@ func TestAccountsCreateInvitedExisting(t *testing.T) {
 	inviteToken.ExpireSoon()
 
 	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err, "inserting a new invitation token should not return an error")
+	require.Nil(t, err)
 
 	// POST /accounts - invited
 	result, err := goreq.Request{
@@ -140,16 +138,16 @@ func TestAccountsCreateInvitedExisting(t *testing.T) {
 			Token:    inviteToken.ID,
 		},
 	}.Do()
-	require.Nil(t, err, "querying existing invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling existing invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response.Success, "creating a new account using inv registration should fail")
-	require.Equal(t, "Username already exists", response.Message, "invalid message returned by existing invited acc creation")
+	require.False(t, response.Success)
+	require.Equal(t, "Username already exists", response.Message)
 }
 
 func TestAccountsCreateInvitedExpired(t *testing.T) {
@@ -166,7 +164,7 @@ func TestAccountsCreateInvitedExpired(t *testing.T) {
 	inviteToken.ExpiryDate = time.Now().Truncate(time.Hour)
 
 	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err, "inserting a new invitation token should not return an error")
+	require.Nil(t, err)
 
 	// POST /accounts - invited
 	result, err := goreq.Request{
@@ -179,16 +177,16 @@ func TestAccountsCreateInvitedExpired(t *testing.T) {
 			Token:    inviteToken.ID,
 		},
 	}.Do()
-	require.Nil(t, err, "querying expired invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling expired invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response.Success, "creating a new account using inv registration should fail")
-	require.Equal(t, "Expired invitation token", response.Message, "invalid message returned by expired invited acc creation")
+	require.False(t, response.Success)
+	require.Equal(t, "Expired invitation token", response.Message)
 }
 
 func TestAccountsCreateInvitedWrongType(t *testing.T) {
@@ -205,7 +203,7 @@ func TestAccountsCreateInvitedWrongType(t *testing.T) {
 	inviteToken.ExpiryDate = time.Now().Truncate(time.Hour)
 
 	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err, "inserting a new not invitation token should not return an error")
+	require.Nil(t, err)
 
 	// POST /accounts - invited
 	result, err := goreq.Request{
@@ -218,16 +216,16 @@ func TestAccountsCreateInvitedWrongType(t *testing.T) {
 			Token:    inviteToken.ID,
 		},
 	}.Do()
-	require.Nil(t, err, "querying wrong type invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling wrong type invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response.Success, "creating a new account using inv registration should fail")
-	require.Equal(t, "Invalid invitation token", response.Message, "invalid message returned by wrong type invited acc creation")
+	require.False(t, response.Success)
+	require.Equal(t, "Invalid invitation token", response.Message)
 }
 
 func TestAccountsCreateClassic(t *testing.T) {
@@ -247,17 +245,17 @@ func TestAccountsCreateClassic(t *testing.T) {
 			AltEmail: "something@example.com",
 		},
 	}.Do()
-	require.Nil(t, err, "querying invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var createClassicResponse routes.AccountsCreateResponse
 	err = createClassicResult.Body.FromJsonTo(&createClassicResponse)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, createClassicResponse.Success, "creating a new account using classic registration failed")
-	require.Equal(t, "A new account was successfully created, you should receive a confirmation email soon™.", createClassicResponse.Message, "invalid message returned by invited acc creation")
-	require.NotEmpty(t, createClassicResponse.Account.ID, "newly created account's id should not be empty")
+	require.True(t, createClassicResponse.Success)
+	require.Equal(t, "A new account was successfully created, you should receive a confirmation email soon™.", createClassicResponse.Message)
+	require.NotEmpty(t, createClassicResponse.Account.ID)
 }
 
 func TestAccountsCreateClassicDisabled(t *testing.T) {
@@ -279,16 +277,16 @@ func TestAccountsCreateClassicDisabled(t *testing.T) {
 			AltEmail: "something@example.com",
 		},
 	}.Do()
-	require.Nil(t, err, "querying invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var createClassicResponse routes.AccountsCreateResponse
 	err = createClassicResult.Body.FromJsonTo(&createClassicResponse)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, createClassicResponse.Success, "creating a new account using classic registration failed")
-	require.Equal(t, "Classic registration is disabled", createClassicResponse.Message, "invalid message returned by invited acc creation")
+	require.False(t, createClassicResponse.Success)
+	require.Equal(t, "Classic registration is disabled", createClassicResponse.Message)
 
 	env.Config.ClassicRegistration = true
 }
@@ -303,16 +301,16 @@ func TestAccountsCreateQueue(t *testing.T) {
 			AltEmail: "something@example.com",
 		},
 	}.Do()
-	require.Nil(t, err, "querying /accounts to queue")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling queue response create should not fail")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response.Success, "creating a new account using queue registration failed")
-	require.Equal(t, "Sorry, not implemented yet", response.Message, "invalid message returned by queue acc creation")
+	require.False(t, response.Success)
+	require.Equal(t, "Sorry, not implemented yet", response.Message)
 }
 
 func TestAccountsPrepareToken(t *testing.T) {
@@ -332,17 +330,17 @@ func TestAccountsPrepareToken(t *testing.T) {
 			Type:     "auth",
 		},
 	}.Do()
-	require.Nil(t, err, "querying existing /tokens should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.TokensCreateResponse
 	err = request.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response.Success, "creating a new token using existing account failed")
-	require.Equal(t, "Authentication successful", response.Message, "invalid message returned by invited acc creation")
-	require.NotEmpty(t, response.Token.ID, "newly created token's id should not be empty")
+	require.True(t, response.Success)
+	require.Equal(t, "Authentication successful", response.Message)
+	require.NotEmpty(t, response.Token.ID)
 
 	// Populate the global token variable
 	authToken = response.Token.ID
@@ -356,16 +354,16 @@ func TestAccountsList(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "querying /accounts should not fail")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsListResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling queue response create should not fail")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response.Success, "creating a new account using queue registration failed")
-	require.Equal(t, "Sorry, not implemented yet", response.Message, "invalid message returned by queue acc creation")
+	require.False(t, response.Success)
+	require.Equal(t, "Sorry, not implemented yet", response.Message)
 }
 
 func TestAccountsGetMe(t *testing.T) {
@@ -376,16 +374,16 @@ func TestAccountsGetMe(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "querying /accounts/me should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsGetResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling /accounts/me should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response.Success, "getting /accounts/me should succeed")
-	require.Equal(t, "jeremy", response.Account.Name, "username should be the previously registered one")
+	require.True(t, response.Success)
+	require.Equal(t, "jeremy", response.Account.Name)
 }
 
 func TestAccountsGetNotMe(t *testing.T) {
@@ -395,16 +393,16 @@ func TestAccountsGetNotMe(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "querying /accounts/not-me should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsGetResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling /accounts/not-me should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response.Success, "getting /accounts/not-me should fail")
-	require.Equal(t, `Only the "me" user is implemented`, response.Message, "/accounts/not-me should return a proper message")
+	require.False(t, response.Success)
+	require.Equal(t, `Only the "me" user is implemented`, response.Message)
 }
 
 func TestAccountUpdateMe(t *testing.T) {
@@ -421,18 +419,18 @@ func TestAccountUpdateMe(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "updating account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsUpdateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account update response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Your account has been successfully updated", response.Message, "response message should be valid")
-	require.True(t, response.Success, "updating /accounts/me should succeed")
-	require.Equal(t, "jeremy", response.Account.Name, "username should not be changed")
-	require.Equal(t, "john.cabbage@example.com", response.Account.AltEmail, "alt email should be changed")
+	require.Equal(t, "Your account has been successfully updated", response.Message)
+	require.True(t, response.Success)
+	require.Equal(t, "jeremy", response.Account.Name)
+	require.Equal(t, "john.cabbage@example.com", response.Account.AltEmail)
 }
 
 func TestAccountUpdateInvalid(t *testing.T) {
@@ -445,16 +443,16 @@ func TestAccountUpdateInvalid(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "updating account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsUpdateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account update response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Invalid input format", response.Message, "response message should be valid")
-	require.False(t, response.Success, "updating invalid /accounts/me should fail")
+	require.Equal(t, "Invalid input format", response.Message)
+	require.False(t, response.Success)
 }
 
 func TestAccountUpdateNotMe(t *testing.T) {
@@ -471,16 +469,16 @@ func TestAccountUpdateNotMe(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "updating account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsUpdateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account update response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, `Only the "me" user is implemented`, response.Message, "response message should be valid")
-	require.False(t, response.Success, "updating /accounts/not-me should fail")
+	require.Equal(t, `Only the "me" user is implemented`, response.Message)
+	require.False(t, response.Success)
 }
 
 func TestAccountUpdateMeInvalidPassword(t *testing.T) {
@@ -497,16 +495,16 @@ func TestAccountUpdateMeInvalidPassword(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "updating account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsUpdateResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account update response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Invalid current password", response.Message, "response message should be valid")
-	require.False(t, response.Success, "updating /accounts/me should fail")
+	require.Equal(t, "Invalid current password", response.Message)
+	require.False(t, response.Success)
 }
 
 func TestAccountsWipeDataNotMe(t *testing.T) {
@@ -517,16 +515,16 @@ func TestAccountsWipeDataNotMe(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "wiping account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsWipeDataResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account wipe response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, `Only the "me" user is implemented`, response.Message, "response message should be valid")
-	require.False(t, response.Success, "triggering /accounts/wipe-data should fail")
+	require.Equal(t, `Only the "me" user is implemented`, response.Message)
+	require.False(t, response.Success)
 }
 
 func TestAccountsWipeData(t *testing.T) {
@@ -537,16 +535,16 @@ func TestAccountsWipeData(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "wiping account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsWipeDataResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account wipe response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Your account has been successfully wiped", response.Message, "response message should be valid")
-	require.True(t, response.Success, "triggering /accounts/wipe-data should succeed")
+	require.Equal(t, "Your account has been successfully wiped", response.Message)
+	require.True(t, response.Success)
 }
 
 func TestAccountsDeleteNotMe(t *testing.T) {
@@ -558,7 +556,7 @@ func TestAccountsDeleteNotMe(t *testing.T) {
 	token.ExpireSoon()
 
 	err := env.Tokens.Insert(token)
-	require.Nil(t, err, "inserting a new auth toekn token should not return an error")
+	require.Nil(t, err)
 
 	// DELETE /accounts/me
 	request := goreq.Request{
@@ -567,16 +565,16 @@ func TestAccountsDeleteNotMe(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+token.ID)
 	result, err := request.Do()
-	require.Nil(t, err, "deleting account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsWipeDataResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account delete response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, `Only the "me" user is implemented`, response.Message, "response message should be valid")
-	require.False(t, response.Success, "triggering delete /account/me should fail")
+	require.Equal(t, `Only the "me" user is implemented`, response.Message)
+	require.False(t, response.Success)
 }
 
 func TestAccountsDelete(t *testing.T) {
@@ -588,7 +586,7 @@ func TestAccountsDelete(t *testing.T) {
 	token.ExpireSoon()
 
 	err := env.Tokens.Insert(token)
-	require.Nil(t, err, "inserting a new auth toekn token should not return an error")
+	require.Nil(t, err)
 
 	// DELETE /accounts/me
 	request := goreq.Request{
@@ -597,14 +595,14 @@ func TestAccountsDelete(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+token.ID)
 	result, err := request.Do()
-	require.Nil(t, err, "deleting account should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.AccountsWipeDataResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling account delete response should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Your account has been successfully deleted", response.Message, "response message should be valid")
-	require.True(t, response.Success, "triggering delete /account/me should succeed")
+	require.Equal(t, "Your account has been successfully deleted", response.Message)
+	require.True(t, response.Success)
 }

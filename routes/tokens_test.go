@@ -26,7 +26,7 @@ func TestTokensPrepareAccount(t *testing.T) {
 	inviteToken.ExpireSoon()
 
 	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err, "inserting a new invitation token should not return an error")
+	require.Nil(t, err)
 
 	// POST /accounts - invited
 	result1, err := goreq.Request{
@@ -39,17 +39,17 @@ func TestTokensPrepareAccount(t *testing.T) {
 			Token:    inviteToken.ID,
 		},
 	}.Do()
-	require.Nil(t, err, "querying invited /accounts should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response1 routes.AccountsCreateResponse
 	err = result1.Body.FromJsonTo(&response1)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response1.Success, "creating a new account using inv registration failed")
-	require.Equal(t, "A new account was successfully created", response1.Message, "invalid message returned by invited acc creation")
-	require.NotEmpty(t, response1.Account.ID, "newly created account's id should not be empty")
+	require.True(t, response1.Success)
+	require.Equal(t, "A new account was successfully created", response1.Message)
+	require.NotEmpty(t, response1.Account.ID)
 
 	accountID = response1.Account.ID
 }
@@ -71,17 +71,17 @@ func TestTokensCreate(t *testing.T) {
 			Type:     "auth",
 		},
 	}.Do()
-	require.Nil(t, err, "querying existing /tokens should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.TokensCreateResponse
 	err = request.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response.Success, "creating a new token using existing account failed")
-	require.Equal(t, "Authentication successful", response.Message, "invalid message returned by invited acc creation")
-	require.NotEmpty(t, response.Token.ID, "newly created token's id should not be empty")
+	require.True(t, response.Success)
+	require.Equal(t, "Authentication successful", response.Message)
+	require.NotEmpty(t, response.Token.ID)
 
 	// Populate the global token variable
 	authToken = response.Token.ID
@@ -155,12 +155,12 @@ func TestTokensCreateInvalid(t *testing.T) {
 		ContentType: "application/json",
 		Body:        "123123123###434$#$",
 	}.Do()
-	require.Nil(t, err, "querying existing /tokens should not return an error")
+	require.Nil(t, err)
 
 	// Unmarshal the response
 	var response routes.TokensCreateResponse
 	err = request.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling invited account creation should not return an error")
+	require.Nil(t, err)
 
 	// Check the result's contents
 	require.False(t, response.Success)
@@ -174,14 +174,14 @@ func TestTokensGet(t *testing.T) {
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
-	require.Nil(t, err, "qurying /tokens should not return an error")
+	require.Nil(t, err)
 
 	var response routes.TokensGetResponse
 	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err, "unmarshaling should not return an error")
+	require.Nil(t, err)
 
-	require.True(t, response.Success, "request should be successful")
-	require.True(t, response.Expires.After(time.Now().UTC()), "expiry time has to be valid")
+	require.True(t, response.Success)
+	require.True(t, response.Expires.After(time.Now().UTC()))
 }
 
 func TestTokensDeleteById(t *testing.T) {
