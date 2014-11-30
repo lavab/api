@@ -14,6 +14,7 @@ import (
 	"github.com/lavab/glogrus"
 )
 
+// PrepareMux sets up the API
 func PrepareMux(flags *env.Flags) *web.Mux {
 	// Set up a new logger
 	log := logrus.New()
@@ -84,6 +85,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			rethinkSession,
 			rethinkOpts.Database,
 			"contacts",
+		),
+	}
+	env.Reservations = &db.ReservationsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"reservations",
 		),
 	}
 

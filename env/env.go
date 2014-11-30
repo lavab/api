@@ -22,4 +22,6 @@ var (
 	Keys *db.KeysTable
 	// Contacts is the global instance of ContactsTable
 	Contacts *db.ContactsTable
+	// Reservations is the global instance of ReservationsTable
+	Reservations *db.ReservationsTable
 )
