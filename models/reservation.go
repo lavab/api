@@ -4,5 +4,5 @@ package models
 type Reservation struct {
 	Resource
 
-	Email string
+	Email string `json:"email" gorethink:"email"`
 }

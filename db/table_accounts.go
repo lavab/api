@@ -45,3 +45,16 @@ func (a *AccountsTable) GetTokenOwner(token *models.Token) (*models.Account, err
 
 	return user, nil
 }
+
+func (a *AccountsTable) IsUsernameUsed(name string) (bool, error) {
+	count, err := a.FindByAndCount("name", name)
+	if err != nil {
+		return false, err
+	}
+
+	if count == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}

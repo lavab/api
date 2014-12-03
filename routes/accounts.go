@@ -61,13 +61,16 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	// 1) username + token + password     - invite
 	// 2) username + password + alt_email - register with confirmation
 	// 3) alt_email only                  - register for beta (add to queue)
+	// 4) alt_email + username            - register for beta with username reservation
 	requestType := "unknown"
 	if input.AltEmail == "" && input.Username != "" && input.Password != "" && input.Token != "" {
 		requestType = "invited"
 	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token == "" {
 		requestType = "classic"
 	} else if input.AltEmail != "" && input.Username == "" && input.Password == "" && input.Token == "" {
-		requestType = "queue"
+		requestType = "queue/classic"
+	} else if input.AltEmail != "" && input.Username != "" && input.Password == "" && input.Token == "" {
+		requestType = "queue/reserve"
 	}
 
 	// "unknown" requests are empty and invalid
@@ -79,12 +82,64 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Adding to queue will be implemented soon
-	if requestType == "queue" {
-		// Implementation awaits https://trello.com/c/SLM0qK1O/91-account-registration-queue
-		utils.JSONResponse(w, 501, &AccountsCreateResponse{
-			Success: false,
-			Message: "Sorry, not implemented yet",
+	// Adding to [beta] queue
+	if requestType[:5] == "queue" {
+		if requestType[6:] == "reserve" {
+			// Is username reservation enabled?
+			if !env.Config.UsernameReservation {
+				utils.JSONResponse(w, 403, &AccountsCreateResponse{
+					Success: false,
+					Message: "Username reservation is disabled",
+				})
+				return
+			}
+		}
+
+		// Ensure that the email is not already used to reserve/register
+		if used, err := env.Reservations.IsEmailUsed(input.AltEmail); err != nil || used {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Email already used for a reservation",
+			})
+			return
+		}
+
+		if requestType[6:] == "reserve" {
+			if used, err := env.Reservations.IsUsernameUsed(input.Username); err != nil || used {
+				utils.JSONResponse(w, 400, &AccountsCreateResponse{
+					Success: false,
+					Message: "Username already reserved",
+				})
+				return
+			}
+
+			if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
+				utils.JSONResponse(w, 400, &AccountsCreateResponse{
+					Success: false,
+					Message: "Username already used",
+				})
+				return
+			}
+		}
+
+		// Prepare data to insert
+		reservation := &models.Reservation{
+			Email:    input.AltEmail,
+			Resource: models.MakeResource("", input.Username),
+		}
+
+		err := env.Reservations.Insert(reservation)
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Internal error while reserving the account",
+			})
+			return
+		}
+
+		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+			Success: true,
+			Message: "Reserved an account",
 		})
 		return
 	}
