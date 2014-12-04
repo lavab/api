@@ -23,7 +23,6 @@ func TestAccountsCreateInvalid(t *testing.T) {
 
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
-	env.Log.Print(response)
 	require.Nil(t, err)
 	require.False(t, response.Success)
 	require.Equal(t, "Invalid input format", response.Message)
@@ -230,7 +229,7 @@ func TestAccountsCreateInvitedWrongType(t *testing.T) {
 
 func TestAccountsCreateClassic(t *testing.T) {
 	const (
-		username = "jeremy_was_invited"
+		username = "jeremy"
 		password = "potato"
 	)
 
@@ -389,6 +388,28 @@ func TestAccountsCreateQueueClassicUsedEmail(t *testing.T) {
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
 			AltEmail: "something@example.com",
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Email already used for a reservation", response.Message)
+	require.False(t, response.Success)
+}
+
+func TestAccountsCreateQueueClassicReservedEmail(t *testing.T) {
+	// POST /accounts - queue
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			AltEmail: "reserved@example.com",
 		},
 	}.Do()
 	require.Nil(t, err)
