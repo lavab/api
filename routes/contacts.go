@@ -30,7 +30,7 @@ func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
 			"error": err,
 		}).Error("Unable to fetch contacts")
 
-		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
+		utils.JSONResponse(w, 500, &ContactsListResponse{
 			Success: false,
 			Message: "Internal error (code CO/LI/01)",
 		})
@@ -38,7 +38,7 @@ func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, 501, &ContactsListResponse{
-		Success:  false,
+		Success:  true,
 		Contacts: &contacts,
 	})
 }
@@ -48,8 +48,8 @@ type ContactsCreateRequest struct {
 	Data         string `json:"data" schema:"data"`
 	Name         string `json:"name" schema:"name"`
 	Encoding     string `json:"encoding" schema:"encoding"`
-	VersionMajor *int   `json:"version_major" schema:"version_major"`
-	VersionMinor *int   `json:"version_minor" schema:"version_minor"`
+	VersionMajor int    `json:"version_major" schema:"version_major"`
+	VersionMinor int    `json:"version_minor" schema:"version_minor"`
 }
 
 // ContactsCreateResponse contains the result of the ContactsCreate request.
@@ -80,7 +80,7 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	// Ensure that the input data isn't empty
-	if input.Data != "" || input.Name != "" || input.Encoding != "" || input.VersionMajor != nil || input.VersionMinor != nil {
+	if input.Data == "" || input.Name == "" || input.Encoding == "" {
 		utils.JSONResponse(w, 400, &ContactsCreateResponse{
 			Success: false,
 			Message: "Invalid request",
@@ -94,8 +94,8 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			Encoding:     input.Encoding,
 			Data:         input.Data,
 			Schema:       "contact",
-			VersionMajor: *input.VersionMajor,
-			VersionMinor: *input.VersionMinor,
+			VersionMajor: input.VersionMajor,
+			VersionMinor: input.VersionMinor,
 		},
 		Resource: models.MakeResource(session.Owner, input.Name),
 	}
@@ -115,7 +115,7 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, 201, &ContactsCreateResponse{
 		Success: true,
-		Message: "A new account was successfully created",
+		Message: "A new contact was successfully created",
 		Contact: contact,
 	})
 }

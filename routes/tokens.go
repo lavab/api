@@ -151,9 +151,9 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 				"id":    id,
 			}).Warn("Unable to find the token")
 
-			utils.JSONResponse(w, 500, &TokensDeleteResponse{
-				Success: true,
-				Message: "Internal server error - TO/DE/01",
+			utils.JSONResponse(w, 404, &TokensDeleteResponse{
+				Success: false,
+				Message: "Invalid token ID",
 			})
 			return
 		}
@@ -166,7 +166,7 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		}).Error("Unable to delete a token")
 
 		utils.JSONResponse(w, 500, &TokensDeleteResponse{
-			Success: true,
+			Success: false,
 			Message: "Internal server error - TO/DE/02",
 		})
 		return

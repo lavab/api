@@ -21,16 +21,16 @@ type AccountsListResponse struct {
 func AccountsList(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 501, &AccountsListResponse{
 		Success: false,
-		Message: "Method not implemented",
+		Message: "Sorry, not implemented yet",
 	})
 }
 
 // AccountsCreateRequest contains the input for the AccountsCreate endpoint.
 type AccountsCreateRequest struct {
-	Token    string `json:"token" schema:"token"`
-	Username string `json:"username" schema:"username"`
-	Password string `json:"password" schema:"password"`
-	AltEmail string `json:"alt_email" schema:"alt_email"`
+	Token    string `json:"token,omitempty" schema:"token"`
+	Username string `json:"username,omitempty" schema:"username"`
+	Password string `json:"password,omitempty" schema:"password"`
+	AltEmail string `json:"alt_email,omitempty" schema:"alt_email"`
 }
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
@@ -64,14 +64,14 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	requestType := "unknown"
 	if input.AltEmail == "" && input.Username != "" && input.Password != "" && input.Token != "" {
 		requestType = "invited"
-	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token != "" {
+	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token == "" {
 		requestType = "classic"
 	} else if input.AltEmail != "" && input.Username == "" && input.Password == "" && input.Token == "" {
 		requestType = "queue"
 	}
 
 	// "unknown" requests are empty and invalid
-	if requestType == "invalid" {
+	if requestType == "unknown" {
 		utils.JSONResponse(w, 400, &AccountsCreateResponse{
 			Success: false,
 			Message: "Invalid request",
@@ -222,20 +222,13 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 type AccountsGetResponse struct {
 	Success bool            `json:"success"`
 	Message string          `json:"message,omitempty"`
-	User    *models.Account `json:"user,omitempty"`
+	Account *models.Account `json:"user,omitempty"`
 }
 
 // AccountsGet returns the information about the specified account
 func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
-	id, ok := c.URLParams["id"]
-	if !ok {
-		utils.JSONResponse(w, 409, &AccountsGetResponse{
-			Success: false,
-			Message: "Invalid user ID",
-		})
-		return
-	}
+	id := c.URLParams["id"]
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
@@ -252,27 +245,9 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		// The session refers to a non-existing user
-		env.Log.WithFields(logrus.Fields{
-			"id":    session.ID,
-			"error": err,
-		}).Warn("Valid session referred to a removed account")
-
-		// Try to remove the orphaned session
-		if err := env.Tokens.DeleteID(session.ID); err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"id":    session.ID,
-				"error": err,
-			}).Error("Unable to remove an orphaned session")
-		} else {
-			env.Log.WithFields(logrus.Fields{
-				"id": session.ID,
-			}).Info("Removed an orphaned session")
-		}
-
-		utils.JSONResponse(w, 410, &AccountsGetResponse{
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
 			Success: false,
-			Message: "Account disabled",
+			Message: "Unable to resolve the account",
 		})
 		return
 	}
@@ -280,13 +255,12 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Return the user struct
 	utils.JSONResponse(w, 200, &AccountsGetResponse{
 		Success: true,
-		User:    user,
+		Account: user,
 	})
 }
 
 // AccountsUpdateRequest contains the input for the AccountsUpdate endpoint.
 type AccountsUpdateRequest struct {
-	Type            string `json:"type" schema:"type"`
 	AltEmail        string `json:"alt_email" schema:"alt_email"`
 	CurrentPassword string `json:"current_password" schema:"current_password"`
 	NewPassword     string `json:"new_password" schema:"new_password"`
@@ -317,14 +291,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the account ID from the request
-	id, ok := c.URLParams["id"]
-	if !ok {
-		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
-			Success: false,
-			Message: "Invalid user ID",
-		})
-		return
-	}
+	id := c.URLParams["id"]
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
@@ -341,27 +308,9 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		// The session refers to a non-existing user
-		env.Log.WithFields(logrus.Fields{
-			"id":    session.ID,
-			"error": err,
-		}).Warn("Valid session referred to a removed account")
-
-		// Try to remove the orphaned session
-		if err := env.Tokens.DeleteID(session.ID); err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"id":    session.ID,
-				"error": err,
-			}).Error("Unable to remove an orphaned session")
-		} else {
-			env.Log.WithFields(logrus.Fields{
-				"id": session.ID,
-			}).Info("Removed an orphaned session")
-		}
-
-		utils.JSONResponse(w, 410, &AccountsUpdateResponse{
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
 			Success: false,
-			Message: "Account disabled",
+			Message: "Unable to resolve the account",
 		})
 		return
 	}
@@ -374,17 +323,19 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = user.SetPassword(input.NewPassword)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Error("Unable to hash a password")
+	if input.NewPassword != "" {
+		err = user.SetPassword(input.NewPassword)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Unable to hash a password")
 
-		utils.JSONResponse(w, 500, &AccountsUpdateResponse{
-			Success: false,
-			Message: "Internal error (code AC/UP/01)",
-		})
-		return
+			utils.JSONResponse(w, 500, &AccountsUpdateResponse{
+				Success: false,
+				Message: "Internal error (code AC/UP/01)",
+			})
+			return
+		}
 	}
 
 	if input.AltEmail != "" {
@@ -405,7 +356,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, 200, &AccountsUpdateResponse{
-		Success: false,
+		Success: true,
 		Message: "Your account has been successfully updated",
 		Account: user,
 	})
@@ -420,14 +371,7 @@ type AccountsDeleteResponse struct {
 // AccountsDelete deletes an account and everything related to it.
 func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
-	id, ok := c.URLParams["id"]
-	if !ok {
-		utils.JSONResponse(w, 409, &AccountsDeleteResponse{
-			Success: false,
-			Message: "Invalid user ID",
-		})
-		return
-	}
+	id := c.URLParams["id"]
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
@@ -444,27 +388,9 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		// The session refers to a non-existing user
-		env.Log.WithFields(logrus.Fields{
-			"id":    session.ID,
-			"error": err,
-		}).Warn("Valid session referred to a removed account")
-
-		// Try to remove the orphaned session
-		if err := env.Tokens.DeleteID(session.ID); err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"id":    session.ID,
-				"error": err,
-			}).Error("Unable to remove an orphaned session")
-		} else {
-			env.Log.WithFields(logrus.Fields{
-				"id": session.ID,
-			}).Info("Removed an orphaned session")
-		}
-
-		utils.JSONResponse(w, 410, &AccountsDeleteResponse{
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
 			Success: false,
-			Message: "Account disabled",
+			Message: "Unable to resolve the account",
 		})
 		return
 	}
@@ -521,14 +447,7 @@ type AccountsWipeDataResponse struct {
 // AccountsWipeData wipes all data except the actual account and billing info.
 func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
-	id, ok := c.URLParams["id"]
-	if !ok {
-		utils.JSONResponse(w, 409, &AccountsWipeDataResponse{
-			Success: false,
-			Message: "Invalid user ID",
-		})
-		return
-	}
+	id := c.URLParams["id"]
 
 	// Right now we only support "me" as the ID
 	if id != "me" {

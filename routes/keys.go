@@ -179,14 +179,7 @@ type KeysGetResponse struct {
 // KeysGet does *something* - TODO
 func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get ID from the passed URL params
-	id, ok := c.URLParams["id"]
-	if !ok {
-		utils.JSONResponse(w, 404, &KeysGetResponse{
-			Success: false,
-			Message: "Requested key does not exist on our server",
-		})
-		return
-	}
+	id := c.URLParams["id"]
 
 	// Fetch the requested key from the database
 	key, err := env.Keys.FindByFingerprint(id)
