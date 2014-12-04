@@ -93,18 +93,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-		}
 
-		// Ensure that the email is not already used to reserve/register
-		if used, err := env.Reservations.IsEmailUsed(input.AltEmail); err != nil || used {
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Email already used for a reservation",
-			})
-			return
-		}
-
-		if requestType[6:] == "reserve" {
 			if used, err := env.Reservations.IsUsernameUsed(input.Username); err != nil || used {
 				utils.JSONResponse(w, 400, &AccountsCreateResponse{
 					Success: false,
@@ -120,6 +109,23 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
+		}
+
+		// Ensure that the email is not already used to reserve/register
+		if used, err := env.Reservations.IsEmailUsed(input.AltEmail); err != nil || used {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Email already used for a reservation",
+			})
+			return
+		}
+
+		if used, err := env.Accounts.IsEmailUsed(input.AltEmail); err != nil || used {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Email already used for a reservation",
+			})
+			return
 		}
 
 		// Prepare data to insert

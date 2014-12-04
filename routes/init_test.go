@@ -25,6 +25,7 @@ func init() {
 
 		SessionDuration:     72,
 		ClassicRegistration: true,
+		UsernameReservation: true,
 
 		RethinkDBURL:      "127.0.0.1:28015",
 		RethinkDBKey:      "",
