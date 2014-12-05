@@ -98,6 +98,15 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check for generic passwords
+	if input.Password != "" && !utils.IsPasswordSecure(input.Password) {
+		utils.JSONResponse(w, 403, &AccountsCreateResponse{
+			Success: false,
+			Message: "Weak password",
+		})
+		return
+	}
+
 	// Check "invited" for token validity
 	if requestType == "invited" {
 		// Fetch the token from the database
