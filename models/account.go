@@ -2,7 +2,7 @@ package models
 
 import (
 	"github.com/gyepisam/mcf"
-	_ "github.com/gyepisam/mcf/scrypt"
+	_ "github.com/gyepisam/mcf/scrypt" // Required to have mcf hash the password into scrypt
 )
 
 // Account stores essential data for a Lavaboom user, and is thus not encrypted.
@@ -37,6 +37,10 @@ type Account struct {
 	//		* premium: premium account
 	//		* superuser: Lavaboom staff
 	Type string `json:"type" gorethink:"type"`
+
+	AltEmail string `json:"alt_email" gorethink:"alt_email"`
+
+	Status string `json:"status" gorethink:"status"`
 }
 
 // SetPassword changes the account's password

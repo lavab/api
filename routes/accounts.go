@@ -21,14 +21,16 @@ type AccountsListResponse struct {
 func AccountsList(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 501, &AccountsListResponse{
 		Success: false,
-		Message: "Method not implemented",
+		Message: "Sorry, not implemented yet",
 	})
 }
 
 // AccountsCreateRequest contains the input for the AccountsCreate endpoint.
 type AccountsCreateRequest struct {
-	Username string `json:"username" schema:"username"`
-	Password string `json:"password" schema:"password"`
+	Token    string `json:"token,omitempty" schema:"token"`
+	Username string `json:"username,omitempty" schema:"username"`
+	Password string `json:"password,omitempty" schema:"password"`
+	AltEmail string `json:"alt_email,omitempty" schema:"alt_email"`
 }
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
@@ -48,14 +50,162 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			"error": err,
 		}).Warn("Unable to decode a request")
 
-		utils.JSONResponse(w, 409, &AccountsCreateResponse{
+		utils.JSONResponse(w, 400, &AccountsCreateResponse{
 			Success: false,
 			Message: "Invalid input format",
 		})
 		return
 	}
 
-	// Ensure that the user with requested username doesn't exist
+	// Detect the request type
+	// 1) username + token + password     - invite
+	// 2) username + password + alt_email - register with confirmation
+	// 3) alt_email only                  - register for beta (add to queue)
+	// 4) alt_email + username            - register for beta with username reservation
+	requestType := "unknown"
+	if input.AltEmail == "" && input.Username != "" && input.Password != "" && input.Token != "" {
+		requestType = "invited"
+	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token == "" {
+		requestType = "classic"
+	} else if input.AltEmail != "" && input.Username == "" && input.Password == "" && input.Token == "" {
+		requestType = "queue/classic"
+	} else if input.AltEmail != "" && input.Username != "" && input.Password == "" && input.Token == "" {
+		requestType = "queue/reserve"
+	}
+
+	// "unknown" requests are empty and invalid
+	if requestType == "unknown" {
+		utils.JSONResponse(w, 400, &AccountsCreateResponse{
+			Success: false,
+			Message: "Invalid request",
+		})
+		return
+	}
+
+	// Adding to [beta] queue
+	if requestType[:5] == "queue" {
+		if requestType[6:] == "reserve" {
+			// Is username reservation enabled?
+			if !env.Config.UsernameReservation {
+				utils.JSONResponse(w, 403, &AccountsCreateResponse{
+					Success: false,
+					Message: "Username reservation is disabled",
+				})
+				return
+			}
+
+			if used, err := env.Reservations.IsUsernameUsed(input.Username); err != nil || used {
+				utils.JSONResponse(w, 400, &AccountsCreateResponse{
+					Success: false,
+					Message: "Username already reserved",
+				})
+				return
+			}
+
+			if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
+				utils.JSONResponse(w, 400, &AccountsCreateResponse{
+					Success: false,
+					Message: "Username already used",
+				})
+				return
+			}
+		}
+
+		// Ensure that the email is not already used to reserve/register
+		if used, err := env.Reservations.IsEmailUsed(input.AltEmail); err != nil || used {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Email already used for a reservation",
+			})
+			return
+		}
+
+		if used, err := env.Accounts.IsEmailUsed(input.AltEmail); err != nil || used {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Email already used for a reservation",
+			})
+			return
+		}
+
+		// Prepare data to insert
+		reservation := &models.Reservation{
+			Email:    input.AltEmail,
+			Resource: models.MakeResource("", input.Username),
+		}
+
+		err := env.Reservations.Insert(reservation)
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Internal error while reserving the account",
+			})
+			return
+		}
+
+		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+			Success: true,
+			Message: "Reserved an account",
+		})
+		return
+	}
+
+	// Check if classic registration is enabled
+	if requestType == "classic" && !env.Config.ClassicRegistration {
+		utils.JSONResponse(w, 403, &AccountsCreateResponse{
+			Success: false,
+			Message: "Classic registration is disabled",
+		})
+		return
+	}
+
+	// Check for generic passwords
+	if input.Password != "" && !utils.IsPasswordSecure(input.Password) {
+		utils.JSONResponse(w, 403, &AccountsCreateResponse{
+			Success: false,
+			Message: "Weak password",
+		})
+		return
+	}
+
+	// Check "invited" for token validity
+	if requestType == "invited" {
+		// Fetch the token from the database
+		token, err := env.Tokens.GetToken(input.Token)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Warn("Unable to fetch a registration token from the database")
+
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation token",
+			})
+			return
+		}
+
+		// Ensure that the token's type is valid
+		if token.Type != "invite" {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation token",
+			})
+			return
+		}
+
+		// Check if it's expired
+		if token.Expired() {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Expired invitation token",
+			})
+			return
+		}
+	}
+
+	// TODO: sanitize user name (i.e. remove caps, periods)
+
+	// Both invited and classic require an unique username, so ensure that the user with requested username isn't already used
 	if _, err := env.Accounts.FindAccountByName(input.Username); err == nil {
 		utils.JSONResponse(w, 409, &AccountsCreateResponse{
 			Success: false,
@@ -64,13 +214,14 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: sanitize user name (i.e. remove caps, periods)
-
-	// Create a new user object
+	// Both username and password are filled, so we can create a new account.
 	account := &models.Account{
 		Resource: models.MakeResource("", input.Username),
+		Type:     "beta",
+		AltEmail: input.AltEmail,
 	}
 
+	// Set the password
 	err = account.SetPassword(input.Password)
 	if err != nil {
 		utils.JSONResponse(w, 500, &AccountsCreateResponse{
@@ -84,6 +235,16 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// User won't be able to log in until the account gets verified
+	if requestType == "classic" {
+		account.Status = "unverified"
+	}
+
+	// Set the status to invited, because of stats
+	if requestType == "invited" {
+		account.Status = "invited"
+	}
+
 	// Try to save it in the database
 	if err := env.Accounts.Insert(account); err != nil {
 		utils.JSONResponse(w, 500, &AccountsCreateResponse{
@@ -93,35 +254,52 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
-		}).Error("Could not insert an user to the database")
+		}).Error("Could not insert an user into the database")
 		return
 	}
 
-	utils.JSONResponse(w, 201, &AccountsCreateResponse{
-		Success: true,
-		Message: "A new account was successfully created",
-		Account: account,
-	})
+	// Send the email if classic and return a response
+	if requestType == "classic" {
+		// TODO: Send emails
+
+		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+			Success: true,
+			Message: "A new account was successfully created, you should receive a confirmation email soon™.",
+			Account: account,
+		})
+		return
+	}
+
+	// Remove the token and return a response
+	if requestType == "invited" {
+		err := env.Tokens.DeleteID(input.Token)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+				"id":    input.Token,
+			}).Error("Could not remove token from database")
+		}
+
+		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+			Success: true,
+			Message: "A new account was successfully created",
+			Account: account,
+		})
+		return
+	}
 }
 
 // AccountsGetResponse contains the result of the AccountsGet request.
 type AccountsGetResponse struct {
 	Success bool            `json:"success"`
 	Message string          `json:"message,omitempty"`
-	User    *models.Account `json:"user,omitempty"`
+	Account *models.Account `json:"user,omitempty"`
 }
 
 // AccountsGet returns the information about the specified account
 func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the account ID from the request
-	id, ok := c.URLParams["id"]
-	if !ok {
-		utils.JSONResponse(w, 409, &AccountsGetResponse{
-			Success: false,
-			Message: "Invalid user ID",
-		})
-		return
-	}
+	id := c.URLParams["id"]
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
@@ -133,32 +311,14 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the current session from the database
-	session := c.Env["session"].(*models.Token)
+	session := c.Env["token"].(*models.Token)
 
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		// The session refers to a non-existing user
-		env.Log.WithFields(logrus.Fields{
-			"id":    session.ID,
-			"error": err,
-		}).Warn("Valid session referred to a removed account")
-
-		// Try to remove the orphaned session
-		if err := env.Tokens.DeleteID(session.ID); err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"id":    session.ID,
-				"error": err,
-			}).Error("Unable to remove an orphaned session")
-		} else {
-			env.Log.WithFields(logrus.Fields{
-				"id": session.ID,
-			}).Info("Removed an orphaned session")
-		}
-
-		utils.JSONResponse(w, 410, &AccountsGetResponse{
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
 			Success: false,
-			Message: "Account disabled",
+			Message: "Unable to resolve the account",
 		})
 		return
 	}
@@ -166,21 +326,110 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Return the user struct
 	utils.JSONResponse(w, 200, &AccountsGetResponse{
 		Success: true,
-		User:    user,
+		Account: user,
 	})
+}
+
+// AccountsUpdateRequest contains the input for the AccountsUpdate endpoint.
+type AccountsUpdateRequest struct {
+	AltEmail        string `json:"alt_email" schema:"alt_email"`
+	CurrentPassword string `json:"current_password" schema:"current_password"`
+	NewPassword     string `json:"new_password" schema:"new_password"`
 }
 
 // AccountsUpdateResponse contains the result of the AccountsUpdate request.
 type AccountsUpdateResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool            `json:"success"`
+	Message string          `json:"message"`
+	Account *models.Account `json:"account"`
 }
 
 // AccountsUpdate allows changing the account's information (password etc.)
-func AccountsUpdate(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &AccountsUpdateResponse{
-		Success: false,
-		Message: `Sorry, not implemented yet`,
+func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Decode the request
+	var input AccountsUpdateRequest
+	err := utils.ParseRequest(r, &input)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Warn("Unable to decode a request")
+
+		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Invalid input format",
+		})
+		return
+	}
+
+	// Get the account ID from the request
+	id := c.URLParams["id"]
+
+	// Right now we only support "me" as the ID
+	if id != "me" {
+		utils.JSONResponse(w, 501, &AccountsUpdateResponse{
+			Success: false,
+			Message: `Only the "me" user is implemented`,
+		})
+		return
+	}
+
+	// Fetch the current session from the database
+	session := c.Env["token"].(*models.Token)
+
+	// Fetch the user object from the database
+	user, err := env.Accounts.GetAccount(session.Owner)
+	if err != nil {
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
+			Success: false,
+			Message: "Unable to resolve the account",
+		})
+		return
+	}
+
+	if valid, _, err := user.VerifyPassword(input.CurrentPassword); err != nil || !valid {
+		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Invalid current password",
+		})
+		return
+	}
+
+	if input.NewPassword != "" {
+		err = user.SetPassword(input.NewPassword)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Unable to hash a password")
+
+			utils.JSONResponse(w, 500, &AccountsUpdateResponse{
+				Success: false,
+				Message: "Internal error (code AC/UP/01)",
+			})
+			return
+		}
+	}
+
+	if input.AltEmail != "" {
+		user.AltEmail = input.AltEmail
+	}
+
+	err = env.Accounts.UpdateID(session.Owner, user)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to update an account")
+
+		utils.JSONResponse(w, 500, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Internal error (code AC/UP/02)",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &AccountsUpdateResponse{
+		Success: true,
+		Message: "Your account has been successfully updated",
+		Account: user,
 	})
 }
 
@@ -190,11 +439,73 @@ type AccountsDeleteResponse struct {
 	Message string `json:"message"`
 }
 
-// AccountsDelete allows deleting an account.
-func AccountsDelete(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &AccountsDeleteResponse{
-		Success: false,
-		Message: `Sorry, not implemented yet`,
+// AccountsDelete deletes an account and everything related to it.
+func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the account ID from the request
+	id := c.URLParams["id"]
+
+	// Right now we only support "me" as the ID
+	if id != "me" {
+		utils.JSONResponse(w, 501, &AccountsDeleteResponse{
+			Success: false,
+			Message: `Only the "me" user is implemented`,
+		})
+		return
+	}
+
+	// Fetch the current session from the database
+	session := c.Env["token"].(*models.Token)
+
+	// Fetch the user object from the database
+	user, err := env.Accounts.GetAccount(session.Owner)
+	if err != nil {
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
+			Success: false,
+			Message: "Unable to resolve the account",
+		})
+		return
+	}
+
+	// TODO: Delete contacts
+
+	// TODO: Delete emails
+
+	// TODO: Delete labels
+
+	// TODO: Delete threads
+
+	// Delete tokens
+	err = env.Tokens.DeleteOwnedBy(user.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    user.ID,
+			"error": err,
+		}).Error("Unable to remove account's tokens")
+
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code AC/DE/05)",
+		})
+		return
+	}
+
+	// Delete account
+	err = env.Accounts.DeleteID(user.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to delete an account")
+
+		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code AC/DE/06)",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &AccountsDeleteResponse{
+		Success: true,
+		Message: "Your account has been successfully deleted",
 	})
 }
 
@@ -204,24 +515,64 @@ type AccountsWipeDataResponse struct {
 	Message string `json:"message"`
 }
 
-// AccountsWipeData allows getting rid of the all data related to the account.
-func AccountsWipeData(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &AccountsWipeDataResponse{
-		Success: false,
-		Message: `Sorry, not implemented yet`,
-	})
-}
+// AccountsWipeData wipes all data except the actual account and billing info.
+func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the account ID from the request
+	id := c.URLParams["id"]
 
-// AccountsSessionsListResponse contains the result of the AccountsSessionsList request.
-type AccountsSessionsListResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
+	// Right now we only support "me" as the ID
+	if id != "me" {
+		utils.JSONResponse(w, 501, &AccountsWipeDataResponse{
+			Success: false,
+			Message: `Only the "me" user is implemented`,
+		})
+		return
+	}
 
-// AccountsSessionsList returns a list of all opened sessions.
-func AccountsSessionsList(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &AccountsSessionsListResponse{
-		Success: false,
-		Message: `Sorry, not implemented yet`,
+	// Fetch the current session from the database
+	session := c.Env["token"].(*models.Token)
+
+	// Fetch the user object from the database
+	user, err := env.Accounts.GetTokenOwner(session)
+	if err != nil {
+		// The session refers to a non-existing user
+		env.Log.WithFields(logrus.Fields{
+			"id":    session.ID,
+			"error": err,
+		}).Warn("Valid session referred to a removed account")
+
+		utils.JSONResponse(w, 410, &AccountsWipeDataResponse{
+			Success: false,
+			Message: "Account disabled",
+		})
+		return
+	}
+
+	// TODO: Delete contacts
+
+	// TODO: Delete emails
+
+	// TODO: Delete labels
+
+	// TODO: Delete threads
+
+	// Delete tokens
+	err = env.Tokens.DeleteOwnedBy(user.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    user.ID,
+			"error": err,
+		}).Error("Unable to remove account's tokens")
+
+		utils.JSONResponse(w, 500, &AccountsWipeDataResponse{
+			Success: false,
+			Message: "Internal error (code AC/WD/05)",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &AccountsWipeDataResponse{
+		Success: true,
+		Message: "Your account has been successfully wiped",
 	})
 }

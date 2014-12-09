@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	// Error declarations
+	// ErrInvalidContentType is returned by ParseRequest if it can't unmarshal it into the passed struct
 	ErrInvalidContentType = errors.New("Invalid request content type")
 
 	// gorilla/schema decoder is a shared object, as it caches information about structs
@@ -48,6 +48,7 @@ func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Write(result)
 }
 
+// ParseRequest takes the input body from the passed request and tries to unmarshal it into data
 func ParseRequest(r *http.Request, data interface{}) error {
 	// Get the contentType for comparsions
 	contentType := r.Header.Get("Content-Type")
