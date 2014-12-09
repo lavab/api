@@ -27,8 +27,18 @@ var (
 	sessionDuration     = flag.Int("session_duration", 72, "Session duration expressed in hours")
 	classicRegistration = flag.Bool("classic_registration", false, "Classic registration enabled?")
 	usernameReservation = flag.Bool("username_reservation", false, "Username reservation enabled?")
+	// Cache-related flags
+	redisAddress = flag.String("redis_address", func() string {
+		address := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
+		if address == "" {
+			address = "127.0.0.1"
+		}
+		return address + ":28015"
+	}(), "Address of the redis server")
+	redisDatabase = flag.Int("redis_db", 0, "Index of redis database to use")
+	redisPassword = flag.String("redis_password", "", "Password of the redis server")
 	// Database-related flags
-	rethinkdbURL = flag.String("rethinkdb_url", func() string {
+	rethinkdbAddress = flag.String("rethinkdb_address", func() string {
 		address := os.Getenv("RETHINKDB_PORT_28015_TCP_ADDR")
 		if address == "" {
 			address = "127.0.0.1"
@@ -60,7 +70,11 @@ func main() {
 		ClassicRegistration: *classicRegistration,
 		UsernameReservation: *usernameReservation,
 
-		RethinkDBURL:      *rethinkdbURL,
+		RedisAddress:  *redisAddress,
+		RedisDatabase: *redisDatabase,
+		RedisPassword: *redisPassword,
+
+		RethinkDBAddress:  *rethinkdbAddress,
 		RethinkDBKey:      *rethinkdbKey,
 		RethinkDBDatabase: *rethinkdbDatabase,
 	}

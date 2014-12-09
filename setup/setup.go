@@ -8,6 +8,7 @@ import (
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 
+	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/routes"
@@ -31,14 +32,26 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	// Pass it to the environment package
 	env.Log = log
 
+	// Initialize the cache
+	redis, err := cache.NewRedisCache(&cache.RedisCacheOpts{
+		Address:  flags.RedisAddress,
+		Database: flags.RedisDatabase,
+		Password: flags.RedisPassword,
+	})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to connect to the redis server")
+	}
+
 	// Set up the database
 	rethinkOpts := gorethink.ConnectOpts{
-		Address:     flags.RethinkDBURL,
+		Address:     flags.RethinkDBAddress,
 		AuthKey:     flags.RethinkDBKey,
 		MaxIdle:     10,
 		IdleTimeout: time.Second * 10,
 	}
-	err := db.Setup(rethinkOpts)
+	err = db.Setup(rethinkOpts)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"error": err,
