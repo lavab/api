@@ -9,6 +9,7 @@ type Flags struct {
 
 	SessionDuration     int
 	ClassicRegistration bool
+	UsernameReservation bool
 
 	RethinkDBURL      string
 	RethinkDBKey      string

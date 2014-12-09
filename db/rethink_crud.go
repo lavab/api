@@ -23,6 +23,7 @@ type RethinkReader interface {
 	FindBy(key string, value interface{}) (*rethink.Cursor, error)
 	FindByAndFetch(key string, value interface{}, results interface{}) error
 	FindByAndFetchOne(key string, value interface{}, result interface{}) error
+	FindByAndCount(key string, value interface{}) (int, error)
 
 	Where(filter map[string]interface{}) (*rethink.Cursor, error)
 	WhereAndFetch(filter map[string]interface{}, results interface{}) error

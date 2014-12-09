@@ -23,7 +23,6 @@ func TestAccountsCreateInvalid(t *testing.T) {
 
 	var response routes.AccountsCreateResponse
 	err = result.Body.FromJsonTo(&response)
-	env.Log.Print(response)
 	require.Nil(t, err)
 	require.False(t, response.Success)
 	require.Equal(t, "Invalid input format", response.Message)
@@ -230,7 +229,7 @@ func TestAccountsCreateInvitedWrongType(t *testing.T) {
 
 func TestAccountsCreateClassic(t *testing.T) {
 	const (
-		username = "jeremy_was_invited"
+		username = "jeremy"
 		password = "potato"
 	)
 
@@ -291,7 +290,97 @@ func TestAccountsCreateClassicDisabled(t *testing.T) {
 	env.Config.ClassicRegistration = true
 }
 
-func TestAccountsCreateQueue(t *testing.T) {
+func TestAccountsCreateQueueReservation(t *testing.T) {
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			AltEmail: "reserved@example.com",
+			Username: "reserved",
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Reserved an account", response.Message)
+	require.True(t, response.Success)
+}
+
+func TestAccountsCreateQueueReservationUsernameReserved(t *testing.T) {
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			AltEmail: "not-reserved@example.com",
+			Username: "reserved",
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Username already reserved", response.Message)
+	require.False(t, response.Success)
+}
+
+func TestAccountsCreateQueueReservationUsernameTaken(t *testing.T) {
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			AltEmail: "not-reserved@example.com",
+			Username: "jeremy",
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.False(t, response.Success)
+	require.Equal(t, "Username already used", response.Message)
+}
+
+func TestAccountsCreateQueueReservationDisabled(t *testing.T) {
+	env.Config.UsernameReservation = false
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			AltEmail: "something@example.com",
+			Username: "something",
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.False(t, response.Success)
+	require.Equal(t, "Username reservation is disabled", response.Message)
+	env.Config.UsernameReservation = true
+}
+
+func TestAccountsCreateQueueClassicUsedEmail(t *testing.T) {
 	// POST /accounts - queue
 	result, err := goreq.Request{
 		Method:      "POST",
@@ -309,8 +398,30 @@ func TestAccountsCreateQueue(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
+	require.Equal(t, "Email already used for a reservation", response.Message)
 	require.False(t, response.Success)
-	require.Equal(t, "Sorry, not implemented yet", response.Message)
+}
+
+func TestAccountsCreateQueueClassicReservedEmail(t *testing.T) {
+	// POST /accounts - queue
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			AltEmail: "reserved@example.com",
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Email already used for a reservation", response.Message)
+	require.False(t, response.Success)
 }
 
 func TestAccountsPrepareToken(t *testing.T) {

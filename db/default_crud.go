@@ -123,6 +123,22 @@ func (d *Default) FindBy(key string, value interface{}) (*gorethink.Cursor, erro
 	return cursor, nil
 }
 
+func (d *Default) FindByAndCount(key string, value interface{}) (int, error) {
+	cursor, err := d.GetTable().Filter(map[string]interface{}{
+		key: value,
+	}).Count().Run(d.session)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	if err := cursor.One(&count); err != nil {
+		return 0, NewDatabaseError(d, err, "")
+	}
+
+	return count, nil
+}
+
 // FindByAndFetch retrieves a value by key and then fills results with the result.
 func (d *Default) FindByAndFetch(key string, value interface{}, results interface{}) error {
 	cursor, err := d.FindBy(key, value)
