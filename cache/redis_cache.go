@@ -74,3 +74,19 @@ func NewRedisCache(options *RedisCacheOpts) (*RedisCache, error) {
 		pool: pool,
 	}, nil
 }
+
+func (r *RedisCache) Get(key string, pointer interface{}) error {
+	return nil
+}
+
+func (r *RedisCache) Set(key string, value interface{}, expires time.Duration) error {
+	return nil
+}
+
+func (r *RedisCache) Delete(key string) error {
+	return nil
+}
+
+func (r *RedisCache) Exists(key string) error {
+	return nil
+}

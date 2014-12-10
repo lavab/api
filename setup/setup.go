@@ -44,6 +44,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		}).Fatal("Unable to connect to the redis server")
 	}
 
+	env.Cache = redis
+
 	// Set up the database
 	rethinkOpts := gorethink.ConnectOpts{
 		Address:     flags.RethinkDBAddress,
