@@ -1,0 +1,46 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+  sudo: true
+  tasks:
+    # install rethinkdb
+    - name: add rethinkdb sources
+      shell: . /etc/lsb-release && echo "deb http://download.rethinkdb.com/apt $DISTRIB_CODENAME main" | tee /etc/apt/sources.list.d/rethinkdb.list
+    - name: add rethinkdb key
+      shell: wget -qO- http://download.rethinkdb.com/apt/pubkey.gpg | apt-key add -
+    - name: update apt cache
+      apt: update_cache=yes
+    - name: install rethinkdb
+      apt: pkg=rethinkdb state=present
+    # configure rethinkdb
+    - name: ensure group is present
+      group: name=rethinkdb state=present
+    - name: ensure user is present
+      user: name=rethinkdb state=present
+    - name: copy master config file
+      copy: src=./rethinkdb.conf dest=/etc/rethinkdb/instances.d/rethinkdb.conf owner=rethinkdb group=rethinkdb mode=664
+    - name: start rethinkdb
+      service: name=rethinkdb state=restarted
+    # install redis
+    - name: prepare a directory
+      shell: mkdir /tmp/redis-stable
+    - name: download redis
+      get_url: url=http://download.redis.io/redis-stable.tar.gz dest=/tmp/redis-stable.tar.gz
+    - name: unpack redis
+      unarchive: src=/tmp/redis-stable.tar.gz dest=/tmp/redis-stable copy=no
+    - name: make redis
+      shell: 'cd /tmp/redis-stable/redis-stable && make && make install'
+    - name: ensure group is present
+      group: name=redis state=present
+    - name: ensure user is present
+      user: name=redis state=present
+    - name: prepare config and storage directories for redis
+      shell: mkdir /etc/redis; mkdir /var/redis; sudo mkdir /var/redis/6379
+    - name: prepare the config and an init script for redis
+      shell: sudo cp /tmp/redis-stable/redis-stable/utils/redis_init_script /etc/init.d/redis_6379
+    - name: upload the config to the vm
+      copy: src=./redis.conf dest=/etc/redis/6379.conf owner=redis group=redis mode=664
+    - name: put the prepared config on the server
+      shell: sudo update-rc.d redis_6379 defaults
+    - name: start rethinkdb
+      service: name=rethinkdb state=restarted

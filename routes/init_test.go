@@ -27,14 +27,16 @@ func init() {
 		ClassicRegistration: true,
 		UsernameReservation: true,
 
-		RethinkDBURL:      "127.0.0.1:28015",
+		RedisAddress: "127.0.0.1:6379",
+
+		RethinkDBAddress:  "127.0.0.1:28015",
 		RethinkDBKey:      "",
 		RethinkDBDatabase: "test",
 	}
 
 	// Connect to the RethinkDB server
 	rdbSession, err := gorethink.Connect(gorethink.ConnectOpts{
-		Address:     env.Config.RethinkDBURL,
+		Address:     env.Config.RethinkDBAddress,
 		AuthKey:     env.Config.RethinkDBKey,
 		MaxIdle:     10,
 		IdleTimeout: time.Second * 10,
