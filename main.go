@@ -33,7 +33,7 @@ var (
 		if address == "" {
 			address = "127.0.0.1"
 		}
-		return address + ":28015"
+		return address + ":6379"
 	}(), "Address of the redis server")
 	redisDatabase = flag.Int("redis_db", 0, "Index of redis database to use")
 	redisPassword = flag.String("redis_password", "", "Password of the redis server")
