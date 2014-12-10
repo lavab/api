@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"time"
 
@@ -48,7 +49,7 @@ func init() {
 	// Clear the test database
 	err = gorethink.DbDrop("test").Exec(rdbSession)
 	if err != nil {
-		panic("removing the test database should not return an error, got " + err.Error())
+		fmt.Println("removing the test database should not return an error, got " + err.Error())
 	}
 
 	// Disconnect

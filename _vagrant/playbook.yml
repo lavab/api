@@ -42,5 +42,5 @@
       copy: src=./redis.conf dest=/etc/redis/6379.conf owner=redis group=redis mode=664
     - name: put the prepared config on the server
       shell: sudo update-rc.d redis_6379 defaults
-    - name: start rethinkdb
-      service: name=rethinkdb state=restarted
+    - name: start redis_6379
+      service: name=redis_6379 state=restarted
