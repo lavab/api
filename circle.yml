@@ -13,6 +13,6 @@ dependencies:
     - cd redis-2.8.18 && make
   post:
     - rethinkdb --bind all
-        background: true
+      background: true
     - src/redis-server
-        background: true
+      background: true
