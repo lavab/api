@@ -16,3 +16,7 @@ dependencies:
         background: true
     - src/redis-server:
         background: true
+
+test:
+  override:
+    - go test -v ./...
