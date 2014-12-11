@@ -79,6 +79,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			rethinkOpts.Database,
 			"tokens",
 		),
+		Cache: redis,
 	}
 	env.Accounts = &db.AccountsTable{
 		RethinkCRUD: db.NewCRUDTable(

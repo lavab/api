@@ -7,5 +7,7 @@ type Cache interface {
 	Get(key string, pointer interface{}) error
 	Set(key string, value interface{}, expires time.Duration) error
 	Delete(key string) error
-	Exists(key string) error
+	DeleteMask(mask string) error
+	DeleteMulti(keys ...interface{}) error
+	Exists(key string) (bool, error)
 }

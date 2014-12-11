@@ -35,6 +35,11 @@ func (d *Default) GetTable() gorethink.Term {
 	return gorethink.Table(d.table)
 }
 
+// GetSession returns the current session
+func (d *Default) GetSession() *gorethink.Session {
+	return d.session
+}
+
 // Insert inserts a document into the database
 func (d *Default) Insert(data interface{}) error {
 	_, err := d.GetTable().Insert(data).RunWrite(d.session)

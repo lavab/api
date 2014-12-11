@@ -1,9 +1,20 @@
 package cache
 
 import (
+	"bytes"
+	"encoding/gob"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+)
+
+// Scripts!
+var (
+	scriptDeleteMask = redis.NewScript(0, `
+		for _, k in ipairs( redis.call( 'keys', ARGV[1] ) ) do
+			redis.call( 'del', k )
+		end
+	`)
 )
 
 // RedisCache is an implementation of Cache that uses Redis as a backend
@@ -75,18 +86,75 @@ func NewRedisCache(options *RedisCacheOpts) (*RedisCache, error) {
 	}, nil
 }
 
+// Get retrieves data from the database and then decodes it into the passed pointer.
 func (r *RedisCache) Get(key string, pointer interface{}) error {
-	return nil
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	// Perform the get
+	data, err := redis.Bytes(conn.Do("GET", key))
+	if err != nil {
+		return err
+	}
+
+	// Initialize a new decoder
+	dec := gob.NewDecoder(bytes.NewReader(data))
+
+	// Decode it into pointer
+	return dec.Decode(pointer)
 }
 
+// Set encodes passed value and sends it to redis
 func (r *RedisCache) Set(key string, value interface{}, expires time.Duration) error {
-	return nil
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	// Initialize a new encoder
+	var buffer bytes.Buffer
+	enc := gob.NewEncoder(&buffer)
+
+	// Encode the value
+	if err := enc.Encode(value); err != nil {
+		return err
+	}
+
+	// Save it into redis
+	if expires == 0 {
+		_, err := conn.Do("SET", key, buffer.Bytes())
+		return err
+	}
+
+	_, err := conn.Do("SETEX", key, expires.Seconds(), buffer.Bytes())
+	return err
 }
 
+// Delete removes data in redis by key
 func (r *RedisCache) Delete(key string) error {
-	return nil
+	conn := r.pool.Get()
+	defer conn.Close()
+	_, err := redis.Int(conn.Do("DEL", key))
+	return err
 }
 
-func (r *RedisCache) Exists(key string) error {
-	return nil
+// DeleteMask removes data using KEYS masks
+func (r *RedisCache) DeleteMask(mask string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+	_, err := scriptDeleteMask.Do(conn, mask)
+	return err
+}
+
+// DeleteMulti removes multiple keys
+func (r *RedisCache) DeleteMulti(keys ...interface{}) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+	_, err := redis.Int(conn.Do("DEL", keys...))
+	return err
+}
+
+// Exists performs a check whether a key exists
+func (r *RedisCache) Exists(key string) (bool, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Bool(conn.Do("EXISTS", key))
 }
