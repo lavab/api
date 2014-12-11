@@ -11,5 +11,8 @@ dependencies:
     - wget http://download.redis.io/releases/redis-2.8.18.tar.gz
     - tar xvzf redis-2.8.18.tar.gz
     - cd redis-2.8.18 && make
-    - rethinkdb --bind all &
-    - src/redis-server &
+  post:
+    - rethinkdb --bind all
+        background: true
+    - src/redis-server
+        background: true
