@@ -12,7 +12,7 @@ dependencies:
     - tar xvzf redis-2.8.18.tar.gz
     - cd redis-2.8.18 && make
   post:
-    - rethinkdb --bind all
-      background: true
-    - src/redis-server
-      background: true
+    - rethinkdb --bind all:
+        background: true
+    - src/redis-server:
+        background: true
