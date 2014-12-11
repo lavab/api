@@ -1,0 +1,15 @@
+machine:
+  timezone:
+    Europe/Berlin
+
+dependencies:
+  pre:
+    - source /etc/lsb-release && echo "deb http://download.rethinkdb.com/apt $DISTRIB_CODENAME main" | sudo tee /etc/apt/sources.list.d/rethinkdb.list
+    - wget -qO- http://download.rethinkdb.com/apt/pubkey.gpg | sudo apt-key add -
+    - sudo apt-get update
+    - sudo apt-get install rethinkdb
+    - wget http://download.redis.io/releases/redis-2.8.18.tar.gz
+    - tar xvzf redis-2.8.18.tar.gz
+    - cd redis-2.8.18.tar.gz && make
+    - rethinkdb --bind all &
+    - src/redis-server &
