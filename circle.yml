@@ -10,6 +10,6 @@ dependencies:
     - sudo apt-get install rethinkdb
     - wget http://download.redis.io/releases/redis-2.8.18.tar.gz
     - tar xvzf redis-2.8.18.tar.gz
-    - cd redis-2.8.18.tar.gz && make
+    - cd redis-2.8.18 && make
     - rethinkdb --bind all &
     - src/redis-server &
