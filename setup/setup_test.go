@@ -18,6 +18,8 @@ func TestSetup(t *testing.T) {
 		SessionDuration:     72,
 		ClassicRegistration: true,
 
+		RedisAddress: "127.0.0.1:6379",
+
 		RethinkDBAddress:  "127.0.0.1:28015",
 		RethinkDBKey:      "",
 		RethinkDBDatabase: "test",
