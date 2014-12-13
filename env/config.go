@@ -11,7 +11,11 @@ type Flags struct {
 	ClassicRegistration bool
 	UsernameReservation bool
 
-	RethinkDBURL      string
+	RedisAddress  string
+	RedisDatabase int
+	RedisPassword string
+
+	RethinkDBAddress  string
 	RethinkDBKey      string
 	RethinkDBDatabase string
 }
