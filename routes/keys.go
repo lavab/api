@@ -35,8 +35,17 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	account, err := env.Accounts.FindAccountByName(user)
+	if err != nil {
+		utils.JSONResponse(w, 409, &KeysListResponse{
+			Success: false,
+			Message: "Invalid username",
+		})
+		return
+	}
+
 	// Find all keys owner by user
-	keys, err := env.Keys.FindByName(user)
+	keys, err := env.Keys.FindByOwner(account.ID)
 	if err != nil {
 		utils.JSONResponse(w, 500, &KeysListResponse{
 			Success: false,
@@ -149,7 +158,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		Resource: models.MakeResource(
 			account.ID,
 			fmt.Sprintf(
-				"%s/%d/%s public key",
+				"%s/%d/%s",
 				utils.GetAlgorithmName(publicKey.PrimaryKey.PubKeyAlgo),
 				bitLength,
 				publicKey.PrimaryKey.KeyIdString(),
