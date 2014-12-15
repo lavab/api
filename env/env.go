@@ -6,6 +6,7 @@ import (
 
 	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
+	"github.com/lavab/api/factor"
 )
 
 var (
@@ -27,4 +28,6 @@ var (
 	Contacts *db.ContactsTable
 	// Reservations is the global instance of ReservationsTable
 	Reservations *db.ReservationsTable
+	// Factors contains all currently registered factors
+	Factors map[string]factor.Factor
 )

@@ -18,9 +18,11 @@ import (
 // 		 https://github.com/unrolled/secure
 
 var (
+	// Enable namsral/flag functionality
+	configFlag = flag.String("config", "", "config file to load")
 	// General flags
 	bindAddress      = flag.String("bind", ":5000", "Network address used to bind")
-	apiVersion       = flag.String("version", "v0", "Shown API version")
+	apiVersion       = flag.String("api_version", "v0", "Shown API version")
 	logFormatterType = flag.String("log", "text", "Log formatter type. Either \"json\" or \"text\"")
 	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
 	// Registration settings
@@ -53,6 +55,9 @@ var (
 		}
 		return database
 	}(), "Database name on the RethinkDB server")
+	// YubiCloud params
+	yubiCloudID  = flag.String("yubicloud_id", "", "YubiCloud API id")
+	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
 )
 
 func main() {
@@ -77,6 +82,9 @@ func main() {
 		RethinkDBAddress:  *rethinkdbAddress,
 		RethinkDBKey:      *rethinkdbKey,
 		RethinkDBDatabase: *rethinkdbDatabase,
+
+		YubiCloudID:  *yubiCloudID,
+		YubiCloudKey: *yubiCloudKey,
 	}
 
 	// Generate a mux
