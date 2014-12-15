@@ -38,13 +38,16 @@ type TokensCreateRequest struct {
 	Username string `json:"username" schema:"username"`
 	Password string `json:"password" schema:"password"`
 	Type     string `json:"type" schema:"type"`
+	Token    string `json:"token" schema:"token"`
 }
 
 // TokensCreateResponse contains the result of the TokensCreate request.
 type TokensCreateResponse struct {
-	Success bool          `json:"success"`
-	Message string        `json:"message,omitempty"`
-	Token   *models.Token `json:"token,omitempty"`
+	Success       bool          `json:"success"`
+	Message       string        `json:"message,omitempty"`
+	Token         *models.Token `json:"token,omitempty"`
+	FactorType    string        `json:"factor_type,omitempty"`
+	FactorRequest string        `json:"factor_request,omitempty"`
 }
 
 // TokensCreate allows logging in to an account.
@@ -104,12 +107,41 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Check for 2nd factor
+	if user.FactorType != "" {
+		factor, ok := env.Factors[user.FactorType]
+		if ok {
+			if input.Token == "" {
+				req, err := factor.Request(user.ID)
+				if err == nil {
+					utils.JSONResponse(w, 403, &TokensCreateResponse{
+						Success:       false,
+						Message:       "Factor token was not passed",
+						FactorType:    user.FactorType,
+						FactorRequest: req,
+					})
+					return
+				}
+			} else {
+				ok, err := factor.Verify(user.FactorValue, input.Token)
+				if !ok || err != nil {
+					utils.JSONResponse(w, 403, &TokensCreateResponse{
+						Success:    false,
+						Message:    "Invalid token passed",
+						FactorType: user.FactorType,
+					})
+					return
+				}
+			}
+		}
+	}
+
 	// Calculate the expiry date
 	expDate := time.Now().Add(time.Hour * time.Duration(env.Config.SessionDuration))
 
 	// Create a new token
 	token := &models.Token{
-		Expiring: models.Expiring{expDate},
+		Expiring: models.Expiring{ExpiryDate: expDate},
 		Resource: models.MakeResource(user.ID, "Auth token expiring on "+expDate.Format(time.RFC3339)),
 		Type:     input.Type,
 	}
