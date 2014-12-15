@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
@@ -34,8 +35,17 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	account, err := env.Accounts.FindAccountByName(user)
+	if err != nil {
+		utils.JSONResponse(w, 409, &KeysListResponse{
+			Success: false,
+			Message: "Invalid username",
+		})
+		return
+	}
+
 	// Find all keys owner by user
-	keys, err := env.Keys.FindByName(user)
+	keys, err := env.Keys.FindByOwner(account.ID)
 	if err != nil {
 		utils.JSONResponse(w, 500, &KeysListResponse{
 			Success: false,
@@ -59,8 +69,7 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 
 // KeysCreateRequest contains the data passed to the KeysCreate endpoint.
 type KeysCreateRequest struct {
-	Key   string `json:"key" schema:"key"`     // gpg armored key
-	Image string `json:"image" schema:"image"` // todo
+	Key string `json:"key" schema:"key"` // gpg armored key
 }
 
 // KeysCreateResponse contains the result of the KeysCreate request.
@@ -105,6 +114,21 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse using armor pkg
+	block, err := armor.Decode(strings.NewReader(input.Key))
+	if err != nil {
+		utils.JSONResponse(w, 409, &KeysCreateResponse{
+			Success: false,
+			Message: "Invalid key format",
+		})
+
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+			"list":  entityList,
+		}).Warn("Cannot parse an armored key #2")
+		return
+	}
+
 	// Get the account from db
 	account, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
@@ -132,17 +156,21 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Allocate a new key
 	key := &models.Key{
 		Resource: models.MakeResource(
-			session.Owner,
+			account.ID,
 			fmt.Sprintf(
-				"%d/%s public key",
+				"%s/%d/%s",
+				utils.GetAlgorithmName(publicKey.PrimaryKey.PubKeyAlgo),
 				bitLength,
 				publicKey.PrimaryKey.KeyIdString(),
 			),
 		),
-		OwnerName:  account.Name,
-		Key:        input.Key,
-		KeyID:      publicKey.PrimaryKey.KeyIdString(),
-		KeyIDShort: publicKey.PrimaryKey.KeyIdShortString(),
+		Headers:     block.Header,
+		Algorithm:   utils.GetAlgorithmName(publicKey.PrimaryKey.PubKeyAlgo),
+		Length:      bitLength,
+		Key:         input.Key,
+		KeyID:       publicKey.PrimaryKey.KeyIdString(),
+		KeyIDShort:  publicKey.PrimaryKey.KeyIdShortString(),
+		Reliability: 0,
 	}
 
 	// Update id as we can't do it directly during allocation
