@@ -2,6 +2,7 @@ package env
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 
 	"github.com/lavab/api/cache"
@@ -30,4 +31,10 @@ var (
 	Reservations *db.ReservationsTable
 	// Factors contains all currently registered factors
 	Factors map[string]factor.Factor
+	// NSQProducer is used for email sending
+	NSQProducer *nsq.Producer
+	// DeliveryConsumer is the NSQ consumer used for email delivery confirmations
+	DeliveryConsumer *nsq.Consumer
+	// ReceiptConsumer is the NSQ consumer for new email receipt handling
+	ReceiptConsumer *nsq.Consumer
 )

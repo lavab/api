@@ -55,6 +55,14 @@ var (
 		}
 		return database
 	}(), "Database name on the RethinkDB server")
+	// NSQ address
+	nsqAddress = flag.String("nsq_address", func() string {
+		address := os.Getenv("NSQLOOKUPD_PORT_4160_TCP_ADDR")
+		if address == "" {
+			address = "127.0.0.1"
+		}
+		return address + ":4160"
+	}(), "Address of the NSQ server")
 	// YubiCloud params
 	yubiCloudID  = flag.String("yubicloud_id", "", "YubiCloud API id")
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
@@ -82,6 +90,8 @@ func main() {
 		RethinkDBAddress:  *rethinkdbAddress,
 		RethinkDBKey:      *rethinkdbKey,
 		RethinkDBDatabase: *rethinkdbDatabase,
+
+		NSQAddress: *nsqAddress,
 
 		YubiCloudID:  *yubiCloudID,
 		YubiCloudKey: *yubiCloudKey,

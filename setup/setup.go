@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
@@ -111,6 +112,43 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"reservations",
 		),
 	}
+
+	// Initialize the NSQ connections
+	nsqProducer, err := nsq.NewProducer(flags.NSQAddress, nsq.NewConfig())
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to create a NSQProducer")
+	}
+	env.NSQProducer = nsqProducer
+
+	deliveryConsumer, err := nsq.NewConsumer("delivery", "confirmation", nsq.NewConfig())
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to create a DeliveryConsumer")
+	}
+	err = deliveryConsumer.ConnectToNSQLookupd(flags.NSQAddress)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to connect to nsqlookupd")
+	}
+	env.DeliveryConsumer = deliveryConsumer
+
+	receiptConsumer, err := nsq.NewConsumer("receipt", "notification", nsq.NewConfig())
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to create a DeliveryConsumer")
+	}
+	err = receiptConsumer.ConnectToNSQLookupd(flags.NSQAddress)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to connect to nsqlookupd")
+	}
+	env.ReceiptConsumer = receiptConsumer
 
 	// Initialize factors
 	env.Factors = make(map[string]factor.Factor)
