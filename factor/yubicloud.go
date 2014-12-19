@@ -30,8 +30,18 @@ func (y *YubiCloud) Request(data string) (string, error) {
 }
 
 // Verify checks if the token is valid
-func (y *YubiCloud) Verify(data string, input string) (bool, error) {
-	if input[:12] != data {
+func (y *YubiCloud) Verify(data []string, input string) (bool, error) {
+	publicKey := input[:12]
+
+	found := false
+	for _, prefix := range data {
+		if publicKey == prefix {
+			found = true
+			break
+		}
+	}
+
+	if !found {
 		return false, nil
 	}
 

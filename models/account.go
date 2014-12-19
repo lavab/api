@@ -34,8 +34,8 @@ type Account struct {
 
 	AltEmail string `json:"alt_email" gorethink:"alt_email"`
 
-	FactorType  string `json:"-" gorethink:"factor_type"`
-	FactorValue string `json:"-" gorethink:"factor_value"`
+	FactorType  string   `json:"-" gorethink:"factor_type"`
+	FactorValue []string `json:"-" gorethink:"factor_value"`
 
 	Status string `json:"status" gorethink:"status"`
 }

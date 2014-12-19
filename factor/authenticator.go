@@ -27,9 +27,9 @@ func (a *Authenticator) Request(data string) (string, error) {
 	return otp.URL(data), nil
 }
 
-func (a *Authenticator) Verify(data string, input string) (bool, error) {
+func (a *Authenticator) Verify(data []string, input string) (bool, error) {
 	// obviously broken
-	hotp, err := hotp.Unmarshal([]byte(data))
+	hotp, err := hotp.Unmarshal([]byte(data[0]))
 	if err != nil {
 		return false, err
 	}
