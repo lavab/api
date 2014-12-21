@@ -29,10 +29,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "docker" do |docker|
     docker.vm.box = "ubuntu/trusty64"
 
-    docker.vm.network "forwarded_port", guest: 4160, host: 4160
-    docker.vm.network "forwarded_port", guest: 4161, host: 4161
-    docker.vm.network "forwarded_port", guest: 4150, host: 4150
-    docker.vm.network "forwarded_port", guest: 4151, host: 4151
+    docker.vm.network "forwarded_port", guest: 4222, host: 4222
+    docker.vm.network "forwarded_port", guest: 8333, host: 8333
     docker.vm.network "forwarded_port", guest: 6379, host: 6379
     docker.vm.network "forwarded_port", guest: 8080, host: 8080
     docker.vm.network "forwarded_port", guest: 28015, host: 28015
@@ -44,14 +42,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
 
     docker.vm.provision "docker" do |d|
-      d.pull_images "nsqio/nsqlookupd"
-      d.run "nsqio/nsqlookupd",
-        args: "--name lookupd -p 4160:4160 -p 4161:4161"
-
-      d.pull_images "nsqio/nsqd"
-      d.run "nsqio/nsqd",
-        args: "--name nsqd -p 4150:4150 -p 4151:4151",
-        cmd: "--broadcast-address=172.17.42.1 --lookupd-tcp-address=172.17.42.1:4160"
+      d.pull_images "apcera/gnatsd"
+      d.run "apcera/gnatsd",
+        args: "--name lookupd -p 4222:4222 -p 8333:8333"
 
       d.pull_images "dockerfile/rethinkdb"
       d.run "dockerfile/rethinkdb",

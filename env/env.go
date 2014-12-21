@@ -2,7 +2,7 @@ package env
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/bitly/go-nsq"
+	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
 
 	"github.com/lavab/api/cache"
@@ -29,12 +29,10 @@ var (
 	Contacts *db.ContactsTable
 	// Reservations is the global instance of ReservationsTable
 	Reservations *db.ReservationsTable
+	// Emails is the global instance of EmailsTable
+	Emails *db.EmailsTable
 	// Factors contains all currently registered factors
 	Factors map[string]factor.Factor
-	// NSQProducer is used for email sending
-	NSQProducer *nsq.Producer
-	// DeliveryConsumer is the NSQ consumer used for email delivery confirmations
-	DeliveryConsumer *nsq.Consumer
-	// ReceiptConsumer is the NSQ consumer for new email receipt handling
-	ReceiptConsumer *nsq.Consumer
+	// NATS is the encoded connection to the NATS queue
+	NATS *nats.EncodedConn
 )

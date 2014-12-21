@@ -23,4 +23,6 @@ type Email struct {
 
 	// ThreadID
 	ThreadID string `json:"thread_id" gorethink:"thread_id"`
+
+	Status string `json:"status" gorethink:"status"`
 }

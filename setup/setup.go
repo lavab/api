@@ -1,10 +1,11 @@
 package setup
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/bitly/go-nsq"
+	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
@@ -112,43 +113,40 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"reservations",
 		),
 	}
+	env.Emails = &db.EmailsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"emails",
+		),
+	}
 
-	// Initialize the NSQ connections
-	nsqProducer, err := nsq.NewProducer(flags.NSQAddress, nsq.NewConfig())
+	// NATS queue connection
+	nc, err := nats.Connect(flags.NATSAddress)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Fatal("Unable to create a NSQProducer")
+			"error":   err,
+			"address": flags.NATSAddress,
+		}).Fatal("Unable to connect to NATS")
 	}
-	env.NSQProducer = nsqProducer
 
-	deliveryConsumer, err := nsq.NewConsumer("delivery", "confirmation", nsq.NewConfig())
+	c, err := nats.NewEncodedConn(nc, "json")
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Fatal("Unable to create a DeliveryConsumer")
+			"error":   err,
+			"address": flags.NATSAddress,
+		}).Fatal("Unable to initialize a JSON NATS connection")
 	}
-	err = deliveryConsumer.ConnectToNSQLookupd(flags.NSQAddress)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Fatal("Unable to connect to nsqlookupd")
-	}
-	env.DeliveryConsumer = deliveryConsumer
 
-	receiptConsumer, err := nsq.NewConsumer("receipt", "notification", nsq.NewConfig())
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Fatal("Unable to create a DeliveryConsumer")
-	}
-	err = receiptConsumer.ConnectToNSQLookupd(flags.NSQAddress)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Fatal("Unable to connect to nsqlookupd")
-	}
-	env.ReceiptConsumer = receiptConsumer
+	c.Subscribe("delivery", func(s string) {
+		fmt.Printf("Received a message: %s\n", s)
+	})
+
+	c.Subscribe("receipt", func(s string) {
+		fmt.Printf("Received a message: %s\n", s)
+	})
+
+	env.NATS = c
 
 	// Initialize factors
 	env.Factors = make(map[string]factor.Factor)
