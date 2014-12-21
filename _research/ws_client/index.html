@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>lavab client</title>
+    </head>
+    <body>
+        <select id="method">
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+        </select>
+
+        <input type="text" id="path" /><br>
+        <textarea id="body"></textarea><br>
+        <button id="send">Query</button>
+
+        <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+        <script src="https://cdn.socket.io/socket.io-1.2.1.js"></script>
+        <script type="text/javascript">
+            $(function() {
+                var socket = io("http://127.0.0.1:5000");
+
+                $("#send").click(function() {
+                    socket.emit(
+                        "request",
+                        "random id",
+                        $("#method").val(),
+                        $("#path").val(),
+                        $("#body").val(),
+                        {});
+                });
+                //socket.emit("request", $('#m').val());
+                socket.on("response", function(id, status, header, body) {
+                    console.log(id);
+                    console.log(status);
+                    console.log(header);
+                    console.log(body);
+                });
+            });
+        </script>
+    </body>
+</html>

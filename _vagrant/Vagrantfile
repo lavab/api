@@ -44,7 +44,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     docker.vm.provision "docker" do |d|
       d.pull_images "apcera/gnatsd"
       d.run "apcera/gnatsd",
-        args: "--name lookupd -p 4222:4222 -p 8333:8333"
+        args: "--name gnatsd -p 4222:4222 -p 8333:8333"
 
       d.pull_images "dockerfile/rethinkdb"
       d.run "dockerfile/rethinkdb",

@@ -1,12 +1,19 @@
 package setup
 
 import (
+	"bufio"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
+	"github.com/googollee/go-socket.io"
+	"github.com/rs/cors"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 
@@ -174,6 +181,10 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	mux.Use(middleware.RequestID)
 	mux.Use(glogrus.NewGlogrus(log, "api"))
 	mux.Use(middleware.Recoverer)
+	mux.Use(cors.New(cors.Options{
+		AllowCredentials: true,
+		AllowedOrigins:   []string{"*"},
+	}).Handler)
 	mux.Use(middleware.AutomaticOptions)
 
 	// Set up an auth'd mux
@@ -228,6 +239,50 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Post("/keys", routes.KeysCreate)
 	mux.Get("/keys/:id", routes.KeysGet)
 	auth.Post("/keys/:id/vote", routes.KeysVote)
+
+	// WebSockets handler
+	ws, err := socketio.NewServer(nil)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Fatal("Unable to create a socket.io server")
+	}
+	ws.On("connection", func(so socketio.Socket) {
+		env.Log.WithFields(logrus.Fields{
+			"id": so.Id(),
+		}).Info("New WebSockets connection")
+
+		so.On("request", func(id string, method string, path string, data string, headers map[string]string) {
+			w := httptest.NewRecorder()
+			r, err := http.NewRequest(method, "http://api.lavaboom.io"+path, strings.NewReader(data))
+			if err != nil {
+				so.Emit("error", err.Error())
+				return
+			}
+
+			for key, value := range headers {
+				r.Header.Set(key, value)
+			}
+
+			mux.ServeHTTP(w, r)
+
+			resp, err := http.ReadResponse(bufio.NewReader(w.Body), r)
+			if err != nil {
+				so.Emit("error", err.Error())
+				return
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				so.Emit("error", err.Error())
+				return
+			}
+
+			so.Emit("response", id, resp.StatusCode, resp.Header, body)
+		})
+	})
+
+	mux.Handle("/socket.io/", ws)
 
 	// Merge the muxes
 	mux.Handle("/*", auth)
