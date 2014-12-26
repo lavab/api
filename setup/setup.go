@@ -2,6 +2,7 @@ package setup
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
+	"gopkg.in/igm/sockjs-go.v2/sockjs"
 
 	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
@@ -182,8 +184,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	mux.Use(glogrus.NewGlogrus(log, "api"))
 	mux.Use(middleware.Recoverer)
 	mux.Use(cors.New(cors.Options{
-		AllowCredentials: true,
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins: []string{"*"},
 	}).Handler)
 	mux.Use(middleware.AutomaticOptions)
 
@@ -282,7 +283,88 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		})
 	})
 
-	mux.Handle("/socket.io/", ws)
+	mux.Handle("/ws/*", sockjs.NewHandler("/ws", sockjs.DefaultOptions, func(session sockjs.Session) {
+		// A new goroutine seems to be spawned for each new session
+		for {
+			// Read a message from the input
+			msg, err := session.Recv()
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"id":    session.ID(),
+					"error": err.Error(),
+				}).Warn("Error while reading from a WebSocket")
+				break
+			}
+
+			// Decode the message
+			var input struct {
+				ID      string            `json:"id"`
+				Method  string            `json:"method"`
+				Path    string            `json:"path"`
+				Body    string            `json:"body"`
+				Headers map[string]string `json:"headers"`
+			}
+			err = json.Unmarshal([]byte(msg), &input)
+			if err != nil {
+				// Return an error response
+				resp, _ := json.Marshal(map[string]interface{}{
+					"error": err,
+				})
+				err := session.Send(string(resp))
+				if err != nil {
+					env.Log.WithFields(logrus.Fields{
+						"id":    session.ID(),
+						"error": err.Error(),
+					}).Warn("Error while writing to a WebSocket")
+					break
+				}
+				continue
+			}
+
+			// Perform the request
+			w := httptest.NewRecorder()
+			r, err := http.NewRequest(input.Method, "http://api.lavaboom.io"+input.Path, strings.NewReader(input.Body))
+			if err != nil {
+				// Return an error response
+				resp, _ := json.Marshal(map[string]interface{}{
+					"error": err.Error(),
+				})
+				err := session.Send(string(resp))
+				if err != nil {
+					env.Log.WithFields(logrus.Fields{
+						"id":    session.ID(),
+						"error": err.Error(),
+					}).Warn("Error while writing to a WebSocket")
+					break
+				}
+				continue
+			}
+
+			r.RequestURI = input.Path
+
+			for key, value := range input.Headers {
+				r.Header.Set(key, value)
+			}
+
+			mux.ServeHTTP(w, r)
+
+			// Return the final response
+			result, _ := json.Marshal(map[string]interface{}{
+				"id":     input.ID,
+				"status": w.Code,
+				"header": w.HeaderMap,
+				"body":   w.Body.String(),
+			})
+			err = session.Send(string(result))
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"id":    session.ID(),
+					"error": err.Error(),
+				}).Warn("Error while writing to a WebSocket")
+				break
+			}
+		}
+	}))
 
 	// Merge the muxes
 	mux.Handle("/*", auth)

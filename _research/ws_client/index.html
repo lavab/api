@@ -17,27 +17,23 @@
         <button id="send">Query</button>
 
         <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
-        <script src="https://cdn.socket.io/socket.io-1.2.1.js"></script>
+        <script src="//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
         <script type="text/javascript">
             $(function() {
-                var socket = io("http://127.0.0.1:5000");
+                var sock = new SockJS("http://127.0.0.1:5000/ws");
 
                 $("#send").click(function() {
-                    socket.emit(
-                        "request",
-                        "random id",
-                        $("#method").val(),
-                        $("#path").val(),
-                        $("#body").val(),
-                        {});
+                    sock.send(JSON.stringify({
+                        id:     "random id",
+                        method: $("#method").val(),
+                        path:   $("#path").val(),
+                        body:   $("#body").val(),
+                    }));
                 });
-                //socket.emit("request", $('#m').val());
-                socket.on("response", function(id, status, header, body) {
-                    console.log(id);
-                    console.log(status);
-                    console.log(header);
-                    console.log(body);
-                });
+
+                sock.onmessage = function(e) {
+                    console.log(JSON.parse(e.data));
+                };
             });
         </script>
     </body>
