@@ -20,6 +20,8 @@ func TestSetup(t *testing.T) {
 
 		RedisAddress: "127.0.0.1:6379",
 
+		NATSAddress: "nats://127.0.0.1:4222",
+
 		RethinkDBAddress:  "127.0.0.1:28015",
 		RethinkDBKey:      "",
 		RethinkDBDatabase: "test",
