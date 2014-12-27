@@ -350,6 +350,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 			// Return the final response
 			result, _ := json.Marshal(map[string]interface{}{
+				"type":   "response",
 				"id":     input.ID,
 				"status": w.Code,
 				"header": w.HeaderMap,
