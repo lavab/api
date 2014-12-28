@@ -2,6 +2,8 @@ package routes
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ugorji/go/codec"
@@ -18,19 +20,104 @@ var (
 
 // EmailsListResponse contains the result of the EmailsList request.
 type EmailsListResponse struct {
-	Success    bool            `json:"success"`
-	Message    string          `json:"message,omitempty"`
-	ItemsCount int             `json:"items_count,omitempty"`
-	Emails     []*models.Email `json:"emails,omitempty"`
+	Success bool             `json:"success"`
+	Message string           `json:"message,omitempty"`
+	Emails  *[]*models.Email `json:"emails,omitempty"`
 }
 
 // EmailsList sends a list of the emails in the inbox.
-func EmailsList(w http.ResponseWriter, r *http.Request) {
+func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Fetch the current session from the database
+	session := c.Env["token"].(*models.Token)
+
+	// Parse the query
+	var (
+		query     = r.URL.Query()
+		sortRaw   = query.Get("sort")
+		offsetRaw = query.Get("offset")
+		limitRaw  = query.Get("limit")
+		sort      []string
+		offset    int
+		limit     int
+	)
+
+	if offsetRaw != "" {
+		o, err := strconv.Atoi(offsetRaw)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":  err,
+				"offset": offset,
+			}).Error("Invalid offset")
+
+			utils.JSONResponse(w, 400, &EmailsListResponse{
+				Success: false,
+				Message: "Invalid offset",
+			})
+			return
+		}
+		offset = o
+	}
+
+	if limitRaw != "" {
+		l, err := strconv.Atoi(limitRaw)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+				"limit": limit,
+			}).Error("Invalid limit")
+
+			utils.JSONResponse(w, 400, &EmailsListResponse{
+				Success: false,
+				Message: "Invalid limit",
+			})
+			return
+		}
+		limit = l
+	}
+
+	if sortRaw != "" {
+		sort = strings.Split(sortRaw, ",")
+	}
+
+	// Get contacts from the database
+	emails, err := env.Emails.List(session.Owner, sort, offset, limit)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to fetch emails")
+
+		utils.JSONResponse(w, 500, &EmailsListResponse{
+			Success: false,
+			Message: "Internal error (code EM/LI/01)",
+		})
+		return
+	}
+
+	if offsetRaw != "" || limitRaw != "" {
+		count, err := env.Emails.CountOwnedBy(session.Owner)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Unable to count emails")
+
+			utils.JSONResponse(w, 500, &EmailsListResponse{
+				Success: false,
+				Message: "Internal error (code EM/LI/02)",
+			})
+			return
+		}
+		w.Header().Set("X-Total-Count", strconv.Itoa(count))
+	}
+
 	utils.JSONResponse(w, 200, &EmailsListResponse{
-		Success:    true,
-		ItemsCount: 1,
-		Emails:     []*models.Email{},
+		Success: true,
+		Emails:  &emails,
 	})
+
+	// GET parameters:
+	//   sort - split by commas, prefixes: - is desc, + is asc
+	//   offset, limit - for pagination
+	// Pagination ADDS X-Total-Count to the response!
 }
 
 type EmailsCreateRequest struct {
