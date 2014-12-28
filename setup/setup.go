@@ -3,11 +3,11 @@ package setup
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -25,6 +25,12 @@ import (
 	"github.com/lavab/api/factor"
 	"github.com/lavab/api/routes"
 	"github.com/lavab/glogrus"
+)
+
+// sessions contains all "subscribing" WebSockets sessions
+var (
+	sessions     = map[string][]sockjs.Session{}
+	sessionsLock sync.Mutex
 )
 
 // PrepareMux sets up the API
@@ -147,12 +153,84 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		}).Fatal("Unable to initialize a JSON NATS connection")
 	}
 
-	c.Subscribe("delivery", func(s string) {
-		fmt.Printf("Received a message: %s\n", s)
+	c.Subscribe("delivery", func(msg *struct {
+		ID    string `json:"id"`
+		Owner string `json:"owner"`
+	}) {
+		// Check if we are handling owner's session
+		if _, ok := sessions[msg.Owner]; !ok {
+			return
+		}
+
+		if len(sessions[msg.Owner]) == 0 {
+			return
+		}
+
+		// Resolve the email
+		email, err := env.Emails.GetEmail(msg.ID)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"id":    msg.ID,
+			}).Error("Unable to resolve an email from queue")
+			return
+		}
+
+		// Send notifications to subscribers
+		for _, session := range sessions[msg.Owner] {
+			result, _ := json.Marshal(map[string]interface{}{
+				"type": "delivery",
+				"id":   msg.ID,
+				"name": email.Name,
+			})
+			err = session.Send(string(result))
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"id":    session.ID(),
+					"error": err.Error(),
+				}).Warn("Error while writing to a WebSocket")
+			}
+		}
 	})
 
-	c.Subscribe("receipt", func(s string) {
-		fmt.Printf("Received a message: %s\n", s)
+	c.Subscribe("receipt", func(msg *struct {
+		ID    string `json:"id"`
+		Owner string `json:"owner"`
+	}) {
+		// Check if we are handling owner's session
+		if _, ok := sessions[msg.Owner]; !ok {
+			return
+		}
+
+		if len(sessions[msg.Owner]) == 0 {
+			return
+		}
+
+		// Resolve the email
+		email, err := env.Emails.GetEmail(msg.ID)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"id":    msg.ID,
+			}).Error("Unable to resolve an email from queue")
+			return
+		}
+
+		// Send notifications to subscribers
+		for _, session := range sessions[msg.Owner] {
+			result, _ := json.Marshal(map[string]interface{}{
+				"type": "receipt",
+				"id":   msg.ID,
+				"name": email.Name,
+			})
+			err = session.Send(string(result))
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"id":    session.ID(),
+					"error": err.Error(),
+				}).Warn("Error while writing to a WebSocket")
+			}
+		}
 	})
 
 	env.NATS = c
@@ -283,6 +361,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	})
 
 	mux.Handle("/ws/*", sockjs.NewHandler("/ws", sockjs.DefaultOptions, func(session sockjs.Session) {
+		var subscribed string
+
 		// A new goroutine seems to be spawned for each new session
 		for {
 			// Read a message from the input
@@ -297,6 +377,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 			// Decode the message
 			var input struct {
+				Type    string            `json:"type"`
+				Token   string            `json:"token"`
 				ID      string            `json:"id"`
 				Method  string            `json:"method"`
 				Path    string            `json:"path"`
@@ -307,6 +389,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			if err != nil {
 				// Return an error response
 				resp, _ := json.Marshal(map[string]interface{}{
+					"type":  "error",
 					"error": err,
 				})
 				err := session.Send(string(resp))
@@ -320,15 +403,67 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				continue
 			}
 
-			// Perform the request
-			w := httptest.NewRecorder()
-			r, err := http.NewRequest(input.Method, "http://api.lavaboom.io"+input.Path, strings.NewReader(input.Body))
-			if err != nil {
-				// Return an error response
+			// Check message's type
+			if input.Type == "subscribe" {
+				// Listen to user's events
+
+				// Check if token is empty
+				if input.Token == "" {
+					// Return an error response
+					resp, _ := json.Marshal(map[string]interface{}{
+						"type":  "error",
+						"error": "Invalid token",
+					})
+					err := session.Send(string(resp))
+					if err != nil {
+						env.Log.WithFields(logrus.Fields{
+							"id":    session.ID(),
+							"error": err.Error(),
+						}).Warn("Error while writing to a WebSocket")
+						break
+					}
+					continue
+				}
+
+				// Check the token in database
+				token, err := env.Tokens.GetToken(input.Token)
+				if err != nil {
+					// Return an error response
+					resp, _ := json.Marshal(map[string]interface{}{
+						"type":  "error",
+						"error": "Invalid token",
+					})
+					err := session.Send(string(resp))
+					if err != nil {
+						env.Log.WithFields(logrus.Fields{
+							"id":    session.ID(),
+							"error": err.Error(),
+						}).Warn("Error while writing to a WebSocket")
+						break
+					}
+					continue
+				}
+
+				// Do the actual subscription
+				subscribed = token.Owner
+				sessionsLock.Lock()
+
+				// Sessions map already contains this owner
+				if _, ok := sessions[token.Owner]; ok {
+					sessions[token.Owner] = append(sessions[token.Owner], session)
+				} else {
+					// We have to allocate a new slice
+					sessions[token.Owner] = []sockjs.Session{session}
+				}
+
+				// Unlock the map write
+				sessionsLock.Unlock()
+
+				// Return a response
 				resp, _ := json.Marshal(map[string]interface{}{
-					"error": err.Error(),
+					"type": "subscribed",
 				})
-				err := session.Send(string(resp))
+				err = session.Send(string(resp))
 				if err != nil {
 					env.Log.WithFields(logrus.Fields{
 						"id":    session.ID(),
@@ -336,34 +471,204 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 					}).Warn("Error while writing to a WebSocket")
 					break
 				}
-				continue
+			} else if input.Type == "unsubscribe" {
+				if subscribed == "" {
+					resp, _ := json.Marshal(map[string]interface{}{
+						"type":  "error",
+						"error": "Not subscribed",
+					})
+					err := session.Send(string(resp))
+					if err != nil {
+						env.Log.WithFields(logrus.Fields{
+							"id":    session.ID(),
+							"error": err.Error(),
+						}).Warn("Error while writing to a WebSocket")
+						break
+					}
+				}
+
+				sessionsLock.Lock()
+
+				if _, ok := sessions[subscribed]; !ok {
+					// Return a response
+					resp, _ := json.Marshal(map[string]interface{}{
+						"type": "unsubscribed",
+					})
+					err := session.Send(string(resp))
+					if err != nil {
+						env.Log.WithFields(logrus.Fields{
+							"id":    session.ID(),
+							"error": err.Error(),
+						}).Warn("Error while writing to a WebSocket")
+						sessionsLock.Unlock()
+						subscribed = ""
+						break
+					}
+					sessionsLock.Unlock()
+					subscribed = ""
+					continue
+				}
+
+				if len(sessions[subscribed]) == 1 {
+					delete(sessions, subscribed)
+
+					// Return a response
+					resp, _ := json.Marshal(map[string]interface{}{
+						"type": "unsubscribed",
+					})
+					err := session.Send(string(resp))
+					if err != nil {
+						env.Log.WithFields(logrus.Fields{
+							"id":    session.ID(),
+							"error": err.Error(),
+						}).Warn("Error while writing to a WebSocket")
+						sessionsLock.Unlock()
+						subscribed = ""
+						break
+					}
+					sessionsLock.Unlock()
+					subscribed = ""
+					continue
+				}
+
+				// Find the session
+				index := -1
+				for i, session2 := range sessions[subscribed] {
+					if session == session2 {
+						index = i
+						break
+					}
+				}
+
+				// We didn't find anything
+				if index == -1 {
+					// Return a response
+					resp, _ := json.Marshal(map[string]interface{}{
+						"type": "unsubscribed",
+					})
+					err := session.Send(string(resp))
+					if err != nil {
+						env.Log.WithFields(logrus.Fields{
+							"id":    session.ID(),
+							"error": err.Error(),
+						}).Warn("Error while writing to a WebSocket")
+						sessionsLock.Unlock()
+						subscribed = ""
+						break
+					}
+					sessionsLock.Unlock()
+					subscribed = ""
+					continue
+				}
+
+				// We found it, so we are supposed to slice it
+				sessions[subscribed][index] = sessions[subscribed][len(sessions[subscribed])-1]
+				sessions[subscribed][len(sessions[subscribed])-1] = nil
+				sessions[subscribed] = sessions[subscribed][:len(sessions[subscribed])-1]
+
+				// Return a response
+				resp, _ := json.Marshal(map[string]interface{}{
+					"type": "unsubscribed",
+				})
+				err := session.Send(string(resp))
+				if err != nil {
+					env.Log.WithFields(logrus.Fields{
+						"id":    session.ID(),
+						"error": err.Error(),
+					}).Warn("Error while writing to a WebSocket")
+					sessionsLock.Unlock()
+					subscribed = ""
+					break
+				}
+				sessionsLock.Unlock()
+				subscribed = ""
+			} else if input.Type == "request" {
+				// Perform the request
+				w := httptest.NewRecorder()
+				r, err := http.NewRequest(input.Method, "http://api.lavaboom.io"+input.Path, strings.NewReader(input.Body))
+				if err != nil {
+					// Return an error response
+					resp, _ := json.Marshal(map[string]interface{}{
+						"error": err.Error(),
+					})
+					err := session.Send(string(resp))
+					if err != nil {
+						env.Log.WithFields(logrus.Fields{
+							"id":    session.ID(),
+							"error": err.Error(),
+						}).Warn("Error while writing to a WebSocket")
+						break
+					}
+					continue
+				}
+
+				r.RequestURI = input.Path
+
+				for key, value := range input.Headers {
+					r.Header.Set(key, value)
+				}
+
+				mux.ServeHTTP(w, r)
+
+				// Return the final response
+				result, _ := json.Marshal(map[string]interface{}{
+					"type":   "response",
+					"id":     input.ID,
+					"status": w.Code,
+					"header": w.HeaderMap,
+					"body":   w.Body.String(),
+				})
+				err = session.Send(string(result))
+				if err != nil {
+					env.Log.WithFields(logrus.Fields{
+						"id":    session.ID(),
+						"error": err.Error(),
+					}).Warn("Error while writing to a WebSocket")
+					break
+				}
 			}
+		}
 
-			r.RequestURI = input.Path
+		// We have to clear the subscription here too. TODO: make the code shorter
+		if subscribed == "" {
+			return
+		}
 
-			for key, value := range input.Headers {
-				r.Header.Set(key, value)
-			}
+		sessionsLock.Lock()
 
-			mux.ServeHTTP(w, r)
+		if _, ok := sessions[subscribed]; !ok {
+			sessionsLock.Unlock()
+			return
+		}
 
-			// Return the final response
-			result, _ := json.Marshal(map[string]interface{}{
-				"type":   "response",
-				"id":     input.ID,
-				"status": w.Code,
-				"header": w.HeaderMap,
-				"body":   w.Body.String(),
-			})
-			err = session.Send(string(result))
-			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"id":    session.ID(),
-					"error": err.Error(),
-				}).Warn("Error while writing to a WebSocket")
+		if len(sessions[subscribed]) == 1 {
+			delete(sessions, subscribed)
+			sessionsLock.Unlock()
+			return
+		}
+
+		// Find the session
+		index := -1
+		for i, session2 := range sessions[subscribed] {
+			if session == session2 {
+				index = i
 				break
 			}
 		}
+
+		// We didn't find anything
+		if index == -1 {
+			sessionsLock.Unlock()
+			return
+		}
+
+		// We found it, so we are supposed to slice it
+		sessions[subscribed][index] = sessions[subscribed][len(sessions[subscribed])-1]
+		sessions[subscribed][len(sessions[subscribed])-1] = nil
+		sessions[subscribed] = sessions[subscribed][:len(sessions[subscribed])-1]
+
+		// Unlock the mutex
+		sessionsLock.Unlock()
 	}))
 
 	// Merge the muxes
