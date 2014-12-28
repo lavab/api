@@ -125,7 +125,7 @@ type EmailsCreateRequest struct {
 	BCC             []string `json:"bcc"`
 	ReplyTo         string   `json:"reply_to"`
 	ThreadID        string   `json:"thread_id"`
-	Title           string   `json:"title"`
+	Subject         string   `json:"title"`
 	Body            string   `json:"body"`
 	Preview         string   `json:"preview"`
 	Attachments     []string `json:"attachments"`
@@ -160,7 +160,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	// Ensure that the input data isn't empty
-	if len(input.To) == 0 || input.Title == "" || input.Body == "" {
+	if len(input.To) == 0 || input.Subject == "" || input.Body == "" {
 		utils.JSONResponse(w, 400, &EmailsCreateResponse{
 			Success: false,
 			Message: "Invalid request",
@@ -170,7 +170,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Create a new email struct
 	email := &models.Email{
-		Resource:      models.MakeResource(session.Owner, input.Title),
+		Kind:          "sent",
+		To:            input.To,
+		Resource:      models.MakeResource(session.Owner, input.Subject),
 		AttachmentIDs: input.Attachments,
 		Body: models.Encrypted{
 			Encoding:        "json",

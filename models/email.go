@@ -5,6 +5,12 @@ package models
 type Email struct {
 	Resource
 
+	// Kind of the email. Value is either sent or received.
+	Kind string `json:"kind" gorethink:"kind"`
+
+	// Who is supposed to receive the email / what email received it.
+	To []string `json:"to" gorethink:"to"`
+
 	// AttachmentsIDs is a slice of the FileIDs associated with this email
 	// For uploading attachments see `POST /upload`
 	AttachmentIDs []string `json:"attachments" gorethink:"attachments"`
