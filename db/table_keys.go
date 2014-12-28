@@ -8,10 +8,10 @@ type KeysTable struct {
 	RethinkCRUD
 }
 
-func (k *KeysTable) FindByName(name string) ([]*models.Key, error) {
+func (k *KeysTable) FindByOwner(id string) ([]*models.Key, error) {
 	var results []*models.Key
 
-	if err := k.FindByAndFetch("owner_name", name, &results); err != nil {
+	if err := k.FindByAndFetch("owner", id, &results); err != nil {
 		return nil, err
 	}
 

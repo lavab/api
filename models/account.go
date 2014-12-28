@@ -14,17 +14,11 @@ type Account struct {
 	Billing BillingData `json:"billing" gorethink:"billing"`
 
 	// Password is the password used to login to the account.
-	// It's hashed and salted using a cryptographically strong method (bcrypt|scrypt).
+	// It's hashed and salted using scrypt.
 	Password string `json:"-"  gorethink:"password"`
 
-	// PgpExpDate is an RFC3339-encoded string containing the expiry date of the user's public key
-	PgpExpDate string `json:"pgp_exp_date" gorethink:"pgp_exp_date"`
-
-	// PgpFingerprint is a SHA-512 hash of the user's public key
-	PgpFingerprint string `json:"pgp_fingerprint" gorethink:"pgp_fingerprint"`
-
-	// PgpPublicKey is a copy of the user's current public key. It can also be found in the 'keys' db.
-	PgpPublicKey string `json:"pgp_public_key" gorethink:"pgp_public_key"`
+	// PGPKey is the fingerprint of account's default key
+	PGPKey string `json:"pgp_key" gorethink:"pgp_key"`
 
 	// Settings contains data needed to customize the user experience.
 	// TODO Work in progress
@@ -39,6 +33,9 @@ type Account struct {
 	Type string `json:"type" gorethink:"type"`
 
 	AltEmail string `json:"alt_email" gorethink:"alt_email"`
+
+	FactorType  string   `json:"-" gorethink:"factor_type"`
+	FactorValue []string `json:"-" gorethink:"factor_value"`
 
 	Status string `json:"status" gorethink:"status"`
 }

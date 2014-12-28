@@ -56,5 +56,5 @@ version=v0
 
 ## Build status:
 
- - `master` - [![Build Status](https://magnum.travis-ci.com/lavab/api.svg?token=kJbppXeTxzqpCVvt4t5X&branch=master)](https://magnum.travis-ci.com/lavab/api)
- - `develop` - [![Build Status](https://magnum.travis-ci.com/lavab/api.svg?token=kJbppXeTxzqpCVvt4t5X&branch=develop)](https://magnum.travis-ci.com/lavab/api)
+ - `master` - [![Circle CI](https://circleci.com/gh/lavab/api/tree/master.svg?style=svg&circle-token=4a52d619a03d0249906195d6447ceb60a475c0c5)](https://circleci.com/gh/lavab/api/tree/master)
+ - `develop` - [![Circle CI](https://circleci.com/gh/lavab/api/tree/develop.svg?style=svg&circle-token=4a52d619a03d0249906195d6447ceb60a475c0c5)](https://circleci.com/gh/lavab/api/tree/develop)
