@@ -5,21 +5,54 @@
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "ubuntu/trusty64"
 
-  # rethinkdb
-  config.vm.network "forwarded_port", guest: 8080, host: 8080
-  config.vm.network "forwarded_port", guest: 28015, host: 28015
-  config.vm.network "forwarded_port", guest: 29015, host: 29015
+  #config.vm.define "redisthink" do |rethinkdb|
+    #rethinkdb.vm.box = "ubuntu/trusty64"
 
-  # redis
-  config.vm.network "forwarded_port", guest: 6379, host: 6379
+    # rethinkdb
+    #rethinkdb.vm.network "forwarded_port", guest: 8080, host: 8080
+    #rethinkdb.vm.network "forwarded_port", guest: 28015, host: 28015
+    #rethinkdb.vm.network "forwarded_port", guest: 29015, host: 29015
 
-  config.vm.provider "virtualbox" do |v|
-    v.memory = 2048
-    v.cpus = 4
+    # redis
+    #rethinkdb.vm.network "forwarded_port", guest: 6379, host: 6379
+
+    #rethinkdb.vm.provider "virtualbox" do |v|
+    #v.memory = 2048
+    #v.cpus = 4
+    #end
+
+    # load ansible playbook
+    #rethinkdb.vm.provision "shell", path: "deploy.sh"
+  #end
+
+  config.vm.define "docker" do |docker|
+    docker.vm.box = "ubuntu/trusty64"
+
+    docker.vm.network "forwarded_port", guest: 4222, host: 4222
+    docker.vm.network "forwarded_port", guest: 8333, host: 8333
+    docker.vm.network "forwarded_port", guest: 6379, host: 6379
+    docker.vm.network "forwarded_port", guest: 8080, host: 8080
+    docker.vm.network "forwarded_port", guest: 28015, host: 28015
+    docker.vm.network "forwarded_port", guest: 29015, host: 29015
+
+    docker.vm.provider "virtualbox" do |v|
+      v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      v.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    end
+
+    docker.vm.provision "docker" do |d|
+      d.pull_images "apcera/gnatsd"
+      d.run "apcera/gnatsd",
+        args: "--name gnatsd -p 4222:4222 -p 8333:8333"
+
+      d.pull_images "dockerfile/rethinkdb"
+      d.run "dockerfile/rethinkdb",
+        args: "--name rethinkdb -p 8080:8080 -p 28015:28015 -p 29015:29015"
+
+      d.pull_images "dockerfile/redis"
+      d.run "dockerfile/redis",
+        args: "--name redis -p 6379:6379"
+    end
   end
-
-  # load ansible playbook
-  config.vm.provision "shell", path: "deploy.sh"
 end

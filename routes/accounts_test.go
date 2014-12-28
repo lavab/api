@@ -149,6 +149,45 @@ func TestAccountsCreateInvitedExisting(t *testing.T) {
 	require.Equal(t, "Username already exists", response.Message)
 }
 
+func TestAccountsCreateInvitedWeakPassword(t *testing.T) {
+	const (
+		username = "jeremy"
+		password = "c0067d4af4e87f00dbac63b6156828237059172d1bbeac67427345d6a9fda484"
+	)
+
+	// Prepare a token
+	inviteToken := models.Token{
+		Resource: models.MakeResource("", "test invite token"),
+		Type:     "invite",
+	}
+	inviteToken.ExpireSoon()
+
+	err := env.Tokens.Insert(inviteToken)
+	require.Nil(t, err)
+
+	// POST /accounts - invited
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username: username,
+			Password: password,
+			Token:    inviteToken.ID,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.False(t, response.Success)
+	require.Equal(t, "Weak password", response.Message)
+}
+
 func TestAccountsCreateInvitedExpired(t *testing.T) {
 	const (
 		username = "jeremy2"

@@ -2,6 +2,7 @@ package env
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
 
 	"github.com/lavab/api/cache"
@@ -28,6 +29,10 @@ var (
 	Contacts *db.ContactsTable
 	// Reservations is the global instance of ReservationsTable
 	Reservations *db.ReservationsTable
+	// Emails is the global instance of EmailsTable
+	Emails *db.EmailsTable
 	// Factors contains all currently registered factors
 	Factors map[string]factor.Factor
+	// NATS is the encoded connection to the NATS queue
+	NATS *nats.EncodedConn
 )

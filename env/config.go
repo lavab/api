@@ -19,6 +19,8 @@ type Flags struct {
 	RethinkDBKey      string
 	RethinkDBDatabase string
 
+	NATSAddress string
+
 	YubiCloudID  string
 	YubiCloudKey string
 }

@@ -5,8 +5,8 @@ type Encrypted struct {
 	// Encoding tells the reader how to decode the data; can be "json", "protobuf", maybe more in the future
 	Encoding string `json:"encoding" gorethink:"encoding"`
 
-	// PgpFingerprints contains the fingerprints of the PGP public keys used to encrypt the data.
-	PgpFingerprints []string `json:"pgp_fingerprints" gorethink:"pgp_fingerprints"`
+	// PGPFingerprints contains the fingerprints of the PGP public keys used to encrypt the data.
+	PGPFingerprints []string `json:"pgp_fingerprints" gorethink:"pgp_fingerprints"`
 
 	// Data is the raw, PGP-encrypted data
 	Data string `json:"raw" gorethink:"raw"`
