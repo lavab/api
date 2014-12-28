@@ -218,7 +218,6 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Get("/emails", routes.EmailsList)
 	auth.Post("/emails", routes.EmailsCreate)
 	auth.Get("/emails/:id", routes.EmailsGet)
-	auth.Put("/emails/:id", routes.EmailsUpdate)
 	auth.Delete("/emails/:id", routes.EmailsDelete)
 
 	// Labels

@@ -227,30 +227,39 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // EmailsGetResponse contains the result of the EmailsGet request.
 type EmailsGetResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-	Status  string `json:"status,omitempty"`
+	Success bool          `json:"success"`
+	Message string        `json:"message,omitempty"`
+	Email   *models.Email `json:"email,omitempty"`
 }
 
 // EmailsGet responds with a single email message
-func EmailsGet(w http.ResponseWriter, r *http.Request) {
+func EmailsGet(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the email from the database
+	email, err := env.Emails.GetEmail(c.URLParams["id"])
+	if err != nil {
+		utils.JSONResponse(w, 404, &EmailsGetResponse{
+			Success: false,
+			Message: "Email not found",
+		})
+		return
+	}
+
+	// Fetch the current session from the middleware
+	session := c.Env["token"].(*models.Token)
+
+	// Check for ownership
+	if email.Owner != session.Owner {
+		utils.JSONResponse(w, 404, &EmailsGetResponse{
+			Success: false,
+			Message: "Email not found",
+		})
+		return
+	}
+
+	// Write the email to the response
 	utils.JSONResponse(w, 200, &EmailsGetResponse{
 		Success: true,
-		Status:  "sending",
-	})
-}
-
-// EmailsUpdateResponse contains the result of the EmailsUpdate request.
-type EmailsUpdateResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
-// EmailsUpdate does *something* - TODO
-func EmailsUpdate(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &EmailsUpdateResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+		Email:   email,
 	})
 }
 
@@ -261,9 +270,47 @@ type EmailsDeleteResponse struct {
 }
 
 // EmailsDelete remvoes an email from the system
-func EmailsDelete(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &EmailsDeleteResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the email from the database
+	email, err := env.Emails.GetEmail(c.URLParams["id"])
+	if err != nil {
+		utils.JSONResponse(w, 404, &EmailsDeleteResponse{
+			Success: false,
+			Message: "Email not found",
+		})
+		return
+	}
+
+	// Fetch the current session from the middleware
+	session := c.Env["token"].(*models.Token)
+
+	// Check for ownership
+	if email.Owner != session.Owner {
+		utils.JSONResponse(w, 404, &EmailsDeleteResponse{
+			Success: false,
+			Message: "Email not found",
+		})
+		return
+	}
+
+	// Perform the deletion
+	err = env.Emails.DeleteID(c.URLParams["id"])
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+			"id":    c.URLParams["id"],
+		}).Error("Unable to delete a email")
+
+		utils.JSONResponse(w, 500, &EmailsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code EM/DE/01)",
+		})
+		return
+	}
+
+	// Write the email to the response
+	utils.JSONResponse(w, 200, &EmailsDeleteResponse{
+		Success: true,
+		Message: "Email successfully removed",
 	})
 }
