@@ -612,11 +612,11 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 				// Return the final response
 				result, _ := json.Marshal(map[string]interface{}{
-					"type":   "response",
-					"id":     input.ID,
-					"status": w.Code,
-					"header": w.HeaderMap,
-					"body":   w.Body.String(),
+					"type":    "response",
+					"id":      input.ID,
+					"status":  w.Code,
+					"headers": w.HeaderMap,
+					"body":    w.Body.String(),
 				})
 				err = session.Send(string(result))
 				if err != nil {

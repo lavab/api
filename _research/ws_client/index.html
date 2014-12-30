@@ -24,6 +24,7 @@
 
                 $("#send").click(function() {
                     sock.send(JSON.stringify({
+                        type:   "request",
                         id:     "random id",
                         method: $("#method").val(),
                         path:   $("#path").val(),
@@ -32,7 +33,7 @@
                 });
 
                 sock.onmessage = function(e) {
-                    console.log(JSON.parse(e.data));
+                    console.log(e.data);
                 };
             });
         </script>
