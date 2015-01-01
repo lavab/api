@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
@@ -422,6 +423,8 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	if input.AltEmail != "" {
 		user.AltEmail = input.AltEmail
 	}
+
+	user.DateModified = time.Now()
 
 	err = env.Accounts.UpdateID(session.Owner, user)
 	if err != nil {
