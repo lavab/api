@@ -98,6 +98,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Update the user if password was updated
 	if updated {
+		user.DateModified = time.Now()
 		err := env.Accounts.UpdateID(user.ID, user)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
