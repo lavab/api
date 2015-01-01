@@ -18,9 +18,9 @@ import (
 
 // KeysListResponse contains the result of the KeysList request
 type KeysListResponse struct {
-	Success bool      `json:"success"`
-	Message string    `json:"message,omitempty"`
-	Keys    *[]string `json:"keys,omitempty"`
+	Success bool           `json:"success"`
+	Message string         `json:"message,omitempty"`
+	Keys    *[]*models.Key `json:"keys,omitempty"`
 }
 
 // KeysList responds with the list of keys assigned to the spiecified email
@@ -54,16 +54,10 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Equivalent of _.keys(keys) in JavaScript with underscore.js
-	keyIDs := []string{}
-	for _, key := range keys {
-		keyIDs = append(keyIDs, key.ID)
-	}
-
 	// Respond with list of keys
 	utils.JSONResponse(w, 200, &KeysListResponse{
 		Success: true,
-		Keys:    &keyIDs,
+		Keys:    &keys,
 	})
 }
 
