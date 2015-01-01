@@ -82,6 +82,24 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if input.Username != "" {
+		if used, err := env.Reservations.IsUsernameUsed(input.Username); err != nil || used {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Username already reserved",
+			})
+			return
+		}
+
+		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Username already used",
+			})
+			return
+		}
+	}
+
 	// Adding to [beta] queue
 	if requestType[:5] == "queue" {
 		if requestType[6:] == "reserve" {
@@ -90,22 +108,6 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				utils.JSONResponse(w, 403, &AccountsCreateResponse{
 					Success: false,
 					Message: "Username reservation is disabled",
-				})
-				return
-			}
-
-			if used, err := env.Reservations.IsUsernameUsed(input.Username); err != nil || used {
-				utils.JSONResponse(w, 400, &AccountsCreateResponse{
-					Success: false,
-					Message: "Username already reserved",
-				})
-				return
-			}
-
-			if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
-				utils.JSONResponse(w, 400, &AccountsCreateResponse{
-					Success: false,
-					Message: "Username already used",
 				})
 				return
 			}
