@@ -394,6 +394,14 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if input.NewPassword != "" && !utils.IsPasswordSecure(input.NewPassword) {
+		utils.JSONResponse(w, 403, &AccountsUpdateResponse{
+			Success: false,
+			Message: "Weak new password",
+		})
+		return
+	}
+
 	if input.NewPassword != "" {
 		err = user.SetPassword(input.NewPassword)
 		if err != nil {
