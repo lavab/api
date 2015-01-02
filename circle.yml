@@ -11,8 +11,7 @@ dependencies:
     - sudo apt-get update
     - sudo apt-get install rethinkdb
     - if [[ ! -e redis-2.8.18/src/redis-server ]]; then wget http://download.redis.io/releases/redis-2.8.18.tar.gz && tar xvzf redis-2.8.18.tar.gz; fi
-    - cd redis-2.8.18
-    - if [[ ! -e redis-2.8.18/src/redis-server ]]; then make; fi
+    - if [[ ! -e redis-2.8.18/src/redis-server ]]; then cd redis-2.8.18 && make; fi
     - go get github.com/apcera/gnatsd
   post:
     - rethinkdb --bind all:
