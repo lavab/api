@@ -81,8 +81,8 @@ func TestAccountsCreateInvited(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response1.Success)
 	require.Equal(t, "A new account was successfully created", response1.Message)
+	require.True(t, response1.Success)
 	require.NotEmpty(t, response1.Account.ID)
 
 	accountID = response1.Account.ID
