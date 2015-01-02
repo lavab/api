@@ -283,6 +283,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)
+	auth.Get("/tokens/:id", routes.TokensGet)
 	mux.Post("/tokens", routes.TokensCreate)
 	auth.Delete("/tokens", routes.TokensDelete)
 	auth.Delete("/tokens/:id", routes.TokensDelete)

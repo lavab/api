@@ -181,7 +181,7 @@ func TestTokensGet(t *testing.T) {
 	require.Nil(t, err)
 
 	require.True(t, response.Success)
-	require.True(t, response.Expires.After(time.Now().UTC()))
+	require.True(t, response.Token.ExpiryDate.After(time.Now().UTC()))
 }
 
 func TestTokensDeleteById(t *testing.T) {

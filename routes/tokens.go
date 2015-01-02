@@ -14,22 +14,43 @@ import (
 
 // TokensGetResponse contains the result of the TokensGet request.
 type TokensGetResponse struct {
-	Success bool       `json:"success"`
-	Message string     `json:"message,omitempty"`
-	Created *time.Time `json:"created,omitempty"`
-	Expires *time.Time `json:"expires,omitempty"`
+	Success bool          `json:"success"`
+	Message string        `json:"message,omitempty"`
+	Token   *models.Token `json:"token,omitempty"`
 }
 
 // TokensGet returns information about the current token.
 func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
-	// Fetch the current session from the database
-	session := c.Env["token"].(*models.Token)
+	// Initialize
+	var (
+		token *models.Token
+		err   error
+	)
+
+	id, ok := c.URLParams["id"]
+	if !ok || id == "" {
+		// Get the token from the middleware
+		token = c.Env["token"].(*models.Token)
+	} else {
+		token, err = env.Tokens.GetToken(id)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+				"id":    id,
+			}).Warn("Unable to find the token")
+
+			utils.JSONResponse(w, 404, &TokensGetResponse{
+				Success: false,
+				Message: "Invalid token ID",
+			})
+			return
+		}
+	}
 
 	// Respond with the token information
 	utils.JSONResponse(w, 200, &TokensGetResponse{
 		Success: true,
-		Created: &session.DateCreated,
-		Expires: &session.ExpiryDate,
+		Token:   token,
 	})
 }
 
