@@ -281,6 +281,9 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Delete("/accounts/:id", routes.AccountsDelete)
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
 
+	// Avatars
+	mux.Get("/avatars/:hash.:ext", routes.Avatars)
+
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)
 	auth.Get("/tokens/:id", routes.TokensGet)
