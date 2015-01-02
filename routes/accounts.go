@@ -326,16 +326,21 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // AccountsUpdateRequest contains the input for the AccountsUpdate endpoint.
 type AccountsUpdateRequest struct {
-	AltEmail        string `json:"alt_email" schema:"alt_email"`
-	CurrentPassword string `json:"current_password" schema:"current_password"`
-	NewPassword     string `json:"new_password" schema:"new_password"`
+	AltEmail        string   `json:"alt_email" schema:"alt_email"`
+	CurrentPassword string   `json:"current_password" schema:"current_password"`
+	NewPassword     string   `json:"new_password" schema:"new_password"`
+	FactorType      string   `json:"factor_type" schema:"factor_type"`
+	FactorValue     []string `json:"factor_value" schema:"factor_value"`
+	Token           string   `json:"token" schema:"token"`
 }
 
 // AccountsUpdateResponse contains the result of the AccountsUpdate request.
 type AccountsUpdateResponse struct {
-	Success bool            `json:"success"`
-	Message string          `json:"message"`
-	Account *models.Account `json:"account"`
+	Success         bool            `json:"success"`
+	Message         string          `json:"message,omitempty"`
+	Account         *models.Account `json:"account,omitempty"`
+	FactorType      string          `json:"factor_type,omitempty"`
+	FactorChallenge string          `json:"factor_challenge,omitempty"`
 }
 
 // AccountsUpdate allows changing the account's information (password etc.)
@@ -348,7 +353,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 			"error": err,
 		}).Warn("Unable to decode a request")
 
-		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
+		utils.JSONResponse(w, 400, &AccountsUpdateResponse{
 			Success: false,
 			Message: "Invalid input format",
 		})
@@ -381,15 +386,57 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if valid, _, err := user.VerifyPassword(input.CurrentPassword); err != nil || !valid {
-		utils.JSONResponse(w, 409, &AccountsUpdateResponse{
+		utils.JSONResponse(w, 403, &AccountsUpdateResponse{
 			Success: false,
 			Message: "Invalid current password",
 		})
 		return
 	}
 
+	// Check for 2nd factor
+	if user.FactorType != "" {
+		factor, ok := env.Factors[user.FactorType]
+		if ok {
+			// Verify the 2FA
+			verified, challenge, err := user.Verify2FA(factor, input.Token)
+			if err != nil {
+				utils.JSONResponse(w, 500, &AccountsUpdateResponse{
+					Success: false,
+					Message: "Internal 2FA error",
+				})
+
+				env.Log.WithFields(logrus.Fields{
+					"err":    err.Error(),
+					"factor": user.FactorType,
+				}).Warn("2FA authentication error")
+				return
+			}
+
+			// Token was probably empty. Return the challenge.
+			if !verified && challenge != "" {
+				utils.JSONResponse(w, 403, &AccountsUpdateResponse{
+					Success:         false,
+					Message:         "2FA token was not passed",
+					FactorType:      user.FactorType,
+					FactorChallenge: challenge,
+				})
+				return
+			}
+
+			// Token was incorrect
+			if !verified {
+				utils.JSONResponse(w, 403, &AccountsUpdateResponse{
+					Success:    false,
+					Message:    "Invalid token passed",
+					FactorType: user.FactorType,
+				})
+				return
+			}
+		}
+	}
+
 	if input.NewPassword != "" && !utils.IsPasswordSecure(input.NewPassword) {
-		utils.JSONResponse(w, 403, &AccountsUpdateResponse{
+		utils.JSONResponse(w, 400, &AccountsUpdateResponse{
 			Success: false,
 			Message: "Weak new password",
 		})
@@ -413,6 +460,23 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	if input.AltEmail != "" {
 		user.AltEmail = input.AltEmail
+	}
+
+	if input.FactorType != "" {
+		// Check if such factor exists
+		if _, exists := env.Factors[input.FactorType]; !exists {
+			utils.JSONResponse(w, 400, &AccountsUpdateResponse{
+				Success: false,
+				Message: "Invalid new 2FA type",
+			})
+			return
+		}
+
+		user.FactorType = input.FactorType
+	}
+
+	if input.FactorValue != nil && len(input.FactorValue) > 0 {
+		user.FactorValue = input.FactorValue
 	}
 
 	user.DateModified = time.Now()

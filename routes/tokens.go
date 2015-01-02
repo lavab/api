@@ -43,11 +43,11 @@ type TokensCreateRequest struct {
 
 // TokensCreateResponse contains the result of the TokensCreate request.
 type TokensCreateResponse struct {
-	Success       bool          `json:"success"`
-	Message       string        `json:"message,omitempty"`
-	Token         *models.Token `json:"token,omitempty"`
-	FactorType    string        `json:"factor_type,omitempty"`
-	FactorRequest string        `json:"factor_request,omitempty"`
+	Success         bool          `json:"success"`
+	Message         string        `json:"message,omitempty"`
+	Token           *models.Token `json:"token,omitempty"`
+	FactorType      string        `json:"factor_type,omitempty"`
+	FactorChallenge string        `json:"factor_challenge,omitempty"`
 }
 
 // TokensCreate allows logging in to an account.
@@ -105,6 +105,8 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 				"user":  user.Name,
 				"error": err,
 			}).Error("Could not update user")
+
+			// DO NOT RETURN!
 		}
 	}
 
@@ -112,27 +114,40 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	if user.FactorType != "" {
 		factor, ok := env.Factors[user.FactorType]
 		if ok {
-			if input.Token == "" {
-				req, err := factor.Request(user.ID)
-				if err == nil {
-					utils.JSONResponse(w, 403, &TokensCreateResponse{
-						Success:       false,
-						Message:       "Factor token was not passed",
-						FactorType:    user.FactorType,
-						FactorRequest: req,
-					})
-					return
-				}
-			} else {
-				ok, err := factor.Verify(user.FactorValue, input.Token)
-				if !ok || err != nil {
-					utils.JSONResponse(w, 403, &TokensCreateResponse{
-						Success:    false,
-						Message:    "Invalid token passed",
-						FactorType: user.FactorType,
-					})
-					return
-				}
+			// Verify the 2FA
+			verified, challenge, err := user.Verify2FA(factor, input.Token)
+			if err != nil {
+				utils.JSONResponse(w, 500, &TokensCreateResponse{
+					Success: false,
+					Message: "Internal 2FA error",
+				})
+
+				env.Log.WithFields(logrus.Fields{
+					"err":    err.Error(),
+					"factor": user.FactorType,
+				}).Warn("2FA authentication error")
+				return
+			}
+
+			// Token was probably empty. Return the challenge.
+			if !verified && challenge != "" {
+				utils.JSONResponse(w, 403, &TokensCreateResponse{
+					Success:         false,
+					Message:         "2FA token was not passed",
+					FactorType:      user.FactorType,
+					FactorChallenge: challenge,
+				})
+				return
+			}
+
+			// Token was incorrect
+			if !verified {
+				utils.JSONResponse(w, 403, &TokensCreateResponse{
+					Success:    false,
+					Message:    "Invalid token passed",
+					FactorType: user.FactorType,
+				})
+				return
 			}
 		}
 	}
