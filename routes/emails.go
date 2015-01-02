@@ -126,7 +126,6 @@ type EmailsCreateRequest struct {
 	ReplyTo             string   `json:"reply_to"`
 	ThreadID            string   `json:"thread_id"`
 	Subject             string   `json:"title"`
-	IsEncrypted         bool     `json:"is_encrypted"`
 	Body                string   `json:"body"`
 	BodyVersionMajor    int      `json:"body_version_major"`
 	BodyVersionMinor    int      `json:"body_version_minor"`
@@ -197,7 +196,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			VersionMinor:    input.PreviewVersionMinor,
 		},
 		ThreadID: input.ThreadID,
-		Status:   "queued;" + strconv.FormatBool(input.IsEncrypted),
+		Status:   "queued",
 	}
 
 	// Insert the email into the database
