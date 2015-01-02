@@ -7,7 +7,6 @@ type Key struct {
 	//Body []byte `json:"body" gorethink:"body"` // Raw key contents
 
 	Headers     map[string]string `json:"headers" gorethink:"headers"`           // Headers passed with the key
-	Email       string            `json:"email" gorethink:"email"`               // Address associated with the key
 	Algorithm   string            `json:"algorithm" gorethink:"algorithm"`       // Algorithm of the key
 	Length      uint16            `json:"length" gorethink:"length"`             // Length of the key
 	Key         string            `json:"key" gorethink:"key"`                   // Armor-encoded key

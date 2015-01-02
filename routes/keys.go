@@ -200,21 +200,94 @@ type KeysGetResponse struct {
 
 // KeysGet does *something* - TODO
 func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Initialize vars
+	var (
+		key *models.Key
+	)
+
 	// Get ID from the passed URL params
 	id := c.URLParams["id"]
 
-	// Fetch the requested key from the database
-	key, err := env.Keys.FindByFingerprint(id)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err,
-		}).Warn("Unable to fetch the requested key from the database")
+	// Check if ID is an email or a fingerprint.
+	// Fingerprints can't contain @, right?
+	if strings.Contains(id, "@") {
+		// Who cares about the second part? I don't!
+		username := strings.Split(id, "@")[0]
 
-		utils.JSONResponse(w, 404, &KeysGetResponse{
-			Success: false,
-			Message: "Requested key does not exist on our server",
-		})
-		return
+		// Resolve account
+		account, err := env.Accounts.FindAccountByName(username)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+				"name":  username,
+			}).Warn("Unable to fetch the requested account from the database")
+
+			utils.JSONResponse(w, 404, &KeysGetResponse{
+				Success: false,
+				Message: "No such user",
+			})
+			return
+		}
+
+		// Does the user have a default PGP key set?
+		if account.PGPKey != "" {
+			// Fetch the requested key from the database
+			key2, err := env.Keys.FindByFingerprint(account.PGPKey)
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"error": err,
+				}).Warn("Unable to fetch the requested key from the database")
+
+				utils.JSONResponse(w, 500, &KeysGetResponse{
+					Success: false,
+					Message: "Invalid user public key ID",
+				})
+				return
+			}
+
+			key = key2
+		} else {
+			keys, err := env.Keys.FindByOwner(account.ID)
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"error": err,
+					"owner": account.ID,
+				}).Warn("Unable to fetch user's keys from the database")
+
+				utils.JSONResponse(w, 500, &KeysGetResponse{
+					Success: false,
+					Message: "Cannot find keys assigned to the account",
+				})
+				return
+			}
+
+			if len(keys) == 0 {
+				utils.JSONResponse(w, 500, &KeysGetResponse{
+					Success: false,
+					Message: "Account has no keys assigned to itself",
+				})
+				return
+			}
+
+			// i should probably sort them?
+			key = keys[0]
+		}
+	} else {
+		// Fetch the requested key from the database
+		key2, err := env.Keys.FindByFingerprint(id)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+			}).Warn("Unable to fetch the requested key from the database")
+
+			utils.JSONResponse(w, 404, &KeysGetResponse{
+				Success: false,
+				Message: "Requested key does not exist on our server",
+			})
+			return
+		}
+
+		key = key2
 	}
 
 	// Return the requested key
