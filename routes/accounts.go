@@ -208,15 +208,6 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: sanitize user name (i.e. remove caps, periods)
 
-	// Both invited and classic require an unique username, so ensure that the user with requested username isn't already used
-	if _, err := env.Accounts.FindAccountByName(input.Username); err == nil {
-		utils.JSONResponse(w, 409, &AccountsCreateResponse{
-			Success: false,
-			Message: "Username already exists",
-		})
-		return
-	}
-
 	// Both username and password are filled, so we can create a new account.
 	account := &models.Account{
 		Resource: models.MakeResource("", input.Username),
