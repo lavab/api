@@ -121,15 +121,21 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 type EmailsCreateRequest struct {
-	To              []string `json:"to"`
-	BCC             []string `json:"bcc"`
-	ReplyTo         string   `json:"reply_to"`
-	ThreadID        string   `json:"thread_id"`
-	Subject         string   `json:"title"`
-	Body            string   `json:"body"`
-	Preview         string   `json:"preview"`
-	Attachments     []string `json:"attachments"`
-	PGPFingerprints []string `json:"pgp_fingerprints"`
+	To                  []string `json:"to"`
+	BCC                 []string `json:"bcc"`
+	ReplyTo             string   `json:"reply_to"`
+	ThreadID            string   `json:"thread_id"`
+	Subject             string   `json:"title"`
+	IsEncrypted         bool     `json:"is_encrypted"`
+	Body                string   `json:"body"`
+	BodyVersionMajor    int      `json:"body_version_major"`
+	BodyVersionMinor    int      `json:"body_version_minor"`
+	Preview             string   `json:"preview"`
+	PreviewVersionMajor int      `json:"preview_version_major"`
+	PreviewVersionMinor int      `json:"preview_version_minor"`
+	Encoding            string   `json:"encoding"`
+	Attachments         []string `json:"attachments"`
+	PGPFingerprints     []string `json:"pgp_fingerprints"`
 }
 
 // EmailsCreateResponse contains the result of the EmailsCreate request.
@@ -179,19 +185,19 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			PGPFingerprints: input.PGPFingerprints,
 			Data:            input.Body,
 			Schema:          "email_body",
-			VersionMajor:    1,
-			VersionMinor:    0,
+			VersionMajor:    input.BodyVersionMajor,
+			VersionMinor:    input.BodyVersionMinor,
 		},
 		Preview: models.Encrypted{
 			Encoding:        "json",
 			PGPFingerprints: input.PGPFingerprints,
 			Data:            input.Preview,
 			Schema:          "email_preview",
-			VersionMajor:    1,
-			VersionMinor:    0,
+			VersionMajor:    input.PreviewVersionMajor,
+			VersionMinor:    input.PreviewVersionMinor,
 		},
 		ThreadID: input.ThreadID,
-		Status:   "queued",
+		Status:   "queued;" + strconv.FormatBool(input.IsEncrypted),
 	}
 
 	// Insert the email into the database
