@@ -15,6 +15,7 @@ import (
 	"github.com/dancannon/gorethink"
 	"github.com/googollee/go-socket.io"
 	"github.com/rs/cors"
+	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
@@ -45,6 +46,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		}
 	} else if flags.LogFormatterType == "json" {
 		log.Formatter = &logrus.JSONFormatter{}
+	}
+
+	// Install logrus hooks
+	if flags.LogglyToken != "" {
+		log.Hooks.Add(&logglyHook{
+			Loggly: loggly.New(flags.LogglyToken),
+		})
 	}
 
 	// Pass it to the environment package
