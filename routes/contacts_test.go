@@ -82,11 +82,12 @@ func TestContactsCreate(t *testing.T) {
 		Uri:         server.URL + "/contacts",
 		ContentType: "application/json",
 		Body: routes.ContactsCreateRequest{
-			Data:         "random stuff",
-			Name:         "John Doe",
-			Encoding:     "json",
-			VersionMajor: 1,
-			VersionMinor: 0,
+			Data:            "random stuff",
+			Name:            "John Doe",
+			Encoding:        "json",
+			VersionMajor:    1,
+			VersionMinor:    0,
+			PGPFingerprints: []string{"that's totally a fingerprint!"},
 		},
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
@@ -233,6 +234,9 @@ func TestContactsGetWrongID(t *testing.T) {
 }
 
 func TestContactsUpdate(t *testing.T) {
+	int1 := 1
+	int0 := 0
+
 	request := goreq.Request{
 		Method:      "PUT",
 		Uri:         server.URL + "/contacts/" + contactID,
@@ -241,8 +245,8 @@ func TestContactsUpdate(t *testing.T) {
 			Data:         "random stuff2",
 			Name:         "John Doez",
 			Encoding:     "json",
-			VersionMajor: 1,
-			VersionMinor: 0,
+			VersionMajor: &int1,
+			VersionMinor: &int0,
 		},
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
@@ -277,6 +281,9 @@ func TestContactsUpdateInvalid(t *testing.T) {
 }
 
 func TestContactsUpdateNotOwned(t *testing.T) {
+	int1 := 1
+	int0 := 0
+
 	request := goreq.Request{
 		Method:      "PUT",
 		Uri:         server.URL + "/contacts/" + notOwnedContactID,
@@ -285,8 +292,8 @@ func TestContactsUpdateNotOwned(t *testing.T) {
 			Data:         "random stuff2",
 			Name:         "John Doez",
 			Encoding:     "json",
-			VersionMajor: 1,
-			VersionMinor: 0,
+			VersionMajor: &int1,
+			VersionMinor: &int0,
 		},
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
@@ -302,6 +309,9 @@ func TestContactsUpdateNotOwned(t *testing.T) {
 }
 
 func TestContactsUpdateNotExisting(t *testing.T) {
+	int1 := 1
+	int0 := 0
+
 	request := goreq.Request{
 		Method:      "PUT",
 		Uri:         server.URL + "/contacts/gibberish",
@@ -310,8 +320,8 @@ func TestContactsUpdateNotExisting(t *testing.T) {
 			Data:         "random stuff2",
 			Name:         "John Doez",
 			Encoding:     "json",
-			VersionMajor: 1,
-			VersionMinor: 0,
+			VersionMajor: &int1,
+			VersionMinor: &int0,
 		},
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)

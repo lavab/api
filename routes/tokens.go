@@ -14,22 +14,43 @@ import (
 
 // TokensGetResponse contains the result of the TokensGet request.
 type TokensGetResponse struct {
-	Success bool       `json:"success"`
-	Message string     `json:"message,omitempty"`
-	Created *time.Time `json:"created,omitempty"`
-	Expires *time.Time `json:"expires,omitempty"`
+	Success bool          `json:"success"`
+	Message string        `json:"message,omitempty"`
+	Token   *models.Token `json:"token,omitempty"`
 }
 
 // TokensGet returns information about the current token.
 func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
-	// Fetch the current session from the database
-	session := c.Env["token"].(*models.Token)
+	// Initialize
+	var (
+		token *models.Token
+		err   error
+	)
+
+	id, ok := c.URLParams["id"]
+	if !ok || id == "" {
+		// Get the token from the middleware
+		token = c.Env["token"].(*models.Token)
+	} else {
+		token, err = env.Tokens.GetToken(id)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err,
+				"id":    id,
+			}).Warn("Unable to find the token")
+
+			utils.JSONResponse(w, 404, &TokensGetResponse{
+				Success: false,
+				Message: "Invalid token ID",
+			})
+			return
+		}
+	}
 
 	// Respond with the token information
 	utils.JSONResponse(w, 200, &TokensGetResponse{
 		Success: true,
-		Created: &session.DateCreated,
-		Expires: &session.ExpiryDate,
+		Token:   token,
 	})
 }
 
@@ -43,11 +64,11 @@ type TokensCreateRequest struct {
 
 // TokensCreateResponse contains the result of the TokensCreate request.
 type TokensCreateResponse struct {
-	Success       bool          `json:"success"`
-	Message       string        `json:"message,omitempty"`
-	Token         *models.Token `json:"token,omitempty"`
-	FactorType    string        `json:"factor_type,omitempty"`
-	FactorRequest string        `json:"factor_request,omitempty"`
+	Success         bool          `json:"success"`
+	Message         string        `json:"message,omitempty"`
+	Token           *models.Token `json:"token,omitempty"`
+	FactorType      string        `json:"factor_type,omitempty"`
+	FactorChallenge string        `json:"factor_challenge,omitempty"`
 }
 
 // TokensCreate allows logging in to an account.
@@ -98,12 +119,15 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Update the user if password was updated
 	if updated {
+		user.DateModified = time.Now()
 		err := env.Accounts.UpdateID(user.ID, user)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"user":  user.Name,
 				"error": err,
 			}).Error("Could not update user")
+
+			// DO NOT RETURN!
 		}
 	}
 
@@ -111,27 +135,40 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	if user.FactorType != "" {
 		factor, ok := env.Factors[user.FactorType]
 		if ok {
-			if input.Token == "" {
-				req, err := factor.Request(user.ID)
-				if err == nil {
-					utils.JSONResponse(w, 403, &TokensCreateResponse{
-						Success:       false,
-						Message:       "Factor token was not passed",
-						FactorType:    user.FactorType,
-						FactorRequest: req,
-					})
-					return
-				}
-			} else {
-				ok, err := factor.Verify(user.FactorValue, input.Token)
-				if !ok || err != nil {
-					utils.JSONResponse(w, 403, &TokensCreateResponse{
-						Success:    false,
-						Message:    "Invalid token passed",
-						FactorType: user.FactorType,
-					})
-					return
-				}
+			// Verify the 2FA
+			verified, challenge, err := user.Verify2FA(factor, input.Token)
+			if err != nil {
+				utils.JSONResponse(w, 500, &TokensCreateResponse{
+					Success: false,
+					Message: "Internal 2FA error",
+				})
+
+				env.Log.WithFields(logrus.Fields{
+					"err":    err.Error(),
+					"factor": user.FactorType,
+				}).Warn("2FA authentication error")
+				return
+			}
+
+			// Token was probably empty. Return the challenge.
+			if !verified && challenge != "" {
+				utils.JSONResponse(w, 403, &TokensCreateResponse{
+					Success:         false,
+					Message:         "2FA token was not passed",
+					FactorType:      user.FactorType,
+					FactorChallenge: challenge,
+				})
+				return
+			}
+
+			// Token was incorrect
+			if !verified {
+				utils.JSONResponse(w, 403, &TokensCreateResponse{
+					Success:    false,
+					Message:    "Invalid token passed",
+					FactorType: user.FactorType,
+				})
+				return
 			}
 		}
 	}

@@ -81,8 +81,8 @@ func TestAccountsCreateInvited(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response1.Success)
 	require.Equal(t, "A new account was successfully created", response1.Message)
+	require.True(t, response1.Success)
 	require.NotEmpty(t, response1.Account.ID)
 
 	accountID = response1.Account.ID
@@ -146,12 +146,12 @@ func TestAccountsCreateInvitedExisting(t *testing.T) {
 
 	// Check the result's contents
 	require.False(t, response.Success)
-	require.Equal(t, "Username already exists", response.Message)
+	require.Equal(t, "Username already used", response.Message)
 }
 
 func TestAccountsCreateInvitedWeakPassword(t *testing.T) {
 	const (
-		username = "jeremy"
+		username = "jeremylicious"
 		password = "c0067d4af4e87f00dbac63b6156828237059172d1bbeac67427345d6a9fda484"
 	)
 

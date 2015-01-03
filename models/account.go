@@ -3,6 +3,7 @@ package models
 import (
 	"github.com/gyepisam/mcf"
 	_ "github.com/gyepisam/mcf/scrypt" // Required to have mcf hash the password into scrypt
+	"github.com/lavab/api/factor"
 )
 
 // Account stores essential data for a Lavaboom user, and is thus not encrypted.
@@ -79,6 +80,26 @@ func (a *Account) VerifyPassword(password string) (bool, bool, error) {
 	}
 
 	return true, false, nil
+}
+
+// Verify2FA verifies the 2FA token with the account settings.
+// Returns verified, challenge, error
+func (a *Account) Verify2FA(factor factor.Factor, token string) (bool, string, error) {
+	if token == "" {
+		req, err := factor.Request(a.ID)
+		if err != nil {
+			return false, "", err
+		}
+
+		return false, req, nil
+	}
+
+	ok, err := factor.Verify(a.FactorValue, token)
+	if err != nil {
+		return false, "", err
+	}
+
+	return ok, "", nil
 }
 
 // SettingsData TODO

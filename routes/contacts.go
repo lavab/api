@@ -45,11 +45,12 @@ func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // ContactsCreateRequest is the payload that user should pass to POST /contacts
 type ContactsCreateRequest struct {
-	Data         string `json:"data" schema:"data"`
-	Name         string `json:"name" schema:"name"`
-	Encoding     string `json:"encoding" schema:"encoding"`
-	VersionMajor int    `json:"version_major" schema:"version_major"`
-	VersionMinor int    `json:"version_minor" schema:"version_minor"`
+	Data            string   `json:"data" schema:"data"`
+	Name            string   `json:"name" schema:"name"`
+	Encoding        string   `json:"encoding" schema:"encoding"`
+	VersionMajor    int      `json:"version_major" schema:"version_major"`
+	VersionMinor    int      `json:"version_minor" schema:"version_minor"`
+	PGPFingerprints []string `json:"pgp_fingerprints" schema:"pgp_fingerprints"`
 }
 
 // ContactsCreateResponse contains the result of the ContactsCreate request.
@@ -80,7 +81,8 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	// Ensure that the input data isn't empty
-	if input.Data == "" || input.Name == "" || input.Encoding == "" {
+	if input.Data == "" || input.Name == "" || input.Encoding == "" ||
+		input.PGPFingerprints == nil || len(input.PGPFingerprints) == 0 {
 		utils.JSONResponse(w, 400, &ContactsCreateResponse{
 			Success: false,
 			Message: "Invalid request",
@@ -91,11 +93,12 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Create a new contact struct
 	contact := &models.Contact{
 		Encrypted: models.Encrypted{
-			Encoding:     input.Encoding,
-			Data:         input.Data,
-			Schema:       "contact",
-			VersionMajor: input.VersionMajor,
-			VersionMinor: input.VersionMinor,
+			Encoding:        input.Encoding,
+			Data:            input.Data,
+			Schema:          "contact",
+			VersionMajor:    input.VersionMajor,
+			VersionMinor:    input.VersionMinor,
+			PGPFingerprints: input.PGPFingerprints,
 		},
 		Resource: models.MakeResource(session.Owner, input.Name),
 	}
@@ -160,11 +163,12 @@ func ContactsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // ContactsUpdateRequest is the payload passed to PUT /contacts/:id
 type ContactsUpdateRequest struct {
-	Data         string `json:"data" schema:"data"`
-	Name         string `json:"name" schema:"name"`
-	Encoding     string `json:"encoding" schema:"encoding"`
-	VersionMajor int    `json:"version_major" schema:"version_major"`
-	VersionMinor int    `json:"version_minor" schema:"version_minor"`
+	Data            string   `json:"data" schema:"data"`
+	Name            string   `json:"name" schema:"name"`
+	Encoding        string   `json:"encoding" schema:"encoding"`
+	VersionMajor    *int     `json:"version_major" schema:"version_major"`
+	VersionMinor    *int     `json:"version_minor" schema:"version_minor"`
+	PGPFingerprints []string `json:"pgp_fingerprints" schema:"pgp_fingerprints"`
 }
 
 // ContactsUpdateResponse contains the result of the ContactsUpdate request.
@@ -213,14 +217,32 @@ func ContactsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if input.Data != "" {
+		contact.Data = input.Data
+	}
+
+	if input.Name != "" {
+		contact.Name = input.Name
+	}
+
+	if input.Encoding != "" {
+		contact.Encoding = input.Encoding
+	}
+
+	if input.VersionMajor != nil {
+		contact.VersionMajor = *input.VersionMajor
+	}
+
+	if input.VersionMinor != nil {
+		contact.VersionMinor = *input.VersionMinor
+	}
+
+	if input.PGPFingerprints != nil {
+		contact.PGPFingerprints = input.PGPFingerprints
+	}
+
 	// Perform the update
-	err = env.Contacts.UpdateID(c.URLParams["id"], map[string]interface{}{
-		"data":          input.Data,
-		"name":          input.Name,
-		"encoding":      input.Encoding,
-		"version_major": input.VersionMajor,
-		"version_minor": input.VersionMinor,
-	})
+	err = env.Contacts.UpdateID(c.URLParams["id"], input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
@@ -233,13 +255,6 @@ func ContactsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	// Update the original struct for the response
-	contact.Data = input.Data
-	contact.Name = input.Name
-	contact.Encoding = input.Encoding
-	contact.VersionMajor = input.VersionMajor
-	contact.VersionMinor = input.VersionMinor
 
 	// Write the contact to the response
 	utils.JSONResponse(w, 200, &ContactsUpdateResponse{
