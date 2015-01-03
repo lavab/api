@@ -23,4 +23,6 @@ type Flags struct {
 
 	YubiCloudID  string
 	YubiCloudKey string
+
+	LogglyToken string
 }

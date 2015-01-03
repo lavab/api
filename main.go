@@ -66,6 +66,8 @@ var (
 	// YubiCloud params
 	yubiCloudID  = flag.String("yubicloud_id", "", "YubiCloud API id")
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
+	// Loggly URL
+	logglyToken = flag.String("loggly_token", "", "Loggly token")
 )
 
 func main() {
@@ -95,6 +97,8 @@ func main() {
 
 		YubiCloudID:  *yubiCloudID,
 		YubiCloudKey: *yubiCloudKey,
+
+		LogglyToken: *logglyToken,
 	}
 
 	// Generate a mux
