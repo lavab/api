@@ -14,7 +14,6 @@ import (
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
 	"github.com/googollee/go-socket.io"
-	"github.com/rs/cors"
 	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
@@ -266,12 +265,52 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	//  - Glogrus logs each request
 	//  - Recoverer prevents panics from crashing the API
 	//  - AutomaticOptions automatically responds to OPTIONS requests
+	mux.Use(func(c *web.C, h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// because why not
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+			allowedHeaders := []string{
+				"Origin",
+				"Content-Type",
+				"Authorization",
+				"X-Requested-With",
+			}
+
+			reqHeaders := strings.Split(r.Header.Get("Access-Control-Request-Headers"), ",")
+			allowedHeaders = append(allowedHeaders, reqHeaders...)
+
+			resultHeaders := []string{}
+			seenHeaders := map[string]struct{}{}
+			for _, val := range allowedHeaders {
+				if _, ok := seenHeaders[val]; !ok && val != "" {
+					resultHeaders = append(resultHeaders, val)
+					seenHeaders[val] = struct{}{}
+				}
+			}
+
+			w.Header().Set("Access-Control-Allow-Headers", strings.Join(resultHeaders, ","))
+
+			if c.Env != nil {
+				if v, ok := c.Env[web.ValidMethodsKey]; ok {
+					if methods, ok := v.([]string); ok {
+						methodsString := strings.Join(methods, ",")
+						w.Header().Set("Allow", methodsString)
+						w.Header().Set("Access-Control-Allow-Methods", methodsString)
+					}
+				}
+			}
+
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+
+			if r.Method != "OPTIONS" {
+				h.ServeHTTP(w, r)
+			}
+		})
+	})
 	mux.Use(middleware.RequestID)
 	mux.Use(glogrus.NewGlogrus(log, "api"))
 	mux.Use(middleware.Recoverer)
-	mux.Use(cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-	}).Handler)
 	mux.Use(middleware.AutomaticOptions)
 
 	// Set up an auth'd mux
