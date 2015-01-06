@@ -49,7 +49,7 @@ var (
 	}(), "Address of the RethinkDB database")
 	rethinkdbKey      = flag.String("rethinkdb_key", os.Getenv("RETHINKDB_AUTHKEY"), "Authentication key of the RethinkDB database")
 	rethinkdbDatabase = flag.String("rethinkdb_db", func() string {
-		database := os.Getenv("RETHINKDB_NAME")
+		database := os.Getenv("RETHINKDB_DB")
 		if database == "" {
 			database = "dev"
 		}
