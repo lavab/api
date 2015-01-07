@@ -7,7 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/namsral/flag"
+	"github.com/lavab/flag"
 	"github.com/zenazn/goji/graceful"
 
 	"github.com/lavab/api/env"
