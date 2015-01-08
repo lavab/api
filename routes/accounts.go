@@ -85,6 +85,12 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 	if input.Username != "" {
 		if used, err := env.Reservations.IsUsernameUsed(input.Username); err != nil || used {
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Error("Unable to lookup reservations for usernames")
+			}
+
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Username already reserved",
@@ -93,6 +99,12 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Error("Unable to lookup registered accounts for usernames")
+			}
+
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Username already used",

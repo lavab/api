@@ -7,7 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/namsral/flag"
+	"github.com/lavab/flag"
 	"github.com/zenazn/goji/graceful"
 
 	"github.com/lavab/api/env"
@@ -49,7 +49,7 @@ var (
 	}(), "Address of the RethinkDB database")
 	rethinkdbKey      = flag.String("rethinkdb_key", os.Getenv("RETHINKDB_AUTHKEY"), "Authentication key of the RethinkDB database")
 	rethinkdbDatabase = flag.String("rethinkdb_db", func() string {
-		database := os.Getenv("RETHINKDB_NAME")
+		database := os.Getenv("RETHINKDB_DB")
 		if database == "" {
 			database = "dev"
 		}
@@ -68,6 +68,12 @@ var (
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
 	// Loggly URL
 	logglyToken = flag.String("loggly_token", "", "Loggly token")
+	// etcd
+	etcdAddress  = flag.String("etcd-address", "", "etcd peer addresses split by commas")
+	etcdCAFile   = flag.String("etcd-ca-file", "", "etcd path to server cert's ca")
+	etcdCertFile = flag.String("etcd-cert-file", "", "etcd path to client cert file")
+	etcdKeyFile  = flag.String("etcd-key-file", "", "etcd path to client key file")
+	etcdPath     = flag.String("etcd-path", "settings/", "Path of the keys")
 )
 
 func main() {
