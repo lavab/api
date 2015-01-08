@@ -19,7 +19,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
     #rethinkdb.vm.provider "virtualbox" do |v|
     #v.memory = 2048
-    #v.cpus = 4
+    #v.cpus = 4y
     #end
 
     # load ansible playbook
@@ -29,12 +29,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define "docker" do |docker|
     docker.vm.box = "ubuntu/trusty64"
 
-    docker.vm.network "forwarded_port", guest: 4222, host: 4222
-    docker.vm.network "forwarded_port", guest: 8333, host: 8333
-    docker.vm.network "forwarded_port", guest: 6379, host: 6379
-    docker.vm.network "forwarded_port", guest: 8080, host: 8080
-    docker.vm.network "forwarded_port", guest: 28015, host: 28015
-    docker.vm.network "forwarded_port", guest: 29015, host: 29015
+    docker.vm.network "forwarded_port", guest: 4001, host: 4001   # etcd client
+    docker.vm.network "forwarded_port", guest: 4222, host: 4222   # nats #1
+    docker.vm.network "forwarded_port", guest: 8333, host: 8333   # nats #2
+    docker.vm.network "forwarded_port", guest: 6379, host: 6379   # redis
+    docker.vm.network "forwarded_port", guest: 7001, host: 7001   # etcd peer
+    docker.vm.network "forwarded_port", guest: 8080, host: 8080   # rethinkdb ui
+    docker.vm.network "forwarded_port", guest: 28015, host: 28015 # rethinkdb #1
+    docker.vm.network "forwarded_port", guest: 29015, host: 29015 # rethinkdb #2
 
     docker.vm.provider "virtualbox" do |v|
       v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
@@ -54,6 +56,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       d.pull_images "dockerfile/redis"
       d.run "dockerfile/redis",
         args: "--name redis -p 6379:6379"
+
+      d.pull_images "quay.io/coreos/etcd:v0.4.6"
+      d.run "quay.io/coreos/etcd:v0.4.6",
+        args: "--name etcd -p 4001:4001 -p 7001:7001"
     end
   end
 end

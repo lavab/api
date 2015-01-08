@@ -68,6 +68,12 @@ var (
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
 	// Loggly URL
 	logglyToken = flag.String("loggly_token", "", "Loggly token")
+	// etcd
+	etcdAddress  = flag.String("etcd-address", "", "etcd peer addresses split by commas")
+	etcdCAFile   = flag.String("etcd-ca-file", "", "etcd path to server cert's ca")
+	etcdCertFile = flag.String("etcd-cert-file", "", "etcd path to client cert file")
+	etcdKeyFile  = flag.String("etcd-key-file", "", "etcd path to client key file")
+	etcdPath     = flag.String("etcd-path", "settings/", "Path of the keys")
 )
 
 func main() {
