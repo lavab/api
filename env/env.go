@@ -31,6 +31,8 @@ var (
 	Reservations *db.ReservationsTable
 	// Emails is the global instance of EmailsTable
 	Emails *db.EmailsTable
+	// Labels is the global instance of LabelsTable
+	Labels *db.LabelsTable
 	// Factors contains all currently registered factors
 	Factors map[string]factor.Factor
 	// NATS is the encoded connection to the NATS queue

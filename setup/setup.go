@@ -154,6 +154,14 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"emails",
 		),
 	}
+	env.Labels = &db.LabelsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"labels",
+		),
+		Cache: redis,
+	}
 
 	// NATS queue connection
 	nc, err := nats.Connect(flags.NATSAddress)

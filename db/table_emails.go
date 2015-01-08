@@ -102,3 +102,60 @@ func (e *EmailsTable) List(
 
 	return resp, nil
 }
+
+func (e *EmailsTable) GetByLabel(label string) ([]*models.Email, error) {
+	var result []*models.Email
+
+	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return row.Field("label_ids").Contains(label)
+	}).GetAll().Run(e.GetSession())
+	if err != nil {
+		return nil, err
+	}
+
+	err = cursor.All(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (e *EmailsTable) CountByLabel(label string) (int, error) {
+	var result int
+
+	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return row.Field("label_ids").Contains(label)
+	}).Count().Run(e.GetSession())
+	if err != nil {
+		return 0, err
+	}
+
+	err = cursor.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
+func (e *EmailsTable) CountByLabelUnread(label string) (int, error) {
+	var result int
+
+	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return gorethink.And(
+			row.Field("label_ids").Contains(label),
+			row.Field("is_read").Eq(false),
+		)
+	}).Count().Run(e.GetSession())
+	if err != nil {
+		return 0, err
+	}
+
+	err = cursor.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}

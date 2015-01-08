@@ -31,4 +31,6 @@ type Email struct {
 	ThreadID string `json:"thread_id" gorethink:"thread_id"`
 
 	Status string `json:"status" gorethink:"status"`
+
+	IsRead string `json:"is_read" gorethink:"is_read"`
 }
