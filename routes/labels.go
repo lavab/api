@@ -3,20 +3,40 @@ package routes
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/lavab/api/env"
+	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
+	"github.com/zenazn/goji/web"
 )
 
 // LabelsListResponse contains the result of the LabelsList request.
 type LabelsListResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool             `json:"success"`
+	Message string           `json:"message,omitempty"`
+	Labels  *[]*models.Label `json:"labels,omitempty"`
 }
 
-// LabelsList does *something* - TODO
-func LabelsList(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &LabelsListResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+// LabelsList fetches all labels
+func LabelsList(c web.C, w http.ResponseWriter, r *http.Request) {
+	session := c.Env["token"].(*models.Token)
+
+	labels, err := env.Labels.GetOwnedBy(session.Owner)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Unable to fetch labels")
+
+		utils.JSONResponse(w, 500, &LabelsListResponse{
+			Success: false,
+			Message: "Internal error (code LA/LI/01)",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &LabelsListResponse{
+		Success: true,
+		Labels:  &labels,
 	})
 }
 

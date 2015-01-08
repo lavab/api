@@ -11,6 +11,7 @@ import (
 
 type LabelsTable struct {
 	RethinkCRUD
+	Emails  *EmailsTable
 	Cache   cache.Cache
 	Expires time.Duration
 }
@@ -98,5 +99,33 @@ func (l *LabelsTable) GetLabel(id string) (*models.Label, error) {
 		return nil, err
 	}
 
+	totalCount, err := l.Emails.CountByLabel(result.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	result.EmailsTotal = totalCount
+
+	unreadCount, err := l.Emails.CountByLabelUnread(result.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	result.EmailsUnread = unreadCount
+
 	return &result, nil
+}
+
+// GetOwnedBy returns all labels owned by id
+func (l *LabelsTable) GetOwnedBy(id string) ([]*models.Label, error) {
+	var result []*models.Label
+
+	err := l.WhereAndFetch(map[string]interface{}{
+		"owner": id,
+	}, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
