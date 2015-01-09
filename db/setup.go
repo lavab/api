@@ -21,6 +21,7 @@ var tableIndexes = map[string][]string{
 	"labels":       []string{},
 	"keys":         []string{},
 	"reservations": []string{},
+	"attachments":  []string{"owner"},
 }
 
 // List of names of databases
