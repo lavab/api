@@ -52,11 +52,31 @@ func (e *EmailsTable) List(
 	sort []string,
 	offset int,
 	limit int,
+	label string,
 ) ([]*models.Email, error) {
-	// Filter by owner's ID
-	term := e.GetTable().Filter(map[string]interface{}{
-		"owner": owner,
-	})
+
+	var term gorethink.Term
+
+	if owner != "" && label != "" {
+		term = e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+			return gorethink.And(
+				row.Field("owner").Eq(owner),
+				row.Field("label_ids").Contains(label),
+			)
+		})
+	}
+
+	if owner != "" && label == "" {
+		term = e.GetTable().Filter(map[string]interface{}{
+			"owner": owner,
+		})
+	}
+
+	if owner == "" && label != "" {
+		term = e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+			return row.Field("label_ids").Contains(label)
+		})
+	}
 
 	// If sort array has contents, parse them and add to the term
 	if sort != nil && len(sort) > 0 {

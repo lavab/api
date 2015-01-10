@@ -36,6 +36,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		sortRaw   = query.Get("sort")
 		offsetRaw = query.Get("offset")
 		limitRaw  = query.Get("limit")
+		label     = query.Get("label")
 		sort      []string
 		offset    int
 		limit     int
@@ -80,7 +81,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get contacts from the database
-	emails, err := env.Emails.List(session.Owner, sort, offset, limit)
+	emails, err := env.Emails.List(session.Owner, sort, offset, limit, label)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err,

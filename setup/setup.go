@@ -160,7 +160,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			rethinkOpts.Database,
 			"labels",
 		),
-		Cache: redis,
+		Emails: env.Emails,
+		Cache:  redis,
 	}
 
 	// NATS queue connection

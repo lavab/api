@@ -71,29 +71,27 @@ func (l *LabelsTable) Delete(cond interface{}) error {
 
 // DeleteID removes from db and cache using id query
 func (l *LabelsTable) DeleteID(id string) error {
-	if err := l.RethinkCRUD.DeleteID(id); err != nil {
-		return err
-	}
-
-	return l.Cache.Delete(l.RethinkCRUD.GetTableName() + ":" + id)
-}
-
-// FindFetchOne tries cache and then tries using DefaultCRUD's fetch operation
-func (l *LabelsTable) FindFetchOne(id string, value interface{}) error {
-	if err := l.Cache.Get(id, value); err == nil {
-		return nil
-	}
-
-	err := l.RethinkCRUD.FindFetchOne(id, value)
+	label, err := l.GetLabel(id)
 	if err != nil {
 		return err
 	}
 
-	return l.Cache.Set(l.RethinkCRUD.GetTableName()+":"+id, value, l.Expires)
+	if err := l.RethinkCRUD.DeleteID(l.RethinkCRUD.GetTableName() + ":" + id); err != nil {
+		return err
+	}
+
+	l.Cache.Delete(l.RethinkCRUD.GetTableName() + ":" + id)
+	l.Cache.Delete(l.RethinkCRUD.GetTableName() + ":owner:" + label.Owner)
+
+	return nil
 }
 
 func (l *LabelsTable) GetLabel(id string) (*models.Label, error) {
 	var result models.Label
+
+	if err := l.Cache.Get(l.RethinkCRUD.GetTableName()+":"+id, &result); err == nil {
+		return &result, nil
+	}
 
 	if err := l.FindFetchOne(id, &result); err != nil {
 		return nil, err
@@ -113,6 +111,11 @@ func (l *LabelsTable) GetLabel(id string) (*models.Label, error) {
 
 	result.EmailsUnread = unreadCount
 
+	err = l.Cache.Set(l.RethinkCRUD.GetTableName()+":"+id, result, l.Expires)
+	if err != nil {
+		return nil, err
+	}
+
 	return &result, nil
 }
 
@@ -120,9 +123,34 @@ func (l *LabelsTable) GetLabel(id string) (*models.Label, error) {
 func (l *LabelsTable) GetOwnedBy(id string) ([]*models.Label, error) {
 	var result []*models.Label
 
+	if err := l.Cache.Get(l.RethinkCRUD.GetTableName()+":owner:"+id, &result); err == nil {
+		return result, nil
+	}
+
 	err := l.WhereAndFetch(map[string]interface{}{
 		"owner": id,
 	}, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range result {
+		totalCount, err := l.Emails.CountByLabel(result[i].ID)
+		if err != nil {
+			return nil, err
+		}
+
+		result[i].EmailsTotal = totalCount
+
+		unreadCount, err := l.Emails.CountByLabelUnread(result[i].ID)
+		if err != nil {
+			return nil, err
+		}
+
+		result[i].EmailsTotal = unreadCount
+	}
+
+	err = l.Cache.Set(l.RethinkCRUD.GetTableName()+":owner:"+id, result, l.Expires)
 	if err != nil {
 		return nil, err
 	}

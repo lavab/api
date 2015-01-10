@@ -266,6 +266,37 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create labels
+	err = env.Labels.Insert([]*models.Label{
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Inbox"),
+			Builtin:  true,
+		},
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Trash"),
+			Builtin:  true,
+		},
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Spam"),
+			Builtin:  true,
+		},
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Starred"),
+			Builtin:  true,
+		},
+	})
+	if err != nil {
+		utils.JSONResponse(w, 500, &AccountsCreateResponse{
+			Success: false,
+			Message: "Internal server error - AC/CR/03",
+		})
+
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Could not insert labels into the database")
+		return
+	}
+
 	// Send the email if classic and return a response
 	if requestType == "classic" {
 		// TODO: Send emails
