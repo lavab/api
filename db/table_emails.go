@@ -52,11 +52,31 @@ func (e *EmailsTable) List(
 	sort []string,
 	offset int,
 	limit int,
+	label string,
 ) ([]*models.Email, error) {
-	// Filter by owner's ID
-	term := e.GetTable().Filter(map[string]interface{}{
-		"owner": owner,
-	})
+
+	var term gorethink.Term
+
+	if owner != "" && label != "" {
+		term = e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+			return gorethink.And(
+				row.Field("owner").Eq(owner),
+				row.Field("label_ids").Contains(label),
+			)
+		})
+	}
+
+	if owner != "" && label == "" {
+		term = e.GetTable().Filter(map[string]interface{}{
+			"owner": owner,
+		})
+	}
+
+	if owner == "" && label != "" {
+		term = e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+			return row.Field("label_ids").Contains(label)
+		})
+	}
 
 	// If sort array has contents, parse them and add to the term
 	if sort != nil && len(sort) > 0 {
@@ -101,4 +121,61 @@ func (e *EmailsTable) List(
 	}
 
 	return resp, nil
+}
+
+func (e *EmailsTable) GetByLabel(label string) ([]*models.Email, error) {
+	var result []*models.Email
+
+	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return row.Field("label_ids").Contains(label)
+	}).GetAll().Run(e.GetSession())
+	if err != nil {
+		return nil, err
+	}
+
+	err = cursor.All(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (e *EmailsTable) CountByLabel(label string) (int, error) {
+	var result int
+
+	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return row.Field("label_ids").Contains(label)
+	}).Count().Run(e.GetSession())
+	if err != nil {
+		return 0, err
+	}
+
+	err = cursor.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
+func (e *EmailsTable) CountByLabelUnread(label string) (int, error) {
+	var result int
+
+	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return gorethink.And(
+			row.Field("label_ids").Contains(label),
+			row.Field("is_read").Eq(false),
+		)
+	}).Count().Run(e.GetSession())
+	if err != nil {
+		return 0, err
+	}
+
+	err = cursor.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
 }

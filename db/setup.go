@@ -12,15 +12,14 @@ var (
 
 // Indexes of tables in the database
 var tableIndexes = map[string][]string{
-	"tokens":       []string{"user", "user_id"},
 	"accounts":     []string{"name"},
-	"emails":       []string{"user_id"},
-	"drafts":       []string{"user_id"},
-	"contacts":     []string{},
-	"threads":      []string{"user_id"},
-	"labels":       []string{},
-	"keys":         []string{},
-	"reservations": []string{},
+	"contacts":     []string{"owner"},
+	"emails":       []string{"owner", "label_ids"},
+	"keys":         []string{"owner", "key_id"},
+	"labels":       []string{"owner"},
+	"reservations": []string{"email", "name"},
+	"threads":      []string{"owner"},
+	"tokens":       []string{"owner"},
 }
 
 // List of names of databases

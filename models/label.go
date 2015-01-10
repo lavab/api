@@ -16,11 +16,6 @@ type Label struct {
 	// Examples: inbox, trash, spam, drafts, starred, etc.
 	Builtin bool `json:"builtin" gorethink:"builtin"`
 
-	// EmailsUnread is the number of unread emails that have a particular label applied.
-	// Storing this for each label eliminates the need of db lookups for this commonly needed information.
-	EmailsUnread int `json:"emails_unread" gorethink:"emails_unread"`
-
-	// EmailsTotal is the number of emails that have a particular label applied.
-	// Storing this for each label eliminates the need of db lookups for this commonly needed information.
-	EmailsTotal int `json:"emails_total" gorethink:"emails_total"`
+	EmailsUnread int `json:"emails_unread" gorethink:"-"`
+	EmailsTotal  int `json:"emails_total" gorethink:"-"`
 }
