@@ -81,7 +81,7 @@ func (t *TokensTable) DeleteID(id string) error {
 
 // FindFetchOne tries cache and then tries using DefaultCRUD's fetch operation
 func (t *TokensTable) FindFetchOne(id string, value interface{}) error {
-	if err := t.Cache.Get(id, value); err == nil {
+	if err := t.Cache.Get(t.RethinkCRUD.GetTableName()+":"+id, value); err == nil {
 		return nil
 	}
 
