@@ -183,6 +183,13 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Both username and password are filled, so we can create a new account.
+	account := &models.Account{
+		Resource: models.MakeResource("", input.Username),
+		Type:     "beta",
+		AltEmail: input.AltEmail,
+	}
+
 	// Check "invited" for token validity
 	if requestType == "invited" {
 		// Fetch the token from the database
@@ -216,16 +223,11 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+
+		account.AltEmail = token.Email
 	}
 
 	// TODO: sanitize user name (i.e. remove caps, periods)
-
-	// Both username and password are filled, so we can create a new account.
-	account := &models.Account{
-		Resource: models.MakeResource("", input.Username),
-		Type:     "beta",
-		AltEmail: input.AltEmail,
-	}
 
 	// Set the password
 	err = account.SetPassword(input.Password)
