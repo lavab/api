@@ -143,17 +143,79 @@ func LabelsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type LabelsUpdateRequest struct {
+	Name string `json:"name"`
+}
+
 // LabelsUpdateResponse contains the result of the LabelsUpdate request.
 type LabelsUpdateResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool          `json:"success"`
+	Message string        `json:"message,omitempty"`
+	Label   *models.Label `json:"label,omitempty"`
 }
 
 // LabelsUpdate does *something* - TODO
-func LabelsUpdate(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &LabelsUpdateResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+func LabelsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Decode the request
+	var input LabelsUpdateRequest
+	err := utils.ParseRequest(r, &input)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+		}).Warn("Unable to decode a request")
+
+		utils.JSONResponse(w, 400, &LabelsUpdateResponse{
+			Success: false,
+			Message: "Invalid input format",
+		})
+		return
+	}
+
+	// Get the label from the database
+	label, err := env.Labels.GetLabel(c.URLParams["id"])
+	if err != nil {
+		utils.JSONResponse(w, 404, &LabelsUpdateResponse{
+			Success: false,
+			Message: "Label not found",
+		})
+		return
+	}
+
+	// Fetch the current session from the middleware
+	session := c.Env["token"].(*models.Token)
+
+	// Check for ownership
+	if label.Owner != session.Owner {
+		utils.JSONResponse(w, 404, &LabelsUpdateResponse{
+			Success: false,
+			Message: "Label not found",
+		})
+		return
+	}
+
+	if input.Name != "" {
+		label.Name = input.Name
+	}
+
+	// Perform the update
+	err = env.Labels.UpdateID(c.URLParams["id"], input)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+			"id":    c.URLParams["id"],
+		}).Error("Unable to update a contact")
+
+		utils.JSONResponse(w, 500, &LabelsUpdateResponse{
+			Success: false,
+			Message: "Internal error (code LA/UP/01)",
+		})
+		return
+	}
+
+	// Write the contact to the response
+	utils.JSONResponse(w, 200, &LabelsUpdateResponse{
+		Success: true,
+		Label:   label,
 	})
 }
 
@@ -164,9 +226,46 @@ type LabelsDeleteResponse struct {
 }
 
 // LabelsDelete does *something* - TODO
-func LabelsDelete(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &LabelsDeleteResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
+func LabelsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the label from the database
+	label, err := env.Labels.GetLabel(c.URLParams["id"])
+	if err != nil {
+		utils.JSONResponse(w, 404, &LabelsDeleteResponse{
+			Success: false,
+			Message: "Label not found",
+		})
+		return
+	}
+
+	// Fetch the current session from the middleware
+	session := c.Env["token"].(*models.Token)
+
+	// Check for ownership
+	if label.Owner != session.Owner {
+		utils.JSONResponse(w, 404, &LabelsDeleteResponse{
+			Success: false,
+			Message: "Label not found",
+		})
+		return
+	}
+
+	// Perform the deletion
+	err = env.Labels.DeleteID(c.URLParams["id"])
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err,
+			"id":    c.URLParams["id"],
+		}).Error("Unable to delete a label")
+
+		utils.JSONResponse(w, 500, &LabelsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code LA/DE/01)",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &LabelsDeleteResponse{
+		Success: true,
+		Message: "Label successfully removed",
 	})
 }
