@@ -37,7 +37,7 @@ func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSONResponse(w, 501, &ContactsListResponse{
+	utils.JSONResponse(w, 200, &ContactsListResponse{
 		Success:  true,
 		Contacts: &contacts,
 	})

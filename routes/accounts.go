@@ -183,6 +183,13 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Both username and password are filled, so we can create a new account.
+	account := &models.Account{
+		Resource: models.MakeResource("", input.Username),
+		Type:     "beta",
+		AltEmail: input.AltEmail,
+	}
+
 	// Check "invited" for token validity
 	if requestType == "invited" {
 		// Fetch the token from the database
@@ -216,16 +223,11 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+
+		account.AltEmail = token.Email
 	}
 
 	// TODO: sanitize user name (i.e. remove caps, periods)
-
-	// Both username and password are filled, so we can create a new account.
-	account := &models.Account{
-		Resource: models.MakeResource("", input.Username),
-		Type:     "beta",
-		AltEmail: input.AltEmail,
-	}
 
 	// Set the password
 	err = account.SetPassword(input.Password)
@@ -261,6 +263,41 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		env.Log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("Could not insert an user into the database")
+		return
+	}
+
+	// Create labels
+	err = env.Labels.Insert([]*models.Label{
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Inbox"),
+			Builtin:  true,
+		},
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Sent"),
+			Builtin:  true,
+		},
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Trash"),
+			Builtin:  true,
+		},
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Spam"),
+			Builtin:  true,
+		},
+		&models.Label{
+			Resource: models.MakeResource(account.ID, "Starred"),
+			Builtin:  true,
+		},
+	})
+	if err != nil {
+		utils.JSONResponse(w, 500, &AccountsCreateResponse{
+			Success: false,
+			Message: "Internal server error - AC/CR/03",
+		})
+
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Could not insert labels into the database")
 		return
 	}
 
