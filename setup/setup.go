@@ -280,6 +280,12 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	//  - AutomaticOptions automatically responds to OPTIONS requests
 	mux.Use(func(c *web.C, h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// sockjs doesn't want to work with our code, as the author doesn't understand http.Headers
+			if strings.HasPrefix(r.RequestURI, "/ws") {
+				h.ServeHTTP(w, r)
+				return
+			}
+
 			// because why not
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 
