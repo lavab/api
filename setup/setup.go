@@ -333,6 +333,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	// Index route
 	mux.Get("/", routes.Hello)
 
+	// Attachments
+	auth.Get("/attachments", routes.AttachmentsList)
+	auth.Post("/attachments", routes.AttachmentsCreate)
+	auth.Get("/attachments/:id", routes.AttachmentsGet)
+	auth.Put("/attachments/:id", routes.AttachmentsUpdate)
+	auth.Delete("/attachments/:id", routes.AttachmentsDelete)
+
 	// Accounts
 	auth.Get("/accounts", routes.AccountsList)
 	mux.Post("/accounts", routes.AccountsCreate)
