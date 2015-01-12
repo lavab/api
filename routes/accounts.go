@@ -375,12 +375,13 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // AccountsUpdateRequest contains the input for the AccountsUpdate endpoint.
 type AccountsUpdateRequest struct {
-	AltEmail        string   `json:"alt_email" schema:"alt_email"`
-	CurrentPassword string   `json:"current_password" schema:"current_password"`
-	NewPassword     string   `json:"new_password" schema:"new_password"`
-	FactorType      string   `json:"factor_type" schema:"factor_type"`
-	FactorValue     []string `json:"factor_value" schema:"factor_value"`
-	Token           string   `json:"token" schema:"token"`
+	AltEmail        string      `json:"alt_email" schema:"alt_email"`
+	CurrentPassword string      `json:"current_password" schema:"current_password"`
+	NewPassword     string      `json:"new_password" schema:"new_password"`
+	FactorType      string      `json:"factor_type" schema:"factor_type"`
+	FactorValue     []string    `json:"factor_value" schema:"factor_value"`
+	Token           string      `json:"token" schema:"token"`
+	AppData         interface{} `json:"app_data" schema:"app_data"`
 }
 
 // AccountsUpdateResponse contains the result of the AccountsUpdate request.
@@ -509,6 +510,10 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	if input.AltEmail != "" {
 		user.AltEmail = input.AltEmail
+	}
+
+	if input.AppData != nil {
+		user.AppData = input.AppData
 	}
 
 	if input.FactorType != "" {

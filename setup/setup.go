@@ -163,6 +163,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		Emails: env.Emails,
 		Cache:  redis,
 	}
+	env.Attachments = &db.AttachmentsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"attachments",
+		),
+	}
 
 	// NATS queue connection
 	nc, err := nats.Connect(flags.NATSAddress)
@@ -325,6 +332,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 	// Index route
 	mux.Get("/", routes.Hello)
+
+	// Attachments
+	auth.Get("/attachments", routes.AttachmentsList)
+	auth.Post("/attachments", routes.AttachmentsCreate)
+	auth.Get("/attachments/:id", routes.AttachmentsGet)
+	auth.Put("/attachments/:id", routes.AttachmentsUpdate)
+	auth.Delete("/attachments/:id", routes.AttachmentsDelete)
 
 	// Accounts
 	auth.Get("/accounts", routes.AccountsList)
