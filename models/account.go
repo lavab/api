@@ -22,8 +22,7 @@ type Account struct {
 	PGPKey string `json:"pgp_key" gorethink:"pgp_key"`
 
 	// Settings contains data needed to customize the user experience.
-	// TODO Work in progress
-	Settings SettingsData `json:"settings" gorethink:"settings"`
+	Settings interface{} `json:"settings" gorethink:"settings"`
 
 	// Type is the account type.
 	// Examples (work in progress):
@@ -39,9 +38,6 @@ type Account struct {
 	FactorValue []string `json:"-" gorethink:"factor_value"`
 
 	Status string `json:"status" gorethink:"status"`
-
-	// AppData is used for clientside settings storage
-	AppData interface{} `json:"app_data" gorethink:"app_data"`
 }
 
 // SetPassword changes the account's password
