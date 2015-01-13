@@ -80,7 +80,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 409, &KeysCreateResponse{
@@ -102,7 +102,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"list":  entityList,
 		}).Warn("Cannot parse an armored key")
 		return
@@ -117,7 +117,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"list":  entityList,
 		}).Warn("Cannot parse an armored key #2")
 		return
@@ -132,7 +132,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    session.Owner,
 		}).Error("Cannot fetch user from database")
 		return
@@ -178,7 +178,7 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Could not insert a key to the database")
 		return
 	}
@@ -218,7 +218,7 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		account, err := env.Accounts.FindAccountByName(username)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 				"name":  username,
 			}).Warn("Unable to fetch the requested account from the database")
 
@@ -235,7 +235,7 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 			key2, err := env.Keys.FindByFingerprint(account.PGPKey)
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
-					"error": err,
+					"error": err.Error(),
 				}).Warn("Unable to fetch the requested key from the database")
 
 				utils.JSONResponse(w, 500, &KeysGetResponse{
@@ -250,7 +250,7 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 			keys, err := env.Keys.FindByOwner(account.ID)
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
-					"error": err,
+					"error": err.Error(),
 					"owner": account.ID,
 				}).Warn("Unable to fetch user's keys from the database")
 
@@ -277,7 +277,7 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		key2, err := env.Keys.FindByFingerprint(id)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 			}).Warn("Unable to fetch the requested key from the database")
 
 			utils.JSONResponse(w, 404, &KeysGetResponse{
