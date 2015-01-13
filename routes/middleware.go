@@ -44,7 +44,7 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 		token, err := env.Tokens.GetToken(headerParts[1])
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 			}).Error("Cannot retrieve session from the database")
 
 			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{

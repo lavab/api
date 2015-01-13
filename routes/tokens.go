@@ -35,7 +35,7 @@ func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		token, err = env.Tokens.GetToken(id)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 				"id":    id,
 			}).Warn("Unable to find the token")
 
@@ -78,7 +78,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 409, &TokensCreateResponse{
@@ -124,7 +124,7 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"user":  user.Name,
-				"error": err,
+				"error": err.Error(),
 			}).Error("Could not update user")
 
 			// DO NOT RETURN!
@@ -216,7 +216,7 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		token, err = env.Tokens.GetToken(id)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 				"id":    id,
 			}).Warn("Unable to find the token")
 
@@ -231,7 +231,7 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Delete it from the database
 	if err := env.Tokens.DeleteID(token.ID); err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to delete a token")
 
 		utils.JSONResponse(w, 500, &TokensDeleteResponse{

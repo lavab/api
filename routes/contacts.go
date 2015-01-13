@@ -27,7 +27,7 @@ func ContactsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	contacts, err := env.Contacts.GetOwnedBy(session.Owner)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to fetch contacts")
 
 		utils.JSONResponse(w, 500, &ContactsListResponse{
@@ -67,7 +67,7 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &ContactsCreateResponse{
@@ -111,7 +111,7 @@ func ContactsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Could not insert a contact into the database")
 		return
 	}
@@ -185,7 +185,7 @@ func ContactsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &ContactsUpdateResponse{
@@ -245,7 +245,7 @@ func ContactsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Contacts.UpdateID(c.URLParams["id"], input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    c.URLParams["id"],
 		}).Error("Unable to update a contact")
 
@@ -297,7 +297,7 @@ func ContactsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Contacts.DeleteID(c.URLParams["id"])
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    c.URLParams["id"],
 		}).Error("Unable to delete a contact")
 
