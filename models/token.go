@@ -7,8 +7,6 @@ type Token struct {
 
 	// Type describes the token's purpose: auth, invite, confirm, upgrade.
 	Type string `json:"type" gorethink:"type"`
-
-	Email string `json:"email,omitempty" gorethink:"email"`
 }
 
 // MakeToken creates a generic token.
