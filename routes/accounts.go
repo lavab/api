@@ -179,7 +179,6 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Ensure that the invite code was given to this particular user.
 		if token.Owner != account.ID {
 			env.Log.WithFields(logrus.Fields{
-				"error":   err.Error(),
 				"user_id": account.ID,
 				"owner":   token.Owner,
 			}).Warn("Not owned invitation code used by an user")
@@ -192,7 +191,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Ensure that the token's type is valid
-		if token.Type != "invite" {
+		if token.Type != "verify" {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Invalid invitation code",
@@ -212,7 +211,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Everything is fine, return it.
 		utils.JSONResponse(w, 200, &AccountsCreateResponse{
 			Success: true,
-			Message: "Valid token was used",
+			Message: "Valid token was provided",
 		})
 		return
 	} else if requestType == "setup" {
@@ -251,7 +250,6 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Ensure that the invite code was given to this particular user.
 		if token.Owner != account.ID {
 			env.Log.WithFields(logrus.Fields{
-				"error":   err.Error(),
 				"user_id": account.ID,
 				"owner":   token.Owner,
 			}).Warn("Not owned invitation code used by an user")
@@ -264,7 +262,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Ensure that the token's type is valid
-		if token.Type != "invite" {
+		if token.Type != "verify" {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Invalid invitation code",
@@ -348,6 +346,21 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Update the account
+		err = env.Accounts.UpdateID(account.ID, account)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"id":    account.ID,
+			}).Error("Unable to update an account")
+
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Unable to update the account",
+			})
+			return
+		}
+
 		// Remove the token and return a response
 		err = env.Tokens.DeleteID(input.InviteCode)
 		if err != nil {
@@ -359,7 +372,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		utils.JSONResponse(w, 200, &AccountsCreateResponse{
 			Success: true,
-			Message: "Your account has been configured successfully",
+			Message: "Your account has been initialized successfully",
 			Account: account,
 		})
 		return

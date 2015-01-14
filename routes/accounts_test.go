@@ -2,21 +2,22 @@ package routes_test
 
 import (
 	"testing"
-	//"time"
+	"time"
 
 	"github.com/franela/goreq"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
-	//"github.com/lavab/api/env"
-	//"github.com/lavab/api/models"
+	"github.com/lavab/api/env"
+	"github.com/lavab/api/models"
 	"github.com/lavab/api/routes"
 )
 
 var (
-	accountUsername string
-	accountPassword string
-	accountID       string
+	accountUsername     string
+	accountPassword     string
+	accountID           string
+	verificationTokenID string
 )
 
 func TestAccountsCreateInvalid(t *testing.T) {
@@ -156,22 +157,18 @@ func TestAccountsCreateInvitedExistingEmail(t *testing.T) {
 	require.Equal(t, "Email already used", response.Message)
 }
 
-/*
-func TestAccountsCreateInvitedWeakPassword(t *testing.T) {
-	const (
-		username = "jeremylicious"
-		password = "c0067d4af4e87f00dbac63b6156828237059172d1bbeac67427345d6a9fda484"
-	)
-
+func TestAccountsCreateVerify(t *testing.T) {
 	// Prepare a token
-	inviteToken := models.Token{
-		Resource: models.MakeResource("", "test invite token"),
-		Type:     "invite",
+	verificationToken := models.Token{
+		Resource: models.MakeResource(accountID, "test verification token"),
+		Type:     "verify",
 	}
-	inviteToken.ExpireSoon()
+	verificationToken.ExpireSoon()
 
-	err := env.Tokens.Insert(inviteToken)
+	err := env.Tokens.Insert(verificationToken)
 	require.Nil(t, err)
+
+	verificationTokenID = verificationToken.ID
 
 	// POST /accounts - invited
 	result, err := goreq.Request{
@@ -179,9 +176,8 @@ func TestAccountsCreateInvitedWeakPassword(t *testing.T) {
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
-			Username: username,
-			Password: password,
-			Token:    inviteToken.ID,
+			Username:   accountUsername,
+			InviteCode: verificationTokenID,
 		},
 	}.Do()
 	require.Nil(t, err)
@@ -192,181 +188,19 @@ func TestAccountsCreateInvitedWeakPassword(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
-	require.False(t, response.Success)
-	require.Equal(t, "Weak password", response.Message)
-}
-
-func TestAccountsCreateInvitedExpired(t *testing.T) {
-	const (
-		username = "jeremy2"
-		password = "potato2"
-	)
-
-	// Prepare a token
-	inviteToken := models.Token{
-		Resource: models.MakeResource("", "test invite token"),
-		Type:     "invite",
-	}
-	inviteToken.ExpiryDate = time.Now().Truncate(time.Hour)
-
-	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err)
-
-	// POST /accounts - invited
-	result, err := goreq.Request{
-		Method:      "POST",
-		Uri:         server.URL + "/accounts",
-		ContentType: "application/json",
-		Body: routes.AccountsCreateRequest{
-			Username: username,
-			Password: password,
-			Token:    inviteToken.ID,
-		},
-	}.Do()
-	require.Nil(t, err)
-
-	// Unmarshal the response
-	var response routes.AccountsCreateResponse
-	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err)
-
-	// Check the result's contents
-	require.False(t, response.Success)
-	require.Equal(t, "Expired invitation token", response.Message)
-}
-
-func TestAccountsCreateInvitedWrongType(t *testing.T) {
-	const (
-		username = "jeremy2"
-		password = "potato2"
-	)
-
-	// Prepare a token
-	inviteToken := models.Token{
-		Resource: models.MakeResource("", "test not invite token"),
-		Type:     "not invite",
-	}
-	inviteToken.ExpiryDate = time.Now().Truncate(time.Hour)
-
-	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err)
-
-	// POST /accounts - invited
-	result, err := goreq.Request{
-		Method:      "POST",
-		Uri:         server.URL + "/accounts",
-		ContentType: "application/json",
-		Body: routes.AccountsCreateRequest{
-			Username: username,
-			Password: password,
-			Token:    inviteToken.ID,
-		},
-	}.Do()
-	require.Nil(t, err)
-
-	// Unmarshal the response
-	var response routes.AccountsCreateResponse
-	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err)
-
-	// Check the result's contents
-	require.False(t, response.Success)
-	require.Equal(t, "Invalid invitation token", response.Message)
-}
-
-func TestAccountsCreateClassic(t *testing.T) {
-	const (
-		username = "jeremy"
-		password = "potato"
-	)
-
-	// POST /accounts - classic
-	createClassicResult, err := goreq.Request{
-		Method:      "POST",
-		Uri:         server.URL + "/accounts",
-		ContentType: "application/json",
-		Body: routes.AccountsCreateRequest{
-			Username: username + "classic",
-			Password: password,
-			AltEmail: "something@example.com",
-		},
-	}.Do()
-	require.Nil(t, err)
-
-	// Unmarshal the response
-	var createClassicResponse routes.AccountsCreateResponse
-	err = createClassicResult.Body.FromJsonTo(&createClassicResponse)
-	require.Nil(t, err)
-
-	// Check the result's contents
-	require.True(t, createClassicResponse.Success)
-	require.Equal(t, "A new account was successfully created, you should receive a confirmation email soon™.", createClassicResponse.Message)
-	require.NotEmpty(t, createClassicResponse.Account.ID)
-}
-
-func TestAccountsCreateClassicDisabled(t *testing.T) {
-	const (
-		username = "jeremy_was_invited"
-		password = "potato"
-	)
-
-	env.Config.ClassicRegistration = false
-
-	// POST /accounts - classic
-	createClassicResult, err := goreq.Request{
-		Method:      "POST",
-		Uri:         server.URL + "/accounts",
-		ContentType: "application/json",
-		Body: routes.AccountsCreateRequest{
-			Username: username + "classic",
-			Password: password,
-			AltEmail: "something@example.com",
-		},
-	}.Do()
-	require.Nil(t, err)
-
-	// Unmarshal the response
-	var createClassicResponse routes.AccountsCreateResponse
-	err = createClassicResult.Body.FromJsonTo(&createClassicResponse)
-	require.Nil(t, err)
-
-	// Check the result's contents
-	require.False(t, createClassicResponse.Success)
-	require.Equal(t, "Classic registration is disabled", createClassicResponse.Message)
-
-	env.Config.ClassicRegistration = true
-}
-
-func TestAccountsCreateQueueReservation(t *testing.T) {
-	result, err := goreq.Request{
-		Method:      "POST",
-		Uri:         server.URL + "/accounts",
-		ContentType: "application/json",
-		Body: routes.AccountsCreateRequest{
-			AltEmail: "reserved@example.com",
-			Username: "reserved",
-		},
-	}.Do()
-	require.Nil(t, err)
-
-	// Unmarshal the response
-	var response routes.AccountsCreateResponse
-	err = result.Body.FromJsonTo(&response)
-	require.Nil(t, err)
-
-	// Check the result's contents
-	require.Equal(t, "Reserved an account", response.Message)
+	require.Equal(t, "Valid token was provided", response.Message)
 	require.True(t, response.Success)
 }
 
-func TestAccountsCreateQueueReservationUsernameReserved(t *testing.T) {
+func TestAccountsCreateVerifyInvalidUsername(t *testing.T) {
+	// POST /accounts - invited
 	result, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
-			AltEmail: "not-reserved@example.com",
-			Username: "reserved",
+			Username:   "topkek",
+			InviteCode: verificationTokenID,
 		},
 	}.Do()
 	require.Nil(t, err)
@@ -377,18 +211,19 @@ func TestAccountsCreateQueueReservationUsernameReserved(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Username already reserved", response.Message)
+	require.Equal(t, "Invalid username", response.Message)
 	require.False(t, response.Success)
 }
 
-func TestAccountsCreateQueueReservationUsernameTaken(t *testing.T) {
+func TestAccountsCreateVerifyInvalidCode(t *testing.T) {
+	// POST /accounts - invited
 	result, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
-			AltEmail: "not-reserved@example.com",
-			Username: "jeremy",
+			Username:   accountUsername,
+			InviteCode: "random shtuff",
 		},
 	}.Do()
 	require.Nil(t, err)
@@ -399,19 +234,29 @@ func TestAccountsCreateQueueReservationUsernameTaken(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
+	require.Equal(t, "Invalid invitation code", response.Message)
 	require.False(t, response.Success)
-	require.Equal(t, "Username already used", response.Message)
 }
 
-func TestAccountsCreateQueueReservationDisabled(t *testing.T) {
-	env.Config.UsernameReservation = false
+func TestAccountsCreateVerifyNotOwnedCode(t *testing.T) {
+	// Prepare a token
+	verificationToken := models.Token{
+		Resource: models.MakeResource("top kek", "test verification token"),
+		Type:     "verify",
+	}
+	verificationToken.ExpireSoon()
+
+	err := env.Tokens.Insert(verificationToken)
+	require.Nil(t, err)
+
+	// POST /accounts - invited
 	result, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
-			AltEmail: "something@example.com",
-			Username: "something",
+			Username:   accountUsername,
+			InviteCode: verificationToken.ID,
 		},
 	}.Do()
 	require.Nil(t, err)
@@ -422,19 +267,29 @@ func TestAccountsCreateQueueReservationDisabled(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
+	require.Equal(t, "Invalid invitation code", response.Message)
 	require.False(t, response.Success)
-	require.Equal(t, "Username reservation is disabled", response.Message)
-	env.Config.UsernameReservation = true
 }
 
-func TestAccountsCreateQueueClassicUsedEmail(t *testing.T) {
-	// POST /accounts - queue
+func TestAccountsCreateVerifyNotVerify(t *testing.T) {
+	// Prepare a token
+	verificationToken := models.Token{
+		Resource: models.MakeResource(accountID, "test verification token"),
+		Type:     "notverify",
+	}
+	verificationToken.ExpireSoon()
+
+	err := env.Tokens.Insert(verificationToken)
+	require.Nil(t, err)
+
+	// POST /accounts - invited
 	result, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
-			AltEmail: "something@example.com",
+			Username:   accountUsername,
+			InviteCode: verificationToken.ID,
 		},
 	}.Do()
 	require.Nil(t, err)
@@ -445,18 +300,29 @@ func TestAccountsCreateQueueClassicUsedEmail(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Email already used for a reservation", response.Message)
+	require.Equal(t, "Invalid invitation code", response.Message)
 	require.False(t, response.Success)
 }
 
-func TestAccountsCreateQueueClassicReservedEmail(t *testing.T) {
-	// POST /accounts - queue
+func TestAccountsCreateVerifyExpired(t *testing.T) {
+	// Prepare a token
+	verificationToken := models.Token{
+		Resource: models.MakeResource(accountID, "test verification token"),
+		Type:     "verify",
+	}
+	verificationToken.ExpiryDate = time.Now().Truncate(time.Hour * 24)
+
+	err := env.Tokens.Insert(verificationToken)
+	require.Nil(t, err)
+
+	// POST /accounts - invited
 	result, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/accounts",
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
-			AltEmail: "reserved@example.com",
+			Username:   accountUsername,
+			InviteCode: verificationToken.ID,
 		},
 	}.Do()
 	require.Nil(t, err)
@@ -467,10 +333,195 @@ func TestAccountsCreateQueueClassicReservedEmail(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
-	require.Equal(t, "Email already used for a reservation", response.Message)
+	require.Equal(t, "Expired invitation code", response.Message)
 	require.False(t, response.Success)
 }
 
+func TestAccountsCreateSetupWeakPassword(t *testing.T) {
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username:   accountUsername,
+			InviteCode: verificationTokenID,
+			Password:   "c0067d4af4e87f00dbac63b6156828237059172d1bbeac67427345d6a9fda484",
+		},
+	}.Do()
+
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Weak password", response.Message)
+	require.False(t, response.Success)
+}
+
+func TestAccountsCreateSetup(t *testing.T) {
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username:   accountUsername,
+			InviteCode: verificationTokenID,
+			Password:   accountPassword,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Your account has been initialized successfully", response.Message)
+	require.True(t, response.Success)
+}
+
+func TestAccountsCreateSetupInvalidUsername(t *testing.T) {
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username:   "kekkekek",
+			InviteCode: verificationTokenID,
+			Password:   accountPassword,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Invalid username", response.Message)
+	require.False(t, response.Success)
+}
+
+func TestAccountsCreateSetupInvalidCode(t *testing.T) {
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username:   accountUsername,
+			InviteCode: "kekekekek",
+			Password:   accountPassword,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Invalid invitation code", response.Message)
+	require.False(t, response.Success)
+}
+
+func TestAccountsCreateSetupNotOwnedCode(t *testing.T) {
+	verificationToken := models.Token{
+		Resource: models.MakeResource("top kek", "test verification token"),
+		Type:     "verify",
+	}
+	verificationToken.ExpireSoon()
+
+	err := env.Tokens.Insert(verificationToken)
+	require.Nil(t, err)
+
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username:   accountUsername,
+			InviteCode: verificationToken.ID,
+			Password:   accountPassword,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Invalid invitation code", response.Message)
+	require.False(t, response.Success)
+}
+
+func TestAccountsCreateSetupNotVerify(t *testing.T) {
+	verificationToken := models.Token{
+		Resource: models.MakeResource(accountID, "test verification token"),
+		Type:     "notverify",
+	}
+	verificationToken.ExpireSoon()
+
+	err := env.Tokens.Insert(verificationToken)
+	require.Nil(t, err)
+
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username:   accountUsername,
+			InviteCode: verificationToken.ID,
+			Password:   accountPassword,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Invalid invitation code", response.Message)
+	require.False(t, response.Success)
+}
+
+func TestAccountsCreateSetupCodeExpired(t *testing.T) {
+	verificationToken := models.Token{
+		Resource: models.MakeResource(accountID, "test verification token"),
+		Type:     "verify",
+	}
+	verificationToken.ExpiryDate = time.Now().Truncate(time.Hour * 24)
+
+	err := env.Tokens.Insert(verificationToken)
+	require.Nil(t, err)
+
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username:   accountUsername,
+			InviteCode: verificationToken.ID,
+			Password:   accountPassword,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Expired invitation code", response.Message)
+	require.False(t, response.Success)
+}
 
 func TestAccountsPrepareToken(t *testing.T) {
 	// POST /accounts - classic
@@ -492,8 +543,8 @@ func TestAccountsPrepareToken(t *testing.T) {
 	require.Nil(t, err)
 
 	// Check the result's contents
-	require.True(t, response.Success)
 	require.Equal(t, "Authentication successful", response.Message)
+	require.True(t, response.Success)
 	require.NotEmpty(t, response.Token.ID)
 
 	// Populate the global token variable
@@ -560,20 +611,25 @@ func TestAccountsGetNotMe(t *testing.T) {
 }
 
 func TestAccountUpdateMe(t *testing.T) {
+	newPasswordHashBytes := sha3.Sum256([]byte("cabbage123"))
+	newPasswordHash := string(newPasswordHashBytes[:])
+
 	// PUT /accounts/me
 	request := goreq.Request{
 		Method:      "PUT",
 		Uri:         server.URL + "/accounts/me",
 		ContentType: "application/json",
 		Body: &routes.AccountsUpdateRequest{
-			CurrentPassword: "potato",
-			NewPassword:     "cabbage",
+			CurrentPassword: accountPassword,
+			NewPassword:     newPasswordHash,
 			AltEmail:        "john.cabbage@example.com",
 		},
 	}
 	request.AddHeader("Authorization", "Bearer "+authToken)
 	result, err := request.Do()
 	require.Nil(t, err)
+
+	accountPassword = newPasswordHash
 
 	// Unmarshal the response
 	var response routes.AccountsUpdateResponse
@@ -760,4 +816,3 @@ func TestAccountsDelete(t *testing.T) {
 	require.Equal(t, "Your account has been successfully deleted", response.Message)
 	require.True(t, response.Success)
 }
-*/
