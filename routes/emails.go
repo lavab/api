@@ -126,7 +126,7 @@ type EmailsCreateRequest struct {
 	BCC                 []string `json:"bcc"`
 	ReplyTo             string   `json:"reply_to"`
 	ThreadID            string   `json:"thread_id"`
-	Subject             string   `json:"title"`
+	Subject             string   `json:"subject"`
 	Body                string   `json:"body"`
 	BodyVersionMajor    int      `json:"body_version_major"`
 	BodyVersionMinor    int      `json:"body_version_minor"`
