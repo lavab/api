@@ -2,14 +2,21 @@ package routes_test
 
 import (
 	"testing"
-	"time"
+	//"time"
 
 	"github.com/franela/goreq"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 
-	"github.com/lavab/api/env"
-	"github.com/lavab/api/models"
+	//"github.com/lavab/api/env"
+	//"github.com/lavab/api/models"
 	"github.com/lavab/api/routes"
+)
+
+var (
+	accountUsername string
+	accountPassword string
+	accountID       string
 )
 
 func TestAccountsCreateInvalid(t *testing.T) {
@@ -46,85 +53,27 @@ func TestAccountsCreateUnknown(t *testing.T) {
 	require.Equal(t, "Invalid request", response.Message)
 }
 
-func TestAccountsCreateInvited(t *testing.T) {
+func TestAccountsCreateRegister(t *testing.T) {
 	const (
 		username = "jeremy"
 		password = "potato"
+		email    = "jeremy@potato.org"
 	)
 
+	// Prepare account information
+	accountUsername = username
+	passwordHash := sha3.Sum256([]byte(password))
+	accountPassword = string(passwordHash[:])
+
 	// Prepare a token
-	inviteToken := models.Token{
+	/*inviteToken := models.Token{
 		Resource: models.MakeResource("", "test invite token"),
 		Type:     "invite",
 	}
 	inviteToken.ExpireSoon()
 
 	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err)
-
-	// POST /accounts - invited
-	result1, err := goreq.Request{
-		Method:      "POST",
-		Uri:         server.URL + "/accounts",
-		ContentType: "application/json",
-		Body: routes.AccountsCreateRequest{
-			Username: username,
-			Password: password,
-			Token:    inviteToken.ID,
-		},
-	}.Do()
-	require.Nil(t, err)
-
-	// Unmarshal the response
-	var response1 routes.AccountsCreateResponse
-	err = result1.Body.FromJsonTo(&response1)
-	require.Nil(t, err)
-
-	// Check the result's contents
-	require.Equal(t, "A new account was successfully created", response1.Message)
-	require.True(t, response1.Success)
-	require.NotEmpty(t, response1.Account.ID)
-
-	accountID = response1.Account.ID
-
-	// POST /accounts - invited with wrong token
-	result2, err := goreq.Request{
-		Method:      "POST",
-		Uri:         server.URL + "/accounts",
-		ContentType: "application/json",
-		Body: routes.AccountsCreateRequest{
-			Username: username + "2",
-			Password: password,
-			Token:    "asdasdasd",
-		},
-	}.Do()
-	require.Nil(t, err)
-
-	// Unmarshal the response
-	var response2 routes.AccountsCreateResponse
-	err = result2.Body.FromJsonTo(&response2)
-	require.Nil(t, err)
-
-	// Check the result's contents
-	require.False(t, response2.Success)
-	require.Equal(t, "Invalid invitation token", response2.Message)
-}
-
-func TestAccountsCreateInvitedExisting(t *testing.T) {
-	const (
-		username = "jeremy"
-		password = "potato"
-	)
-
-	// Prepare a token
-	inviteToken := models.Token{
-		Resource: models.MakeResource("", "test invite token"),
-		Type:     "invite",
-	}
-	inviteToken.ExpireSoon()
-
-	err := env.Tokens.Insert(inviteToken)
-	require.Nil(t, err)
+	require.Nil(t, err)*/
 
 	// POST /accounts - invited
 	result, err := goreq.Request{
@@ -133,8 +82,38 @@ func TestAccountsCreateInvitedExisting(t *testing.T) {
 		ContentType: "application/json",
 		Body: routes.AccountsCreateRequest{
 			Username: username,
-			Password: password,
-			Token:    inviteToken.ID,
+			AltEmail: email,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.Equal(t, "Your account has been added to the beta queue", response.Message)
+	require.True(t, response.Success)
+	require.NotEmpty(t, response.Account.ID)
+
+	accountID = response.Account.ID
+}
+
+func TestAccountsCreateInvitedExistingUsername(t *testing.T) {
+	const (
+		username = "jeremy"
+		email    = "jeremy@potato.org"
+	)
+
+	// POST /accounts - invited
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username: username,
+			AltEmail: email,
 		},
 	}.Do()
 	require.Nil(t, err)
@@ -149,6 +128,35 @@ func TestAccountsCreateInvitedExisting(t *testing.T) {
 	require.Equal(t, "Username already used", response.Message)
 }
 
+func TestAccountsCreateInvitedExistingEmail(t *testing.T) {
+	const (
+		username = "jeremy2"
+		email    = "jeremy@potato.org"
+	)
+
+	// POST /accounts - invited
+	result, err := goreq.Request{
+		Method:      "POST",
+		Uri:         server.URL + "/accounts",
+		ContentType: "application/json",
+		Body: routes.AccountsCreateRequest{
+			Username: username,
+			AltEmail: email,
+		},
+	}.Do()
+	require.Nil(t, err)
+
+	// Unmarshal the response
+	var response routes.AccountsCreateResponse
+	err = result.Body.FromJsonTo(&response)
+	require.Nil(t, err)
+
+	// Check the result's contents
+	require.False(t, response.Success)
+	require.Equal(t, "Email already used", response.Message)
+}
+
+/*
 func TestAccountsCreateInvitedWeakPassword(t *testing.T) {
 	const (
 		username = "jeremylicious"
@@ -463,20 +471,16 @@ func TestAccountsCreateQueueClassicReservedEmail(t *testing.T) {
 	require.False(t, response.Success)
 }
 
+
 func TestAccountsPrepareToken(t *testing.T) {
-	// log in as mr jeremy potato
-	const (
-		username = "jeremy"
-		password = "potato"
-	)
 	// POST /accounts - classic
 	request, err := goreq.Request{
 		Method:      "POST",
 		Uri:         server.URL + "/tokens",
 		ContentType: "application/json",
 		Body: routes.TokensCreateRequest{
-			Username: username,
-			Password: password,
+			Username: accountUsername,
+			Password: accountPassword,
 			Type:     "auth",
 		},
 	}.Do()
@@ -756,3 +760,4 @@ func TestAccountsDelete(t *testing.T) {
 	require.Equal(t, "Your account has been successfully deleted", response.Message)
 	require.True(t, response.Success)
 }
+*/

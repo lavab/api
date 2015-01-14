@@ -7,11 +7,12 @@ import (
 	"github.com/franela/goreq"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lavab/api/env"
-	"github.com/lavab/api/models"
+	//"github.com/lavab/api/env"
+	//"github.com/lavab/api/models"
 	"github.com/lavab/api/routes"
 )
 
+/*
 func TestTokensPrepareAccount(t *testing.T) {
 	const (
 		username = "jeremy"
@@ -53,7 +54,7 @@ func TestTokensPrepareAccount(t *testing.T) {
 
 	accountID = response1.Account.ID
 }
-
+*/
 func TestTokensCreate(t *testing.T) {
 	// log in as mr jeremy potato
 	const (
