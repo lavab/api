@@ -23,7 +23,7 @@ func AttachmentsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	attachments, err := env.Attachments.GetOwnedBy(session.Owner)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to fetch attachments")
 
 		utils.JSONResponse(w, 500, &AttachmentsListResponse{
@@ -61,7 +61,7 @@ func AttachmentsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &AttachmentsCreateResponse{
@@ -105,7 +105,7 @@ func AttachmentsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Could not insert a attachment into the database")
 		return
 	}
@@ -179,7 +179,7 @@ func AttachmentsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &AttachmentsUpdateResponse{
@@ -239,7 +239,7 @@ func AttachmentsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Attachments.UpdateID(c.URLParams["id"], input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    c.URLParams["id"],
 		}).Error("Unable to update a attachment")
 
@@ -291,7 +291,7 @@ func AttachmentsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Attachments.DeleteID(c.URLParams["id"])
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    c.URLParams["id"],
 		}).Error("Unable to delete a attachment")
 

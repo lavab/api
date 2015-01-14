@@ -24,7 +24,7 @@ func LabelsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	labels, err := env.Labels.GetOwnedBy(session.Owner)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to fetch labels")
 
 		utils.JSONResponse(w, 500, &LabelsListResponse{
@@ -58,7 +58,7 @@ func LabelsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &LabelsCreateResponse{
@@ -94,7 +94,7 @@ func LabelsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Could not insert a label into the database")
 		return
 	}
@@ -161,7 +161,7 @@ func LabelsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &LabelsUpdateResponse{
@@ -201,7 +201,7 @@ func LabelsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Labels.UpdateID(c.URLParams["id"], input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    c.URLParams["id"],
 		}).Error("Unable to update a contact")
 
@@ -253,7 +253,7 @@ func LabelsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Labels.DeleteID(c.URLParams["id"])
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    c.URLParams["id"],
 		}).Error("Unable to delete a label")
 

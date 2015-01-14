@@ -48,7 +48,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &AccountsCreateResponse{
@@ -196,7 +196,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		token, err := env.Tokens.GetToken(input.Token)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 			}).Warn("Unable to fetch a registration token from the database")
 
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
@@ -238,7 +238,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to hash the password")
 		return
 	}
@@ -261,7 +261,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Could not insert an user into the database")
 		return
 	}
@@ -318,7 +318,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		err := env.Tokens.DeleteID(input.Token)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 				"id":    input.Token,
 			}).Error("Could not remove token from database")
 		}
@@ -400,7 +400,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &AccountsUpdateResponse{
@@ -499,7 +499,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		err = user.SetPassword(input.NewPassword)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 			}).Error("Unable to hash a password")
 
 			utils.JSONResponse(w, 500, &AccountsUpdateResponse{
@@ -540,7 +540,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Accounts.UpdateID(session.Owner, user)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to update an account")
 
 		utils.JSONResponse(w, 500, &AccountsUpdateResponse{
@@ -603,7 +603,7 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"id":    user.ID,
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to remove account's tokens")
 
 		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
@@ -617,7 +617,7 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Accounts.DeleteID(user.ID)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to delete an account")
 
 		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
@@ -662,7 +662,7 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 		// The session refers to a non-existing user
 		env.Log.WithFields(logrus.Fields{
 			"id":    session.ID,
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Valid session referred to a removed account")
 
 		utils.JSONResponse(w, 410, &AccountsWipeDataResponse{
@@ -685,7 +685,7 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"id":    user.ID,
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to remove account's tokens")
 
 		utils.JSONResponse(w, 500, &AccountsWipeDataResponse{

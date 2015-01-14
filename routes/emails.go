@@ -63,7 +63,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		l, err := strconv.Atoi(limitRaw)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 				"limit": limit,
 			}).Error("Invalid limit")
 
@@ -84,7 +84,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	emails, err := env.Emails.List(session.Owner, sort, offset, limit, label)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Unable to fetch emails")
 
 		utils.JSONResponse(w, 500, &EmailsListResponse{
@@ -98,7 +98,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		count, err := env.Emails.CountOwnedBy(session.Owner)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err,
+				"error": err.Error(),
 			}).Error("Unable to count emails")
 
 			utils.JSONResponse(w, 500, &EmailsListResponse{
@@ -152,7 +152,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Warn("Unable to decode a request")
 
 		utils.JSONResponse(w, 400, &EmailsCreateResponse{
@@ -208,7 +208,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Could not insert an email into the database")
 		return
 	}
@@ -222,7 +222,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 		}).Error("Could not publish an email send request")
 		return
 	}
@@ -305,7 +305,7 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	err = env.Emails.DeleteID(c.URLParams["id"])
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error": err,
+			"error": err.Error(),
 			"id":    c.URLParams["id"],
 		}).Error("Unable to delete a email")
 
