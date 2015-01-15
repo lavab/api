@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/schema"
+	"github.com/lavab/logrus"
 
 	"github.com/lavab/api/env"
 )
