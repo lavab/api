@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/lavab/logrus"
 	"github.com/zenazn/goji/web"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
