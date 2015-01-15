@@ -13,7 +13,6 @@ import (
 
 var (
 	server    *httptest.Server
-	accountID string
 	authToken string
 )
 

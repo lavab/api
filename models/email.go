@@ -8,6 +8,8 @@ type Email struct {
 	// Kind of the email. Value is either sent or received.
 	Kind string `json:"kind" gorethink:"kind"`
 
+	From []string `json:"from" gorethink:"from"`
+
 	// Who is supposed to receive the email / what email received it.
 	To []string `json:"to" gorethink:"to"`
 
