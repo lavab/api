@@ -32,5 +32,5 @@ deployment:
     branch: master
     commands:
       - docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
-      - docker build -t registry.lavaboom.io/api/master .
-      - docker push registry.lavaboom.io/api/master
+      - docker build -t registry.lavaboom.io/lavaboom/api .
+      - docker push registry.lavaboom.io/lavaboom/api
