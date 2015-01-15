@@ -622,6 +622,12 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				w := httptest.NewRecorder()
 				r, err := http.NewRequest(input.Method, "http://api.lavaboom.io"+input.Path, strings.NewReader(input.Body))
 				if err != nil {
+					env.Log.WithFields(logrus.Fields{
+						"id":    session.ID(),
+						"error": err.Error(),
+						"path":  input.Path,
+					}).Warn("SockJS request error")
+
 					// Return an error response
 					resp, _ := json.Marshal(map[string]interface{}{
 						"error": err.Error(),

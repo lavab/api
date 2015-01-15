@@ -16,6 +16,7 @@ var (
 	notOwnedContactID string
 )
 
+/*
 func TestContactsPrepareAccount(t *testing.T) {
 	const (
 		username = "jeremy-contacts"
@@ -75,7 +76,7 @@ func TestContactsPrepareAccount(t *testing.T) {
 
 	authToken = response2.Token.ID
 }
-
+*/
 func TestContactsCreate(t *testing.T) {
 	request := goreq.Request{
 		Method:      "POST",

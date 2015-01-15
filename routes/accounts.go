@@ -28,10 +28,10 @@ func AccountsList(w http.ResponseWriter, r *http.Request) {
 
 // AccountsCreateRequest contains the input for the AccountsCreate endpoint.
 type AccountsCreateRequest struct {
-	Token    string `json:"token,omitempty" schema:"token"`
-	Username string `json:"username,omitempty" schema:"username"`
-	Password string `json:"password,omitempty" schema:"password"`
-	AltEmail string `json:"alt_email,omitempty" schema:"alt_email"`
+	Username   string `json:"username,omitempty" schema:"username"`
+	Password   string `json:"password,omitempty" schema:"password"`
+	AltEmail   string `json:"alt_email,omitempty" schema:"alt_email"`
+	InviteCode string `json:"InviteCode,omitempty" schema:"InviteCode"`
 }
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
@@ -58,20 +58,20 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Detect the request type
-	// 1) username + token + password     - invite
-	// 2) username + password + alt_email - register with confirmation
-	// 3) alt_email only                  - register for beta (add to queue)
-	// 4) alt_email + username            - register for beta with username reservation
+	// TODO: Sanitize the username
+	// TODO: Hash the password if it's not hashed already
+
+	// Accounts flow:
+	// 1) POST /accounts {username, alt_email}             => status = registered
+	// 2) POST /accounts {username, invite_code}           => checks invite_code validity
+	// 3) POST /accounts {username, invite_code, password} => status = setup
 	requestType := "unknown"
-	if input.AltEmail == "" && input.Username != "" && input.Password != "" && input.Token != "" {
-		requestType = "invited"
-	} else if input.AltEmail != "" && input.Username != "" && input.Password != "" && input.Token == "" {
-		requestType = "classic"
-	} else if input.AltEmail != "" && input.Username == "" && input.Password == "" && input.Token == "" {
-		requestType = "queue/classic"
-	} else if input.AltEmail != "" && input.Username != "" && input.Password == "" && input.Token == "" {
-		requestType = "queue/reserve"
+	if input.Username != "" && input.Password == "" && input.AltEmail != "" && input.InviteCode == "" {
+		requestType = "register"
+	} else if input.Username != "" && input.Password == "" && input.AltEmail == "" && input.InviteCode != "" {
+		requestType = "verify"
+	} else if input.Username != "" && input.Password != "" && input.AltEmail == "" && input.InviteCode != "" {
+		requestType = "setup"
 	}
 
 	// "unknown" requests are empty and invalid
@@ -83,21 +83,8 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if input.Username != "" {
-		if used, err := env.Reservations.IsUsernameUsed(input.Username); err != nil || used {
-			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"error": err.Error(),
-				}).Error("Unable to lookup reservations for usernames")
-			}
-
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Username already reserved",
-			})
-			return
-		}
-
+	if requestType == "register" {
+		// Ensure that the username is not used
 		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
@@ -111,89 +98,72 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-	}
 
-	// Adding to [beta] queue
-	if requestType[:5] == "queue" {
-		if requestType[6:] == "reserve" {
-			// Is username reservation enabled?
-			if !env.Config.UsernameReservation {
-				utils.JSONResponse(w, 403, &AccountsCreateResponse{
-					Success: false,
-					Message: "Username reservation is disabled",
-				})
-				return
-			}
-		}
-
-		// Ensure that the email is not already used to reserve/register
-		if used, err := env.Reservations.IsEmailUsed(input.AltEmail); err != nil || used {
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Email already used for a reservation",
-			})
-			return
-		}
-
+		// Also check that the email is unique
 		if used, err := env.Accounts.IsEmailUsed(input.AltEmail); err != nil || used {
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Error("Unable to lookup registered accounts for emails")
+			}
+
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
-				Message: "Email already used for a reservation",
+				Message: "Email already used",
 			})
 			return
 		}
 
-		// Prepare data to insert
-		reservation := &models.Reservation{
-			Email:    input.AltEmail,
+		// Both username and email are filled, so we can create a new account.
+		account := &models.Account{
 			Resource: models.MakeResource("", input.Username),
+			Type:     "beta", // Is this the proper value?
+			AltEmail: input.AltEmail,
+			Status:   "registered",
 		}
 
-		err := env.Reservations.Insert(reservation)
-		if err != nil {
+		// Try to save it in the database
+		if err := env.Accounts.Insert(account); err != nil {
 			utils.JSONResponse(w, 500, &AccountsCreateResponse{
 				Success: false,
-				Message: "Internal error while reserving the account",
+				Message: "Internal server error - AC/CR/02",
+			})
+
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Could not insert an user into the database")
+			return
+		}
+
+		// TODO: Send emails here. Depends on @andreis work.
+
+		// Return information about the account
+		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+			Success: true,
+			Message: "Your account has been added to the beta queue",
+			Account: account,
+		})
+		return
+	} else if requestType == "verify" {
+		// We're pretty much checking whether an invitation code can be used by the user
+
+		// Fetch the user from database
+		account, err := env.Accounts.FindAccountByName(input.Username)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":    err.Error(),
+				"username": input.Username,
+			}).Warn("User not found in the database")
+
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid username",
 			})
 			return
 		}
 
-		utils.JSONResponse(w, 201, &AccountsCreateResponse{
-			Success: true,
-			Message: "Reserved an account",
-		})
-		return
-	}
-
-	// Check if classic registration is enabled
-	if requestType == "classic" && !env.Config.ClassicRegistration {
-		utils.JSONResponse(w, 403, &AccountsCreateResponse{
-			Success: false,
-			Message: "Classic registration is disabled",
-		})
-		return
-	}
-
-	// Check for generic passwords
-	if input.Password != "" && !utils.IsPasswordSecure(input.Password) {
-		utils.JSONResponse(w, 403, &AccountsCreateResponse{
-			Success: false,
-			Message: "Weak password",
-		})
-		return
-	}
-
-	// Both username and password are filled, so we can create a new account.
-	account := &models.Account{
-		Resource: models.MakeResource("", input.Username),
-		Type:     "beta",
-		AltEmail: input.AltEmail,
-	}
-
-	// Check "invited" for token validity
-	if requestType == "invited" {
 		// Fetch the token from the database
-		token, err := env.Tokens.GetToken(input.Token)
+		token, err := env.Tokens.GetToken(input.InviteCode)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"error": err.Error(),
@@ -201,16 +171,30 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
-				Message: "Invalid invitation token",
+				Message: "Invalid invitation code",
+			})
+			return
+		}
+
+		// Ensure that the invite code was given to this particular user.
+		if token.Owner != account.ID {
+			env.Log.WithFields(logrus.Fields{
+				"user_id": account.ID,
+				"owner":   token.Owner,
+			}).Warn("Not owned invitation code used by an user")
+
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation code",
 			})
 			return
 		}
 
 		// Ensure that the token's type is valid
-		if token.Type != "invite" {
+		if token.Type != "verify" {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
-				Message: "Invalid invitation token",
+				Message: "Invalid invitation code",
 			})
 			return
 		}
@@ -219,113 +203,176 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		if token.Expired() {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
-				Message: "Expired invitation token",
+				Message: "Expired invitation code",
 			})
 			return
 		}
 
-		account.AltEmail = token.Email
-	}
-
-	// TODO: sanitize user name (i.e. remove caps, periods)
-
-	// Set the password
-	err = account.SetPassword(input.Password)
-	if err != nil {
-		utils.JSONResponse(w, 500, &AccountsCreateResponse{
-			Success: false,
-			Message: "Internal server error - AC/CR/01",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to hash the password")
-		return
-	}
-
-	// User won't be able to log in until the account gets verified
-	if requestType == "classic" {
-		account.Status = "unverified"
-	}
-
-	// Set the status to invited, because of stats
-	if requestType == "invited" {
-		account.Status = "invited"
-	}
-
-	// Try to save it in the database
-	if err := env.Accounts.Insert(account); err != nil {
-		utils.JSONResponse(w, 500, &AccountsCreateResponse{
-			Success: false,
-			Message: "Internal server error - AC/CR/02",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not insert an user into the database")
-		return
-	}
-
-	// Create labels
-	err = env.Labels.Insert([]*models.Label{
-		&models.Label{
-			Resource: models.MakeResource(account.ID, "Inbox"),
-			Builtin:  true,
-		},
-		&models.Label{
-			Resource: models.MakeResource(account.ID, "Sent"),
-			Builtin:  true,
-		},
-		&models.Label{
-			Resource: models.MakeResource(account.ID, "Trash"),
-			Builtin:  true,
-		},
-		&models.Label{
-			Resource: models.MakeResource(account.ID, "Spam"),
-			Builtin:  true,
-		},
-		&models.Label{
-			Resource: models.MakeResource(account.ID, "Starred"),
-			Builtin:  true,
-		},
-	})
-	if err != nil {
-		utils.JSONResponse(w, 500, &AccountsCreateResponse{
-			Success: false,
-			Message: "Internal server error - AC/CR/03",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not insert labels into the database")
-		return
-	}
-
-	// Send the email if classic and return a response
-	if requestType == "classic" {
-		// TODO: Send emails
-
-		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+		// Everything is fine, return it.
+		utils.JSONResponse(w, 200, &AccountsCreateResponse{
 			Success: true,
-			Message: "A new account was successfully created, you should receive a confirmation email soon™.",
-			Account: account,
+			Message: "Valid token was provided",
 		})
 		return
-	}
+	} else if requestType == "setup" {
+		// User is setting the password in the setup wizard. This should be one of the first steps,
+		// as it's required for him to acquire an authentication token to configure their account.
 
-	// Remove the token and return a response
-	if requestType == "invited" {
-		err := env.Tokens.DeleteID(input.Token)
+		// Fetch the user from database
+		account, err := env.Accounts.FindAccountByName(input.Username)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":    err.Error(),
+				"username": input.Username,
+			}).Warn("User not found in the database")
+
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid username",
+			})
+			return
+		}
+
+		// Fetch the token from the database
+		token, err := env.Tokens.GetToken(input.InviteCode)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"error": err.Error(),
-				"id":    input.Token,
-			}).Error("Could not remove token from database")
+			}).Warn("Unable to fetch a registration token from the database")
+
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation code",
+			})
+			return
 		}
 
-		utils.JSONResponse(w, 201, &AccountsCreateResponse{
+		// Ensure that the invite code was given to this particular user.
+		if token.Owner != account.ID {
+			env.Log.WithFields(logrus.Fields{
+				"user_id": account.ID,
+				"owner":   token.Owner,
+			}).Warn("Not owned invitation code used by an user")
+
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation code",
+			})
+			return
+		}
+
+		// Ensure that the token's type is valid
+		if token.Type != "verify" {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid invitation code",
+			})
+			return
+		}
+
+		// Check if it's expired
+		if token.Expired() {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Expired invitation code",
+			})
+			return
+		}
+
+		// Our token is fine, next part: password.
+
+		// Ensure that user has chosen a secure password (check against 10k most used)
+		if !utils.IsPasswordSecure(input.Password) {
+			utils.JSONResponse(w, 403, &AccountsCreateResponse{
+				Success: false,
+				Message: "Weak password",
+			})
+			return
+		}
+
+		// We can't really make more checks on the password, user could as well send us a hash
+		// of a simple password, but we assume that no developer is that stupid (actually,
+		// considering how many people upload their private keys and AWS credentials, I'm starting
+		// to doubt the competence of some so-called "web deyvelopayrs")
+
+		// Set the password
+		err = account.SetPassword(input.Password)
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Internal server error - AC/CR/01",
+			})
+
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Unable to hash the password")
+			return
+		}
+
+		account.Status = "setup"
+
+		// Create labels
+		err = env.Labels.Insert([]*models.Label{
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Inbox"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Sent"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Trash"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Spam"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Starred"),
+				Builtin:  true,
+			},
+		})
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Internal server error - AC/CR/03",
+			})
+
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Could not insert labels into the database")
+			return
+		}
+
+		// Update the account
+		err = env.Accounts.UpdateID(account.ID, account)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"id":    account.ID,
+			}).Error("Unable to update an account")
+
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Unable to update the account",
+			})
+			return
+		}
+
+		// Remove the token and return a response
+		err = env.Tokens.DeleteID(input.InviteCode)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"id":    input.InviteCode,
+			}).Error("Could not remove the token from database")
+		}
+
+		utils.JSONResponse(w, 200, &AccountsCreateResponse{
 			Success: true,
-			Message: "A new account was successfully created",
+			Message: "Your account has been initialized successfully",
 			Account: account,
 		})
 		return

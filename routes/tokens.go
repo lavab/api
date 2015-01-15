@@ -107,6 +107,15 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// "registered" accounts can't log in
+	if user.Status == "registered" {
+		utils.JSONResponse(w, 403, &TokensCreateResponse{
+			Success: false,
+			Message: "Your account is not confirmed",
+		})
+		return
+	}
+
 	// Verify the password
 	valid, updated, err := user.VerifyPassword(input.Password)
 	if err != nil || !valid {
