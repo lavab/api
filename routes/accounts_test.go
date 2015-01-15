@@ -502,7 +502,7 @@ func TestAccountsRoute(t *testing.T) {
 							So(err, ShouldBeNil)
 
 							So(response.Success, ShouldBeTrue)
-							So(response.Account.Name, ShouldEqual, "jeremy")
+							So(response.Account.Name, ShouldEqual, account.Name)
 						})
 
 						Convey("Getting any non-me account should return a proper response", func() {
@@ -546,7 +546,6 @@ func TestAccountsRoute(t *testing.T) {
 
 							So(response.Message, ShouldEqual, "Your account has been successfully updated")
 							So(response.Success, ShouldBeTrue)
-							So(response.Account.Name, ShouldEqual, "jeremy")
 							So(response.Account.AltEmail, ShouldEqual, "john.cabbage@example.com")
 						})
 
