@@ -566,11 +566,11 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		user.Settings = input.Settings
 	}
 
-	if input.PublicKey !+ "" {
-		key, err:= env.Keys.FindByFingerprint(input.PublicKey)
+	if input.PublicKey != "" {
+		key, err := env.Keys.FindByFingerprint(input.PublicKey)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
+				"error":       err.Error(),
 				"fingerprint": input.PublicKey,
 			}).Error("Unable to find a key")
 
@@ -583,8 +583,8 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 		if key.Owner != user.ID {
 			env.Log.WithFields(logrus.Fields{
-				"user_id:": user.ID,
-				"owner": key.Owner,
+				"user_id:":    user.ID,
+				"owner":       key.Owner,
 				"fingerprint": input.PublicKey,
 			}).Error("Unable to find a key")
 
@@ -592,7 +592,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 				Success: false,
 				Message: "Invalid public key",
 			})
-			return			
+			return
 		}
 
 		user.PGPKey = input.PublicKey
