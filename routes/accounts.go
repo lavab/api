@@ -31,7 +31,7 @@ type AccountsCreateRequest struct {
 	Username   string `json:"username,omitempty" schema:"username"`
 	Password   string `json:"password,omitempty" schema:"password"`
 	AltEmail   string `json:"alt_email,omitempty" schema:"alt_email"`
-	InviteCode string `json:"InviteCode,omitempty" schema:"InviteCode"`
+	InviteCode string `json:"invite_code,omitempty" schema:"invite_code"`
 }
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
@@ -429,6 +429,7 @@ type AccountsUpdateRequest struct {
 	FactorValue     []string    `json:"factor_value" schema:"factor_value"`
 	Token           string      `json:"token" schema:"token"`
 	Settings        interface{} `json:"settings" schema:"settings"`
+	PublicKey       string      `json:"public_key" schema:"public_key"`
 }
 
 // AccountsUpdateResponse contains the result of the AccountsUpdate request.
@@ -563,6 +564,38 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	if input.Settings != nil {
 		user.Settings = input.Settings
+	}
+
+	if input.PublicKey !+ "" {
+		key, err:= env.Keys.FindByFingerprint(input.PublicKey)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"fingerprint": input.PublicKey,
+			}).Error("Unable to find a key")
+
+			utils.JSONResponse(w, 400, &AccountsUpdateResponse{
+				Success: false,
+				Message: "Invalid public key",
+			})
+			return
+		}
+
+		if key.Owner != user.ID {
+			env.Log.WithFields(logrus.Fields{
+				"user_id:": user.ID,
+				"owner": key.Owner,
+				"fingerprint": input.PublicKey,
+			}).Error("Unable to find a key")
+
+			utils.JSONResponse(w, 400, &AccountsUpdateResponse{
+				Success: false,
+				Message: "Invalid public key",
+			})
+			return			
+		}
+
+		user.PGPKey = input.PublicKey
 	}
 
 	if input.FactorType != "" {
