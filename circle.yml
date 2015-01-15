@@ -1,6 +1,8 @@
 machine:
   timezone:
     Europe/Berlin
+  services:
+    - docker
 
 dependencies:
   cache_directories:
@@ -24,3 +26,11 @@ dependencies:
 test:
   override:
     - go test -v ./...
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - docker login -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
+      - docker build -t registry.lavaboom.io/api/master
+      - docker push registry.lavaboom.io/api/master
