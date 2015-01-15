@@ -7,7 +7,6 @@ import (
 	"github.com/dchest/uniuri"
 	"github.com/franela/goreq"
 	. "github.com/smartystreets/goconvey/convey"
-	//"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/lavab/api/env"
