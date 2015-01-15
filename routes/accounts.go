@@ -31,7 +31,7 @@ type AccountsCreateRequest struct {
 	Username   string `json:"username,omitempty" schema:"username"`
 	Password   string `json:"password,omitempty" schema:"password"`
 	AltEmail   string `json:"alt_email,omitempty" schema:"alt_email"`
-	InviteCode string `json:"invite_ode,omitempty" schema:"invite_code"`
+	InviteCode string `json:"invite_code,omitempty" schema:"invite_code"`
 }
 
 // AccountsCreateResponse contains the output of the AccountsCreate request.
