@@ -1,9 +1,9 @@
 package env
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
+	"github.com/lavab/logrus"
 
 	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"

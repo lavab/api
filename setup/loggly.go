@@ -1,7 +1,7 @@
 package setup
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/lavab/logrus"
 	"github.com/segmentio/go-loggly"
 )
 
