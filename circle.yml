@@ -15,6 +15,8 @@ dependencies:
     - if [[ ! -e redis-2.8.18/src/redis-server ]]; then wget http://download.redis.io/releases/redis-2.8.18.tar.gz && tar xvzf redis-2.8.18.tar.gz; fi
     - if [[ ! -e redis-2.8.18/src/redis-server ]]; then cd redis-2.8.18 && make; fi
     - go get github.com/apcera/gnatsd
+    - go get golang.org/x/tools/cmd/cover
+    - go get github.com/mattn/goveralls
   post:
     - rethinkdb --bind all:
         background: true
@@ -25,7 +27,8 @@ dependencies:
 
 test:
   override:
-    - go test -v ./...
+    - go test -v -covermode=count -coverprofile=coverage.out ./...
+    - goveralls -coverprofile=coverage.out -service=circleci -repotoken $COVERALLS_TOKEN
 
 deployment:
   hub:

@@ -61,10 +61,10 @@ func TestAccountsRoute(t *testing.T) {
 				Method:      "POST",
 				Uri:         server.URL + "/accounts",
 				ContentType: "application/json",
-				Body: routes.AccountsCreateRequest{
-					Username: username,
-					AltEmail: email,
-				},
+				Body: `{
+	"username": "` + username + `",
+	"alt_email": "` + email + `"
+}`,
 			}.Do()
 			So(err, ShouldBeNil)
 
@@ -83,10 +83,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username: username,
-						AltEmail: email,
-					},
+					Body: `{
+						"username": "` + username + `",
+						"alt_email": "` + email + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -103,10 +103,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username: uniuri.New(),
-						AltEmail: email,
-					},
+					Body: `{
+						"username": "` + uniuri.New() + `",
+						"alt_email": "` + email + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -123,10 +123,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username:   uniuri.New(),
-						InviteCode: uniuri.New(),
-					},
+					Body: `{
+						"username": "` + uniuri.New() + `",
+						"invite_code": "` + uniuri.New() + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -143,10 +143,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username:   account.Name,
-						InviteCode: uniuri.New(),
-					},
+					Body: `{
+						"username": "` + account.Name + `",
+						"invite_code": "` + uniuri.New() + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
