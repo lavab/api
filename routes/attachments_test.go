@@ -15,8 +15,8 @@ import (
 func TestAttachmentsRoute(t *testing.T) {
 	Convey("When uploading a new attachment", t, func() {
 		account := &models.Account{
-			Resource: models.MakeResource("", "johnorange")
-			Status: "complete",
+			Resource: models.MakeResource("", "johnorange"),
+			Status:   "complete",
 			AltEmail: "john@orange.org",
 		}
 		err := account.SetPassword("fruityloops")
@@ -29,7 +29,7 @@ func TestAttachmentsRoute(t *testing.T) {
 			Method:      "POST",
 			Uri:         server.URL + "/tokens",
 			ContentType: "application/json",
-			Body:        `{
+			Body: `{
 				"type": "auth",
 				"username": "johnorange",
 				"password": "fruityloops"
@@ -113,9 +113,9 @@ func TestAttachmentsRoute(t *testing.T) {
 					Method: "GET",
 					Uri:    server.URL + "/attachments/" + attachment.ID,
 				}
-			request.AddHeader("Authorization", "Bearer "+authToken.ID)
-			result, err := request.Do()
-			So(err, ShouldBeNil)
+				request.AddHeader("Authorization", "Bearer "+authToken.ID)
+				result, err := request.Do()
+				So(err, ShouldBeNil)
 
 				var response routes.AttachmentsGetResponse
 				err = result.Body.FromJsonTo(&response)
