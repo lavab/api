@@ -87,7 +87,7 @@ func TestAttachmentsRoute(t *testing.T) {
 				ContentType: "application/json",
 				Body: `{
 	"data": "` + uniuri.NewLen(64) + `",
-	"name": "` + uniuri.New() + `"
+	"name": "` + uniuri.New() + `",
 	"encoding": "json",
 	"version_major": 1,
 	"version_minor": 0,
