@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -56,7 +57,7 @@ func TestAccountsRoute(t *testing.T) {
 			)
 
 			passwordHash := sha3.Sum256([]byte(password))
-			accountPassword := string(passwordHash[:])
+			accountPassword := hex.EncodeToString(passwordHash[:])
 			result, err := goreq.Request{
 				Method:      "POST",
 				Uri:         server.URL + "/accounts",
@@ -172,10 +173,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username:   account.Name,
-						InviteCode: verificationToken.ID,
-					},
+					Body: `{
+						"username": "` + account.Name + `",
+						"invite_code": "` + verificationToken.ID + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -201,10 +202,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username:   account.Name,
-						InviteCode: verificationToken.ID,
-					},
+					Body: `{
+						"username": "` + account.Name + `",
+						"invite_code": "` + verificationToken.ID + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -230,10 +231,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username:   account.Name,
-						InviteCode: verificationToken.ID,
-					},
+					Body: `{
+						"username": "` + account.Name + `",
+						"invite_code": "` + verificationToken.ID + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -259,10 +260,10 @@ func TestAccountsRoute(t *testing.T) {
 					Method:      "POST",
 					Uri:         server.URL + "/accounts",
 					ContentType: "application/json",
-					Body: routes.AccountsCreateRequest{
-						Username:   username,
-						InviteCode: verificationToken.ID,
-					},
+					Body: `{
+						"username": "` + username + `",
+						"invite_code": "` + verificationToken.ID + `"
+					}`,
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -278,11 +279,11 @@ func TestAccountsRoute(t *testing.T) {
 						Method:      "POST",
 						Uri:         server.URL + "/accounts",
 						ContentType: "application/json",
-						Body: routes.AccountsCreateRequest{
-							Username:   account.Name,
-							InviteCode: verificationToken.ID,
-							Password:   "d0cfc2e5319b82cdc71a33873e826c93d7ee11363f8ac91c4fa3a2cfcd2286e5",
-						},
+						Body: `{
+							"username": "` + account.Name + `",
+							"invite_code": "` + verificationToken.ID + `",
+							"password": "d0cfc2e5319b82cdc71a33873e826c93d7ee11363f8ac91c4fa3a2cfcd2286e5"
+						}`,
 					}.Do()
 
 					var response routes.AccountsCreateResponse
@@ -298,11 +299,11 @@ func TestAccountsRoute(t *testing.T) {
 						Method:      "POST",
 						Uri:         server.URL + "/accounts",
 						ContentType: "application/json",
-						Body: routes.AccountsCreateRequest{
-							Username:   uniuri.New(),
-							InviteCode: verificationToken.ID,
-							Password:   accountPassword,
-						},
+						Body: `{
+							"username": "` + uniuri.New() + `",
+							"invite_code": "` + verificationToken.ID + `",
+							"password": "` + accountPassword + `"
+						}`,
 					}.Do()
 					So(err, ShouldBeNil)
 
@@ -319,11 +320,11 @@ func TestAccountsRoute(t *testing.T) {
 						Method:      "POST",
 						Uri:         server.URL + "/accounts",
 						ContentType: "application/json",
-						Body: routes.AccountsCreateRequest{
-							Username:   account.Name,
-							InviteCode: uniuri.New(),
-							Password:   accountPassword,
-						},
+						Body: `{
+							"username": "` + account.Name + `",
+							"invite_code": "` + uniuri.New() + `",
+							"password": "` + accountPassword + `"
+						}`,
 					}.Do()
 					So(err, ShouldBeNil)
 
@@ -349,11 +350,11 @@ func TestAccountsRoute(t *testing.T) {
 						Method:      "POST",
 						Uri:         server.URL + "/accounts",
 						ContentType: "application/json",
-						Body: routes.AccountsCreateRequest{
-							Username:   account.Name,
-							InviteCode: verificationToken.ID,
-							Password:   accountPassword,
-						},
+						Body: `{
+							"username": "` + account.Name + `",
+							"invite_code": "` + verificationToken.ID + `",
+							"password": "` + accountPassword + `"
+						}`,
 					}.Do()
 					So(err, ShouldBeNil)
 
@@ -379,11 +380,11 @@ func TestAccountsRoute(t *testing.T) {
 						Method:      "POST",
 						Uri:         server.URL + "/accounts",
 						ContentType: "application/json",
-						Body: routes.AccountsCreateRequest{
-							Username:   account.Name,
-							InviteCode: verificationToken.ID,
-							Password:   accountPassword,
-						},
+						Body: `{
+							"username": "` + account.Name + `",
+							"invite_code": "` + verificationToken.ID + `",
+							"password": "` + accountPassword + `"
+						}`,
 					}.Do()
 					So(err, ShouldBeNil)
 
@@ -409,20 +410,18 @@ func TestAccountsRoute(t *testing.T) {
 						Method:      "POST",
 						Uri:         server.URL + "/accounts",
 						ContentType: "application/json",
-						Body: routes.AccountsCreateRequest{
-							Username:   account.Name,
-							InviteCode: verificationToken.ID,
-							Password:   accountPassword,
-						},
+						Body: `{
+							"username": "` + account.Name + `",
+							"invite_code": "` + verificationToken.ID + `",
+							"password": "` + accountPassword + `"
+						}`,
 					}.Do()
 					So(err, ShouldBeNil)
 
-					// Unmarshal the response
 					var response routes.AccountsCreateResponse
 					err = result.Body.FromJsonTo(&response)
 					So(err, ShouldBeNil)
 
-					// Check the result's contents
 					So(response.Message, ShouldEqual, "Expired invitation code")
 					So(response.Success, ShouldBeFalse)
 				})
@@ -432,11 +431,11 @@ func TestAccountsRoute(t *testing.T) {
 						Method:      "POST",
 						Uri:         server.URL + "/accounts",
 						ContentType: "application/json",
-						Body: routes.AccountsCreateRequest{
-							Username:   account.Name,
-							InviteCode: verificationToken.ID,
-							Password:   accountPassword,
-						},
+						Body: `{
+							"username": "` + account.Name + `",
+							"invite_code": "` + verificationToken.ID + `",
+							"password": "` + accountPassword + `"
+						}`,
 					}.Do()
 					So(err, ShouldBeNil)
 
@@ -452,11 +451,11 @@ func TestAccountsRoute(t *testing.T) {
 							Method:      "POST",
 							Uri:         server.URL + "/tokens",
 							ContentType: "application/json",
-							Body: routes.TokensCreateRequest{
-								Username: account.Name,
-								Password: accountPassword,
-								Type:     "auth",
-							},
+							Body: `{
+								"username": "` + account.Name + `",
+								"password": "` + accountPassword + `",
+								"type": "auth"
+							}`,
 						}.Do()
 						So(err, ShouldBeNil)
 
@@ -529,11 +528,11 @@ func TestAccountsRoute(t *testing.T) {
 								Method:      "PUT",
 								Uri:         server.URL + "/accounts/me",
 								ContentType: "application/json",
-								Body: &routes.AccountsUpdateRequest{
-									CurrentPassword: accountPassword,
-									NewPassword:     newPasswordHash,
-									AltEmail:        "john.cabbage@example.com",
-								},
+								Body: `{
+									"current_password": "` + accountPassword + `",
+									"new_password": "` + newPasswordHash + `",
+									"alt_email": "john.cabbage@example.com"
+								}`,
 							}
 							request.AddHeader("Authorization", "Bearer "+authToken)
 							result, err := request.Do()
@@ -572,11 +571,11 @@ func TestAccountsRoute(t *testing.T) {
 								Method:      "PUT",
 								Uri:         server.URL + "/accounts/not-me",
 								ContentType: "application/json",
-								Body: &routes.AccountsUpdateRequest{
-									CurrentPassword: "potato",
-									NewPassword:     "cabbage",
-									AltEmail:        "john.cabbage@example.com",
-								},
+								Body: `{
+									"current_password": "potato",
+									"new_password": "cabbage",
+									"alt_email": "john.cabbage@example.com"
+								}`,
 							}
 							request.AddHeader("Authorization", "Bearer "+authToken)
 							result, err := request.Do()
@@ -595,11 +594,11 @@ func TestAccountsRoute(t *testing.T) {
 								Method:      "PUT",
 								Uri:         server.URL + "/accounts/me",
 								ContentType: "application/json",
-								Body: &routes.AccountsUpdateRequest{
-									CurrentPassword: "potato2",
-									NewPassword:     "cabbage",
-									AltEmail:        "john.cabbage@example.com",
-								},
+								Body: `{
+									"current_password": "potato2",
+									"new_password": "cabbage",
+									"alt_email": "john.cabbage@example.com"
+								}`,
 							}
 							request.AddHeader("Authorization", "Bearer "+authToken)
 							result, err := request.Do()
