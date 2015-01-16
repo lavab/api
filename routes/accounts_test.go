@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"github.com/dchest/uniuri"
 	"github.com/franela/goreq"
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/crypto/sha3"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
@@ -56,7 +56,7 @@ func TestAccountsRoute(t *testing.T) {
 				email    = uniuri.New() + "@potato.org"
 			)
 
-			passwordHash := sha3.Sum256([]byte(password))
+			passwordHash := sha256.Sum256([]byte(password))
 			accountPassword := hex.EncodeToString(passwordHash[:])
 			result, err := goreq.Request{
 				Method:      "POST",
@@ -521,8 +521,8 @@ func TestAccountsRoute(t *testing.T) {
 						})
 
 						Convey("Updating own account should succeed", func() {
-							newPasswordHashBytes := sha3.Sum256([]byte("cabbage123"))
-							newPasswordHash := string(newPasswordHashBytes[:])
+							newPasswordHashBytes := sha256.Sum256([]byte("cabbage123"))
+							newPasswordHash := hex.EncodeToString(newPasswordHashBytes[:])
 
 							request := goreq.Request{
 								Method:      "PUT",
