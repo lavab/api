@@ -281,7 +281,7 @@ func TestAccountsRoute(t *testing.T) {
 						Body: routes.AccountsCreateRequest{
 							Username:   account.Name,
 							InviteCode: verificationToken.ID,
-							Password:   "c0067d4af4e87f00dbac63b6156828237059172d1bbeac67427345d6a9fda484",
+							Password:   "d0cfc2e5319b82cdc71a33873e826c93d7ee11363f8ac91c4fa3a2cfcd2286e5",
 						},
 					}.Do()
 
