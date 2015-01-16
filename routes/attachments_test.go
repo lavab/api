@@ -14,13 +14,45 @@ import (
 
 func TestAttachmentsRoute(t *testing.T) {
 	Convey("When uploading a new attachment", t, func() {
+		account := &models.Account{
+			Resource: models.MakeResource("", "johnorange")
+			Status: "complete",
+			AltEmail: "john@orange.org",
+		}
+		err := account.SetPassword("fruityloops")
+		So(err, ShouldBeNil)
+
+		err = env.Accounts.Insert(account)
+		So(err, ShouldBeNil)
+
+		result, err := goreq.Request{
+			Method:      "POST",
+			Uri:         server.URL + "/tokens",
+			ContentType: "application/json",
+			Body:        `{
+				"type": "auth",
+				"username": "johnorange",
+				"password": "fruityloops"
+			}`,
+		}.Do()
+		So(err, ShouldBeNil)
+
+		var response routes.TokensCreateResponse
+		err = result.Body.FromJsonTo(&response)
+		So(err, ShouldBeNil)
+
+		So(response.Success, ShouldBeTrue)
+		authToken := response.Token
+
 		Convey("Misformatted body should fail", func() {
-			result, err := goreq.Request{
+			request := goreq.Request{
 				Method:      "POST",
 				Uri:         server.URL + "/attachments",
 				ContentType: "application/json",
 				Body:        "!@#!@#",
-			}.Do()
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
 			So(err, ShouldBeNil)
 
 			var response routes.AttachmentsCreateResponse
@@ -32,10 +64,12 @@ func TestAttachmentsRoute(t *testing.T) {
 		})
 
 		Convey("Invalid set of data should fail", func() {
-			result, err := goreq.Request{
+			request := goreq.Request{
 				Method: "POST",
 				Uri:    server.URL + "/attachments",
-			}.Do()
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
 			So(err, ShouldBeNil)
 
 			var response routes.AccountsCreateResponse
@@ -47,7 +81,7 @@ func TestAttachmentsRoute(t *testing.T) {
 		})
 
 		Convey("Attachment upload should succeed", func() {
-			result, err := goreq.Request{
+			request := goreq.Request{
 				Method:      "POST",
 				Uri:         server.URL + "/attachments",
 				ContentType: "application/json",
@@ -59,7 +93,9 @@ func TestAttachmentsRoute(t *testing.T) {
 	"version_minor": 0,
 	"pgp_fingerprints": ["` + uniuri.New() + `"]
 }`,
-			}.Do()
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
 			So(err, ShouldBeNil)
 
 			var response routes.AttachmentsCreateResponse
@@ -73,11 +109,13 @@ func TestAttachmentsRoute(t *testing.T) {
 			attachment := response.Attachment
 
 			Convey("Getting that attachment should succeed", func() {
-				result, err := goreq.Request{
+				request := goreq.Request{
 					Method: "GET",
 					Uri:    server.URL + "/attachments/" + attachment.ID,
-				}.Do()
-				So(err, ShouldBeNil)
+				}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
+			So(err, ShouldBeNil)
 
 				var response routes.AttachmentsGetResponse
 				err = result.Body.FromJsonTo(&response)
@@ -89,10 +127,12 @@ func TestAttachmentsRoute(t *testing.T) {
 		})
 
 		Convey("Getting a non-existing attachment should fail", func() {
-			result, err := goreq.Request{
+			request := goreq.Request{
 				Method: "GET",
 				Uri:    server.URL + "/attachments/doesntexist",
-			}.Do()
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
 			So(err, ShouldBeNil)
 
 			var response routes.AttachmentsGetResponse
@@ -119,10 +159,12 @@ func TestAttachmentsRoute(t *testing.T) {
 			err := env.Attachments.Insert(attachment)
 			So(err, ShouldBeNil)
 
-			result, err := goreq.Request{
+			request := goreq.Request{
 				Method: "GET",
 				Uri:    server.URL + "/attachments/" + attachment.ID,
-			}.Do()
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
 			So(err, ShouldBeNil)
 
 			var response routes.AttachmentsGetResponse
