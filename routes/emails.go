@@ -174,9 +174,26 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch the user object from the database
+	account, err := env.Accounts.GetTokenOwner(c.Env["token"].(*models.Token))
+	if err != nil {
+		// The session refers to a non-existing user
+		env.Log.WithFields(logrus.Fields{
+			"id":    session.ID,
+			"error": err.Error(),
+		}).Warn("Valid session referred to a removed account")
+
+		utils.JSONResponse(w, 410, &EmailsCreateResponse{
+			Success: false,
+			Message: "Account disabled",
+		})
+		return
+	}
+
 	// Create a new email struct
 	email := &models.Email{
 		Kind:          "sent",
+		From:          []string{account.Name + "@" + env.Config.EmailDomain},
 		To:            input.To,
 		Resource:      models.MakeResource(session.Owner, input.Subject),
 		AttachmentIDs: input.Attachments,

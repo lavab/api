@@ -6,6 +6,7 @@ type Flags struct {
 	APIVersion       string
 	LogFormatterType string
 	ForceColors      bool
+	EmailDomain      string
 
 	SessionDuration     int
 	ClassicRegistration bool
