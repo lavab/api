@@ -15,6 +15,8 @@ dependencies:
     - if [[ ! -e redis-2.8.18/src/redis-server ]]; then wget http://download.redis.io/releases/redis-2.8.18.tar.gz && tar xvzf redis-2.8.18.tar.gz; fi
     - if [[ ! -e redis-2.8.18/src/redis-server ]]; then cd redis-2.8.18 && make; fi
     - go get github.com/apcera/gnatsd
+    - go get golang.org/x/tools/cmd/cover
+    - go get github.com/mattn/goveralls
   post:
     - rethinkdb --bind all:
         background: true
@@ -25,12 +27,14 @@ dependencies:
 
 test:
   override:
-    - go test -v ./...
+    - go test -v github.com/lavab/api/setup
+    - go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
+    - goveralls -coverprofile=coverage.out -service=circleci -repotoken $COVERALLS_TOKEN
 
 deployment:
   hub:
     branch: master
     commands:
-      - docker login -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
-      - docker build -t registry.lavaboom.io/api/master
-      - docker push registry.lavaboom.io/api/master
+      - docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
+      - docker build -t registry.lavaboom.io/lavaboom/api .
+      - docker push registry.lavaboom.io/lavaboom/api
