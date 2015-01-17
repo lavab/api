@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
-	"github.com/lavab/logrus"
+	"github.com/pzduniak/glogrus"
 	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
@@ -21,7 +23,6 @@ import (
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/factor"
 	"github.com/lavab/api/routes"
-	"github.com/lavab/glogrus"
 )
 
 // sessions contains all "subscribing" WebSockets sessions
@@ -355,7 +356,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
 
 	// Avatars
-	mux.Get("/avatars/:hash.:ext", routes.Avatars)
+	mux.Get(regexp.MustCompile(`/avatars/(?P<hash>[\S\s]*?)\.(?P<ext>svg|png)(?:[\S\s]*?)$`), routes.Avatars)
+	//mux.Get("/avatars/:hash.:ext", routes.Avatars)
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)

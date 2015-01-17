@@ -3,10 +3,10 @@ package routes
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
-	"github.com/lavab/logrus"
 	"github.com/zenazn/goji/web"
 )
 
@@ -87,7 +87,7 @@ func LabelsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert the label into the database
-	if err := env.Contacts.Insert(label); err != nil {
+	if err := env.Labels.Insert(label); err != nil {
 		utils.JSONResponse(w, 500, &LabelsCreateResponse{
 			Success: false,
 			Message: "internal server error - LA/CR/01",

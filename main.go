@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/lavab/logrus"
+	"github.com/Sirupsen/logrus"
 
 	"github.com/lavab/flag"
 	"github.com/zenazn/goji/graceful"

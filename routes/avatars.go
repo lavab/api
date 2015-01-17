@@ -46,6 +46,7 @@ func Avatars(c web.C, w http.ResponseWriter, r *http.Request) {
 		width, err = strconv.Atoi(widthString)
 		if err != nil {
 			utils.JSONResponse(w, 400, map[string]interface{}{
+				"succes":  false,
 				"message": "Invalid width",
 			})
 			return
@@ -54,10 +55,6 @@ func Avatars(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	hash := c.URLParams["hash"]
 	ext := c.URLParams["ext"]
-
-	if ext != "png" && ext != "svg" {
-		ext = "png"
-	}
 
 	// data to parse
 	var data []byte

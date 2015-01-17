@@ -13,6 +13,10 @@ type Email struct {
 	// Who is supposed to receive the email / what email received it.
 	To []string `json:"to" gorethink:"to"`
 
+	CC []string `json:"cc" gorethink:"cc"`
+
+	BCC []string `json:"bcc" gorethink:"bcc"`
+
 	// AttachmentsIDs is a slice of the FileIDs associated with this email
 	// For uploading attachments see `POST /upload`
 	AttachmentIDs []string `json:"attachments" gorethink:"attachments"`

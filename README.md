@@ -56,5 +56,5 @@ version=v0
 
 ## Build status:
 
- - `master` - [![Circle CI](https://circleci.com/gh/lavab/api/tree/master.svg?style=svg&circle-token=4a52d619a03d0249906195d6447ceb60a475c0c5)](https://circleci.com/gh/lavab/api/tree/master)
- - `develop` - [![Circle CI](https://circleci.com/gh/lavab/api/tree/develop.svg?style=svg&circle-token=4a52d619a03d0249906195d6447ceb60a475c0c5)](https://circleci.com/gh/lavab/api/tree/develop)
+ - `master` - [![Circle CI](https://circleci.com/gh/lavab/api/tree/master.svg?style=svg&circle-token=4a52d619a03d0249906195d6447ceb60a475c0c5)](https://circleci.com/gh/lavab/api/tree/master) [![Coverage Status](https://coveralls.io/repos/lavab/api/badge.svg?branch=master)](https://coveralls.io/r/lavab/api?branch=master)
+ - `develop` - [![Circle CI](https://circleci.com/gh/lavab/api/tree/develop.svg?style=svg&circle-token=4a52d619a03d0249906195d6447ceb60a475c0c5)](https://circleci.com/gh/lavab/api/tree/develop) [![Coverage Status](https://coveralls.io/repos/lavab/api/badge.svg?branch=develop)](https://coveralls.io/r/lavab/api?branch=develop)
