@@ -69,5 +69,20 @@ func TestAvatarsRoute(t *testing.T) {
 			So(avatar, ShouldNotBeEmpty)
 			So(avatar, ShouldContainSubstring, "Invalid width")
 		})
+
+		Convey("Invalid extension should default to PNG", func() {
+			email := uniuri.New() + "@lavaboom.io"
+
+			result, err := goreq.Request{
+				Method: "GET",
+				Uri:    server.URL + "/avatars/" + email + ".der",
+			}.Do()
+			So(err, ShouldBeNil)
+
+			avatar, err := result.Body.ToString()
+			So(err, ShouldBeNil)
+			So(avatar, ShouldNotBeEmpty)
+			So(avatar, ShouldContainSubstring, "PNG")
+		})
 	})
 }
