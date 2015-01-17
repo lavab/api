@@ -28,8 +28,7 @@ dependencies:
 test:
   override:
     - go test -v github.com/lavab/api/setup
-    - go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
-    - goveralls -coverprofile=coverage.out -service=circleci -repotoken $COVERALLS_TOKEN
+    - goveralls -service=circleci -package=github.com/lavab/api/routes -repotoken $COVERALLS_TOKEN
 
 deployment:
   hub:

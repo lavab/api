@@ -1,7 +1,6 @@
 package routes_test
 
 import (
-	"log"
 	"testing"
 
 	"github.com/dchest/uniuri"
@@ -250,11 +249,6 @@ func TestLabelsRoute(t *testing.T) {
 				var response routes.LabelsListResponse
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
-
-				x, _ := result.Body.ToString()
-				log.Print("ASDASDASDASD")
-				log.Print(x)
-				log.Print("ZXZCZXCZXCZX")
 
 				So(response.Message, ShouldBeEmpty)
 				So(len(*response.Labels), ShouldBeGreaterThan, 0)
