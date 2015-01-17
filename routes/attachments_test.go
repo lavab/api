@@ -212,6 +212,25 @@ func TestAttachmentsRoute(t *testing.T) {
 
 			So(response.Message, ShouldEqual, "Attachment not found")
 			So(response.Success, ShouldBeFalse)
+
+			Convey("Updating it should fail too", func() {
+				request := goreq.Request{
+					Method:      "PUT",
+					Uri:         server.URL + "/attachments/doesntexist",
+					ContentType: "application/json",
+					Body:        "{}",
+				}
+				request.AddHeader("Authorization", "Bearer "+authToken.ID)
+				result, err := request.Do()
+				So(err, ShouldBeNil)
+
+				var response routes.AttachmentsGetResponse
+				err = result.Body.FromJsonTo(&response)
+				So(err, ShouldBeNil)
+
+				So(response.Message, ShouldEqual, "Attachment not found")
+				So(response.Success, ShouldBeFalse)
+			})
 		})
 
 		Convey("Getting a non-owned attachment should fail", func() {
@@ -244,6 +263,61 @@ func TestAttachmentsRoute(t *testing.T) {
 
 			So(response.Message, ShouldEqual, "Attachment not found")
 			So(response.Success, ShouldBeFalse)
+		})
+
+		Convey("Updating using a misformatted body should fail", func() {
+			request := goreq.Request{
+				Method:      "PUT",
+				Uri:         server.URL + "/attachments/shizzle",
+				ContentType: "application/json",
+				Body:        "!@#!@#",
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
+			So(err, ShouldBeNil)
+
+			var response routes.AttachmentsUpdateResponse
+			err = result.Body.FromJsonTo(&response)
+			So(err, ShouldBeNil)
+
+			So(response.Success, ShouldBeFalse)
+			So(response.Message, ShouldEqual, "Invalid input format")
+		})
+
+		Convey("Updating a non-existing attachment should fail", func() {
+			request := goreq.Request{
+				Method:      "PUT",
+				Uri:         server.URL + "/attachments/shizzle",
+				ContentType: "application/json",
+				Body:        "{}",
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
+			So(err, ShouldBeNil)
+
+			var response routes.AttachmentsUpdateResponse
+			err = result.Body.FromJsonTo(&response)
+			So(err, ShouldBeNil)
+
+			So(response.Success, ShouldBeFalse)
+			So(response.Message, ShouldEqual, "Attachment not found")
+		})
+
+		Convey("Deleting a non-existing attachment should fail", func() {
+			request := goreq.Request{
+				Method: "DELETE",
+				Uri:    server.URL + "/attachments/shizzle",
+			}
+			request.AddHeader("Authorization", "Bearer "+authToken.ID)
+			result, err := request.Do()
+			So(err, ShouldBeNil)
+
+			var response routes.AttachmentsDeleteResponse
+			err = result.Body.FromJsonTo(&response)
+			So(err, ShouldBeNil)
+
+			So(response.Success, ShouldBeFalse)
+			So(response.Message, ShouldEqual, "Attachment not found")
 		})
 	})
 }
