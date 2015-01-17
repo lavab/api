@@ -3,7 +3,6 @@ package routes_test
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"strings"
 	"testing"
 
 	"github.com/dchest/uniuri"
@@ -31,7 +30,7 @@ func TestAvatarsRoute(t *testing.T) {
 			Convey("A non-hashed avatar should be the same", func() {
 				result, err := goreq.Request{
 					Method: "GET",
-					Uri:    server.URL + "/avatars/" + strings.Replace(email, ".", "%2E", -1) + ".png",
+					Uri:    server.URL + "/avatars/" + email + ".png",
 				}.Do()
 				So(err, ShouldBeNil)
 
@@ -46,7 +45,7 @@ func TestAvatarsRoute(t *testing.T) {
 
 			result, err := goreq.Request{
 				Method: "GET",
-				Uri:    server.URL + "/avatars/" + strings.Replace(email, ".", "%2E", -1) + ".svg?width=150",
+				Uri:    server.URL + "/avatars/" + email + ".svg?width=150",
 			}.Do()
 			So(err, ShouldBeNil)
 
@@ -61,7 +60,7 @@ func TestAvatarsRoute(t *testing.T) {
 
 			result, err := goreq.Request{
 				Method: "GET",
-				Uri:    server.URL + "/avatars/" + strings.Replace(email, ".", "%2E", -1) + ".svg?width=ayylmao",
+				Uri:    server.URL + "/avatars/" + email + ".svg?width=ayylmao",
 			}.Do()
 			So(err, ShouldBeNil)
 
