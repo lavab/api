@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dchest/uniuri"
 	"github.com/franela/goreq"
 	. "github.com/smartystreets/goconvey/convey"
 
