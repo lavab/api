@@ -17,7 +17,6 @@ dependencies:
     - go get github.com/apcera/gnatsd
     - go get golang.org/x/tools/cmd/cover
     - go get github.com/mattn/goveralls
-    - go get github.com/axw/gocov/gocov
   post:
     - rethinkdb --bind all:
         background: true
@@ -29,7 +28,8 @@ dependencies:
 test:
   override:
     - go test -v github.com/lavab/api/setup
-    - goveralls -service=circleci -package=github.com/lavab/api/routes -repotoken $COVERALLS_TOKEN
+    - go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
+    - goveralls -coverprofile=coverage.out -service=circleci -repotoken $COVERALLS_TOKEN
 
 deployment:
   hub:
