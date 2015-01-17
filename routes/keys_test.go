@@ -145,8 +145,6 @@ UZSWZtUmAO12vjmUwGtRbp5xfdbV+PmIBRYe0iikrykoBy+FLw9yHlSCoey2ih6W
 		}`,
 			}
 
-			log.Print(request.Body)
-
 			request.AddHeader("Authorization", "Bearer "+authToken.ID)
 			result, err := request.Do()
 			So(err, ShouldBeNil)
