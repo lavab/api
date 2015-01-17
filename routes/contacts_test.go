@@ -69,7 +69,7 @@ func TestContactsRoute(t *testing.T) {
 			So(response.Success, ShouldBeFalse)
 		})
 
-		Convey("Creating a contact with invalid input data shoul fail", func() {
+		Convey("Creating a contact with invalid input data should fail", func() {
 			request := goreq.Request{
 				Method:      "POST",
 				Uri:         server.URL + "/contacts",
