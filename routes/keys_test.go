@@ -1,7 +1,6 @@
 package routes_test
 
 import (
-	"log"
 	"strings"
 	"testing"
 
