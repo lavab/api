@@ -123,6 +123,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 
 type EmailsCreateRequest struct {
 	To                  []string `json:"to"`
+	CC                  []string `json:"cc"`
 	BCC                 []string `json:"bcc"`
 	ReplyTo             string   `json:"reply_to"`
 	ThreadID            string   `json:"thread_id"`
@@ -195,6 +196,8 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		Kind:          "sent",
 		From:          []string{account.Name + "@" + env.Config.EmailDomain},
 		To:            input.To,
+		CC:            input.CC,
+		BCC:           input.BCC,
 		Resource:      models.MakeResource(session.Owner, input.Subject),
 		AttachmentIDs: input.Attachments,
 		Body: models.Encrypted{
