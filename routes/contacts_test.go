@@ -50,7 +50,7 @@ func TestContactsRoute(t *testing.T) {
 				Uri:         server.URL + "/contacts",
 				ContentType: "application/json",
 				Body: `{
-					"data": "` + uniuri.NewLen(64) + `"
+					"data": "` + uniuri.NewLen(64) + `",
 					"encoding": "json",
 					"version_major": 1,
 					"version_minor": 0,
@@ -184,7 +184,7 @@ func TestContactsRoute(t *testing.T) {
 				Uri:         server.URL + "/contacts",
 				ContentType: "application/json",
 				Body: `{
-					"data": "` + uniuri.NewLen(64) + `"
+					"data": "` + uniuri.NewLen(64) + `",
 					"name": "` + uniuri.New() + `",
 					"encoding": "json",
 					"version_major": 1,
