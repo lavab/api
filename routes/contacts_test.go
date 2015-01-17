@@ -274,7 +274,7 @@ func TestContactsRoute(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				So(response.Success, ShouldBeTrue)
-				So(response.Contact.Name, ShouldEqual, "John Doez")
+				So(response.Contact.Name, ShouldEqual, newName)
 			})
 
 			Convey("Deleting that contact should succeed", func() {
