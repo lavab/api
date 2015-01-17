@@ -17,6 +17,7 @@ dependencies:
     - go get github.com/apcera/gnatsd
     - go get golang.org/x/tools/cmd/cover
     - go get github.com/mattn/goveralls
+    - go get github.com/axw/gocov/gocov
   post:
     - rethinkdb --bind all:
         background: true
