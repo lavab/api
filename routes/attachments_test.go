@@ -124,6 +124,77 @@ func TestAttachmentsRoute(t *testing.T) {
 				So(response.Attachment.ID, ShouldNotBeNil)
 				So(response.Success, ShouldBeTrue)
 			})
+
+			Convey("The attachment should be visible on the list", func() {
+				request := goreq.Request{
+					Method: "GET",
+					Uri:    server.URL + "/attachments",
+				}
+				request.AddHeader("Authorization", "Bearer "+authToken.ID)
+				result, err := request.Do()
+				So(err, ShouldBeNil)
+
+				var response routes.AttachmentsListResponse
+				err = result.Body.FromJsonTo(&response)
+				So(err, ShouldBeNil)
+
+				So(len(*response.Attachments), ShouldBeGreaterThan, 0)
+				So(response.Success, ShouldBeTrue)
+
+				found := false
+				for _, a := range *response.Attachments {
+					if a.ID == attachment.ID {
+						found = true
+						break
+					}
+				}
+
+				So(found, ShouldBeTrue)
+			})
+
+			Convey("Updating it should succeed", func() {
+				request := goreq.Request{
+					Method:      "PUT",
+					Uri:         server.URL + "/attachments/" + attachment.ID,
+					ContentType: "application/json",
+					Body: `{
+		"data": "` + uniuri.NewLen(64) + `",
+		"name": "` + uniuri.New() + `",
+		"encoding": "xml",
+		"version_major": 2,
+		"version_minor": 1,
+		"pgp_fingerprints": ["` + uniuri.New() + `"]
+	}`,
+				}
+				request.AddHeader("Authorization", "Bearer "+authToken.ID)
+				result, err := request.Do()
+				So(err, ShouldBeNil)
+
+				var response routes.AttachmentsUpdateResponse
+				err = result.Body.FromJsonTo(&response)
+				So(err, ShouldBeNil)
+
+				So(response.Success, ShouldBeTrue)
+				So(response.Attachment.ID, ShouldEqual, attachment.ID)
+				So(response.Attachment.Encoding, ShouldEqual, "xml")
+			})
+
+			Convey("Deleting it should succeed", func() {
+				request := goreq.Request{
+					Method: "DELETE",
+					Uri:    server.URL + "/attachments/" + attachment.ID,
+				}
+				request.AddHeader("Authorization", "Bearer "+authToken.ID)
+				result, err := request.Do()
+				So(err, ShouldBeNil)
+
+				var response routes.AttachmentsDeleteResponse
+				err = result.Body.FromJsonTo(&response)
+				So(err, ShouldBeNil)
+
+				So(response.Message, ShouldEqual, "Attachment successfully removed")
+				So(response.Success, ShouldBeTrue)
+			})
 		})
 
 		Convey("Getting a non-existing attachment should fail", func() {
