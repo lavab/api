@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
+	"github.com/pzduniak/glogrus"
 	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
@@ -22,7 +23,6 @@ import (
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/factor"
 	"github.com/lavab/api/routes"
-	"github.com/lavab/glogrus"
 )
 
 // sessions contains all "subscribing" WebSockets sessions
