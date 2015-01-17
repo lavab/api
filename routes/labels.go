@@ -3,10 +3,10 @@ package routes
 import (
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
-	"github.com/lavab/logrus"
 	"github.com/zenazn/goji/web"
 )
 

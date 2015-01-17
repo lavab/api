@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"github.com/lavab/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"

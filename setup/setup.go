@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
-	"github.com/lavab/logrus"
 	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
