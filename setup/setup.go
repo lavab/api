@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -355,7 +356,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
 
 	// Avatars
-	mux.Get("/avatars/:hash.:ext", routes.Avatars)
+	mux.Get(regexp.MustCompile(`/avatars/(?P<hash>[\S\s]*?)\.(?P<ext>svg|png)(?:[\S\s]*?)$`), routes.Avatars)
+	//mux.Get("/avatars/:hash.:ext", routes.Avatars)
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)
