@@ -191,6 +191,26 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get the "Sent" label's ID
+	var label *models.Label
+	err = env.Labels.WhereAndFetchOne(map[string]interface{}{
+		"name":    "Sent",
+		"builtin": true,
+		"owner":   account.ID,
+	}, &label)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    account.ID,
+			"error": err.Error(),
+		}).Warn("Account has no sent label")
+
+		utils.JSONResponse(w, 410, &EmailsCreateResponse{
+			Success: false,
+			Message: "Misconfigured account",
+		})
+		return
+	}
+
 	// Create a new email struct
 	email := &models.Email{
 		Kind:          "sent",
@@ -198,6 +218,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		To:            input.To,
 		CC:            input.CC,
 		BCC:           input.BCC,
+		LabelIDs:      []string{label.ID},
 		Resource:      models.MakeResource(session.Owner, input.Subject),
 		AttachmentIDs: input.Attachments,
 		Body: models.Encrypted{
