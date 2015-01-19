@@ -2,6 +2,7 @@ package setup
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -30,6 +31,12 @@ var (
 	sessions     = map[string][]sockjs.Session{}
 	sessionsLock sync.Mutex
 )
+
+type nopCloser struct {
+	io.Reader
+}
+
+func (nopCloser) Close() error { return nil }
 
 // PrepareMux sets up the API
 func PrepareMux(flags *env.Flags) *web.Mux {
@@ -233,6 +240,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		ID    string `json:"id"`
 		Owner string `json:"owner"`
 	}) {
+		log.Print(msg)
 		// Check if we are handling owner's session
 		if _, ok := sessions[msg.Owner]; !ok {
 			return
@@ -625,7 +633,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			} else if input.Type == "request" {
 				// Perform the request
 				w := httptest.NewRecorder()
-				r, err := http.NewRequest(input.Method, "http://api.lavaboom.io"+input.Path, strings.NewReader(input.Body))
+				r, err := http.NewRequest(strings.ToUpper(input.Method), "http://api.lavaboom.io"+input.Path, strings.NewReader(input.Body))
 				if err != nil {
 					env.Log.WithFields(logrus.Fields{
 						"id":    session.ID(),
@@ -647,6 +655,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 					}
 					continue
 				}
+
+				r.Body = nopCloser{strings.NewReader(input.Body)}
 
 				r.RequestURI = input.Path
 
