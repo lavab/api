@@ -37,6 +37,30 @@ func TestEmailsRoute(t *testing.T) {
 		}.Do()
 		So(err, ShouldBeNil)
 
+		err = env.Labels.Insert([]*models.Label{
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Inbox"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Sent"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Trash"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Spam"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Starred"),
+				Builtin:  true,
+			},
+		})
+		So(err, ShouldBeNil)
+
 		var response routes.TokensCreateResponse
 		err = result.Body.FromJsonTo(&response)
 		So(err, ShouldBeNil)
@@ -213,6 +237,7 @@ func TestEmailsRoute(t *testing.T) {
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
+			So(response.Message, ShouldBeEmpty)
 			So(len(response.Created), ShouldBeGreaterThan, 0)
 			So(response.Success, ShouldBeTrue)
 
