@@ -311,16 +311,19 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 			w.Header().Set("Access-Control-Allow-Headers", strings.Join(resultHeaders, ","))
 
-			if c.Env != nil {
-				if v, ok := c.Env[web.ValidMethodsKey]; ok {
-					if methods, ok := v.([]string); ok {
-						methodsString := strings.Join(methods, ",")
-						w.Header().Set("Allow", methodsString)
-						w.Header().Set("Access-Control-Allow-Methods", methodsString)
+			/*
+				if c.Env != nil {
+					if v, ok := c.Env[web.ValidMethodsKey]; ok {
+						if methods, ok := v.([]string); ok {
+							methodsString := strings.Join(methods, ",")
+							w.Header().Set("Allow", methodsString)
+							w.Header().Set("Access-Control-Allow-Methods", methodsString)
+						}
 					}
-				}
-			}
+				} */
 
+			// yolo
+			w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 
 			if r.Method != "OPTIONS" {
