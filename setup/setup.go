@@ -162,6 +162,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"emails",
 		),
 	}
+	env.Threads = &db.ThreadsTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"threads",
+		),
+	}
 	env.Labels = &db.LabelsTable{
 		RethinkCRUD: db.NewCRUDTable(
 			rethinkSession,

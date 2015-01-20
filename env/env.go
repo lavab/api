@@ -35,6 +35,8 @@ var (
 	Labels *db.LabelsTable
 	// Attachments is the global instance of AttachmentsTable
 	Attachments *db.AttachmentsTable
+	// Threads is the global instance of ThreadsTable
+	Threads *db.ThreadsTable
 	// Factors contains all currently registered factors
 	Factors map[string]factor.Factor
 	// NATS is the encoded connection to the NATS queue

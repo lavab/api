@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	nc, err := nats.Connect("tcp://127.0.0.1:4222")
+	nc, err := nats.Connect("nats://127.0.0.1:4222")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -16,7 +16,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	c.Publish("receipt", struct {
+	c.Publish("receipt", &struct {
 		ID    string `json:"id"`
 		Owner string `json:"owner"`
 	}{
