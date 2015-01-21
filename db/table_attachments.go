@@ -47,7 +47,7 @@ func (a *AttachmentsTable) GetEmailAttachments(id string) ([]*models.Attachment,
 	}
 
 	query, err := a.Emails.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-		return gorethink.Expr(email.AttachmentIDs).Contains(row.Field("id"))
+		return gorethink.Expr(email.Attachments).Contains(row.Field("id"))
 	}).GetAll().Run(a.Emails.GetSession())
 	if err != nil {
 		return nil, err
