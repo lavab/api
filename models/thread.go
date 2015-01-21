@@ -17,5 +17,5 @@ type Thread struct {
 	// Subject is the subject of the thread.
 	Subject string `json:"subject" gorethink:"subject"`
 
-	IsRead bool `json:"is_read" gorethink:"is_body"`
+	IsRead bool `json:"is_read" gorethink:"is_read"`
 }
