@@ -61,7 +61,7 @@ func (e *EmailsTable) List(
 		term = e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
 			return gorethink.And(
 				row.Field("owner").Eq(owner),
-				row.Field("label_ids").Contains(label),
+				row.Field("labels").Contains(label),
 			)
 		})
 	}
@@ -74,7 +74,7 @@ func (e *EmailsTable) List(
 
 	if owner == "" && label != "" {
 		term = e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-			return row.Field("label_ids").Contains(label)
+			return row.Field("labels").Contains(label)
 		})
 	}
 
@@ -127,7 +127,7 @@ func (e *EmailsTable) GetByLabel(label string) ([]*models.Email, error) {
 	var result []*models.Email
 
 	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-		return row.Field("label_ids").Contains(label)
+		return row.Field("labels").Contains(label)
 	}).GetAll().Run(e.GetSession())
 	if err != nil {
 		return nil, err
@@ -141,11 +141,22 @@ func (e *EmailsTable) GetByLabel(label string) ([]*models.Email, error) {
 	return result, nil
 }
 
+func (e *EmailsTable) GetByThread(thread string) ([]*models.Email, error) {
+	var result []*models.Email
+
+	err := e.FindByAndFetch("thread", thread, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (e *EmailsTable) CountByLabel(label string) (int, error) {
 	var result int
 
 	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-		return row.Field("label_ids").Contains(label)
+		return row.Field("labels").Contains(label)
 	}).Count().Run(e.GetSession())
 	if err != nil {
 		return 0, err
@@ -164,7 +175,7 @@ func (e *EmailsTable) CountByLabelUnread(label string) (int, error) {
 
 	cursor, err := e.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
 		return gorethink.And(
-			row.Field("label_ids").Contains(label),
+			row.Field("labels").Contains(label),
 			row.Field("is_read").Eq(false),
 		)
 	}).Count().Run(e.GetSession())

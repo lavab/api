@@ -6,16 +6,11 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/ugorji/go/codec"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
-)
-
-var (
-	msgpackCodec codec.MsgpackHandle
 )
 
 // EmailsListResponse contains the result of the EmailsList request.
@@ -126,7 +121,7 @@ type EmailsCreateRequest struct {
 	CC                  []string `json:"cc"`
 	BCC                 []string `json:"bcc"`
 	ReplyTo             string   `json:"reply_to"`
-	ThreadID            string   `json:"thread_id"`
+	Thread              string   `json:"thread"`
 	Subject             string   `json:"subject"`
 	Body                string   `json:"body"`
 	BodyVersionMajor    int      `json:"body_version_major"`
@@ -213,14 +208,14 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Create a new email struct
 	email := &models.Email{
-		Kind:          "sent",
-		From:          []string{account.Name + "@" + env.Config.EmailDomain},
-		To:            input.To,
-		CC:            input.CC,
-		BCC:           input.BCC,
-		LabelIDs:      []string{label.ID},
-		Resource:      models.MakeResource(session.Owner, input.Subject),
-		AttachmentIDs: input.Attachments,
+		Kind:        "sent",
+		From:        []string{account.Name + "@" + env.Config.EmailDomain},
+		To:          input.To,
+		CC:          input.CC,
+		BCC:         input.BCC,
+		Labels:      []string{label.ID},
+		Resource:    models.MakeResource(session.Owner, input.Subject),
+		Attachments: input.Attachments,
 		Body: models.Encrypted{
 			Encoding:        "json",
 			PGPFingerprints: input.PGPFingerprints,
@@ -237,8 +232,8 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			VersionMajor:    input.PreviewVersionMajor,
 			VersionMinor:    input.PreviewVersionMinor,
 		},
-		ThreadID: input.ThreadID,
-		Status:   "queued",
+		Thread: input.Thread,
+		Status: "queued",
 	}
 
 	// Insert the email into the database
