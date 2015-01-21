@@ -97,21 +97,7 @@ func (l *LabelsTable) GetLabel(id string) (*models.Label, error) {
 		return nil, err
 	}
 
-	totalCount, err := l.Emails.CountByLabel(result.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	result.EmailsTotal = totalCount
-
-	unreadCount, err := l.Emails.CountByLabelUnread(result.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	result.EmailsUnread = unreadCount
-
-	err = l.Cache.Set(l.RethinkCRUD.GetTableName()+":"+id, result, l.Expires)
+	err := l.Cache.Set(l.RethinkCRUD.GetTableName()+":"+id, result, l.Expires)
 	if err != nil {
 		return nil, err
 	}
@@ -132,22 +118,6 @@ func (l *LabelsTable) GetOwnedBy(id string) ([]*models.Label, error) {
 	}, &result)
 	if err != nil {
 		return nil, err
-	}
-
-	for i := range result {
-		totalCount, err := l.Emails.CountByLabel(result[i].ID)
-		if err != nil {
-			return nil, err
-		}
-
-		result[i].EmailsTotal = totalCount
-
-		unreadCount, err := l.Emails.CountByLabelUnread(result[i].ID)
-		if err != nil {
-			return nil, err
-		}
-
-		result[i].EmailsTotal = unreadCount
 	}
 
 	err = l.Cache.Set(l.RethinkCRUD.GetTableName()+":owner:"+id, result, l.Expires)

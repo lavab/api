@@ -31,7 +31,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		sortRaw   = query.Get("sort")
 		offsetRaw = query.Get("offset")
 		limitRaw  = query.Get("limit")
-		label     = query.Get("label")
+		thread    = query.Get("thread")
 		sort      []string
 		offset    int
 		limit     int
@@ -76,7 +76,7 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get contacts from the database
-	emails, err := env.Emails.List(session.Owner, sort, offset, limit, label)
+	emails, err := env.Emails.List(session.Owner, sort, offset, limit, thread)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -186,6 +186,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create an email resource
+	emailResource := models.MakeResource(session.Owner, input.Subject)
+
 	// Get the "Sent" label's ID
 	var label *models.Label
 	err = env.Labels.WhereAndFetchOne(map[string]interface{}{
@@ -206,6 +209,47 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if Thread is set
+	if input.Thread != "" {
+		// todo: make it an actual exists check to reduce lan bandwidth
+		_, err := env.Threads.GetThread(input.Thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"id":    input.Thread,
+				"error": err.Error(),
+			}).Warn("Cannot retrieve a thread")
+
+			utils.JSONResponse(w, 400, &EmailsCreateResponse{
+				Success: false,
+				Message: "Invalid thread",
+			})
+			return
+		}
+	} else {
+		thread := &models.Thread{
+			Resource: models.MakeResource(account.ID, input.Subject),
+			Emails:   []string{emailResource.ID},
+			Labels:   []string{label.ID},
+			Members:  append(append(input.To, input.CC...), input.BCC...),
+			IsRead:   true,
+		}
+
+		err := env.Threads.Insert(thread)
+		if err != nil {
+			utils.JSONResponse(w, 500, &EmailsCreateResponse{
+				Success: false,
+				Message: "Unable to create a new thread",
+			})
+
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Unable to create a new thread")
+			return
+		}
+
+		input.Thread = thread.ID
+	}
+
 	// Create a new email struct
 	email := &models.Email{
 		Kind:        "sent",
@@ -213,9 +257,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		To:          input.To,
 		CC:          input.CC,
 		BCC:         input.BCC,
-		Labels:      []string{label.ID},
-		Resource:    models.MakeResource(session.Owner, input.Subject),
+		Resource:    emailResource,
 		Attachments: input.Attachments,
+		Thread:      input.Thread,
 		Body: models.Encrypted{
 			Encoding:        "json",
 			PGPFingerprints: input.PGPFingerprints,
@@ -232,7 +276,6 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			VersionMajor:    input.PreviewVersionMajor,
 			VersionMinor:    input.PreviewVersionMinor,
 		},
-		Thread: input.Thread,
 		Status: "queued",
 	}
 

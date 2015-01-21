@@ -24,8 +24,6 @@ type Email struct {
 	// Body contains all the data needed to send this email
 	Body Encrypted `json:"body" gorethink:"body"`
 
-	Labels []string `json:"labels" gorethink:"labels"`
-
 	// Preview contains the encrypted preview information (needed to show a list of emails)
 	// Example: Headers []string, Body string,
 	// 		Headers       []string
