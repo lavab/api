@@ -595,7 +595,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		user.PGPKey = input.PublicKey
+		user.PublicKey = input.PublicKey
 	}
 
 	if input.FactorType != "" {

@@ -29,7 +29,7 @@ type Email struct {
 	// 		Headers       []string
 	// 		Body          string
 	// 		Snippet       string
-	Preview Encrypted `json:"preview" gorethink:"preview"`
+	//Preview Encrypted `json:"preview" gorethink:"preview"`
 
 	// ThreadID
 	Thread string `json:"thread" gorethink:"thread"`

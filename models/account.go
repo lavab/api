@@ -18,8 +18,8 @@ type Account struct {
 	// It's hashed and salted using scrypt.
 	Password string `json:"-"  gorethink:"password"`
 
-	// PGPKey is the fingerprint of account's default key
-	PGPKey string `json:"pgp_key" gorethink:"pgp_key"`
+	// PublicKey is the fingerprint of account's default key
+	PublicKey string `json:"public_key" gorethink:"public_key"`
 
 	// Settings contains data needed to customize the user experience.
 	Settings interface{} `json:"settings" gorethink:"settings"`

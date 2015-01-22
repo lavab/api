@@ -230,9 +230,9 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Does the user have a default PGP key set?
-		if account.PGPKey != "" {
+		if account.PublicKey != "" {
 			// Fetch the requested key from the database
-			key2, err := env.Keys.FindByFingerprint(account.PGPKey)
+			key2, err := env.Keys.FindByFingerprint(account.PublicKey)
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
 					"error": err.Error(),
