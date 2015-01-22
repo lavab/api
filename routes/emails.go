@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
 )
+
+var prefixesRegex = regexp.MustCompile(`([\[\(] *)?(RE?S?|FYI|RIF|I|FS|VB|RV|ENC|ODP|PD|YNT|ILT|SV|VS|VL|AW|WG|ΑΠ|ΣΧΕΤ|ΠΡΘ|תגובה|הועבר|主题|转发|FWD?) *([-:;)\]][ :;\])-]*|$)|\]+ *$`)
 
 // EmailsListResponse contains the result of the EmailsList request.
 type EmailsListResponse struct {
@@ -533,5 +536,82 @@ func sendEmail(account string, email *models.Email) {
 		newEmail.Body.Data = armoredOutput.String()
 	}
 
-	//
+	// Get the "Inbox" label's ID
+	var inbox *models.Label
+	err = env.Labels.WhereAndFetchOne(map[string]interface{}{
+		"name":    "Inbox",
+		"builtin": true,
+		"owner":   recipient.ID,
+	}, &inbox)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    recipient.ID,
+			"error": err.Error(),
+		}).Warn("Account has no inbox label")
+		return
+	}
+
+	// strip prefixes from the subject
+	rawSubject := prefixesRegex.ReplaceAllString(newEmail.Name, "")
+
+	emailResource := models.MakeResource(recipient.ID, newEmail.Name)
+
+	var thread *models.Thread
+	err = env.Threads.WhereAndFetchOne(map[string]interface{}{
+		"name":  rawSubject,
+		"owner": recipient.ID,
+	}, &thread)
+	if err != nil {
+		thread = &models.Thread{
+			Resource: models.MakeResource(recipient.ID, rawSubject),
+			Emails:   []string{emailResource.ID},
+			Labels:   []string{inbox.ID},
+			Members:  append(append(newEmail.To, newEmail.CC...), newEmail.BCC...),
+			IsRead:   false,
+		}
+
+		err := env.Threads.Insert(thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Unable to create a new thread")
+			return
+		}
+	}
+
+	// Insert the new email
+	newEmail.Resource = emailResource
+	newEmail.Status = "processed"
+	newEmail.Thread = thread.ID
+
+	err = env.Emails.Insert(newEmail)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Unable to create a new email")
+		return
+	}
+
+	// Send notifications
+	err = env.NATS.Publish("delivery", map[string]interface{}{
+		"id":    email.ID,
+		"owner": email.Owner,
+	})
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    email.ID,
+			"error": err.Error(),
+		}).Error("Unable to publish a delivery message")
+	}
+
+	err = env.NATS.Publish("receipt", map[string]interface{}{
+		"id":    newEmail.ID,
+		"owner": newEmail.Owner,
+	})
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    newEmail.ID,
+			"error": err.Error(),
+		}).Error("Unable to publish a receipt message")
+	}
 }
