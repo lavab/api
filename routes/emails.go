@@ -1,17 +1,25 @@
 package routes
 
 import (
+	"bytes"
+	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
+	_ "golang.org/x/crypto/ripemd160"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
 )
+
+var prefixesRegex = regexp.MustCompile(`([\[\(] *)?(RE?S?|FYI|RIF|I|FS|VB|RV|ENC|ODP|PD|YNT|ILT|SV|VS|VL|AW|WG|ΑΠ|ΣΧΕΤ|ΠΡΘ|תגובה|הועבר|主题|转发|FWD?) *([-:;)\]][ :;\])-]*|$)|\]+ *$`)
 
 // EmailsListResponse contains the result of the EmailsList request.
 type EmailsListResponse struct {
@@ -264,17 +272,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			Encoding:        "json",
 			PGPFingerprints: input.PGPFingerprints,
 			Data:            input.Body,
-			Schema:          "email_body",
+			Schema:          "email",
 			VersionMajor:    input.BodyVersionMajor,
 			VersionMinor:    input.BodyVersionMinor,
-		},
-		Preview: models.Encrypted{
-			Encoding:        "json",
-			PGPFingerprints: input.PGPFingerprints,
-			Data:            input.Preview,
-			Schema:          "email_preview",
-			VersionMajor:    input.PreviewVersionMajor,
-			VersionMinor:    input.PreviewVersionMinor,
 		},
 		Status: "queued",
 	}
@@ -290,6 +290,32 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			"error": err.Error(),
 		}).Error("Could not insert an email into the database")
 		return
+	}
+
+	// I'm going to whine at this part, as we are doubling the email sending code
+
+	// Check if To contains lavaboom emails
+	for _, address := range email.To {
+		parts := strings.SplitN(address, "@", 2)
+		if parts[1] == env.Config.EmailDomain {
+			go sendEmail(parts[0], email)
+		}
+	}
+
+	// Check if CC contains lavaboom emails
+	for _, address := range email.CC {
+		parts := strings.SplitN(address, "@", 2)
+		if parts[1] == env.Config.EmailDomain {
+			go sendEmail(parts[0], email)
+		}
+	}
+
+	// Check if BCC contains lavaboom emails
+	for _, address := range email.BCC {
+		parts := strings.SplitN(address, "@", 2)
+		if parts[1] == env.Config.EmailDomain {
+			go sendEmail(parts[0], email)
+		}
 	}
 
 	// Add a send request to the queue
@@ -400,4 +426,229 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Email successfully removed",
 	})
+}
+
+func sendEmail(account string, email *models.Email) {
+	// find recipient's account
+	recipient, err := env.Accounts.FindAccountByName(account)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"name":  account,
+		}).Warn("Unable to fetch recipent's account")
+		return
+	}
+
+	newEmail := *email
+
+	// check if the email is unencrypted
+	if newEmail.Body.PGPFingerprints == nil || len(newEmail.Body.PGPFingerprints) == 0 {
+		// check if the acc has a pkey set
+		if recipient.PublicKey == "" {
+			env.Log.WithFields(logrus.Fields{
+				"name": account,
+			}).Warn("Recipient has no public key set")
+			return
+		}
+
+		// fetch the pkey
+		key, err := env.Keys.FindByFingerprint(recipient.PublicKey)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":       err.Error(),
+				"fingerprint": recipient.PublicKey,
+				"name":        account,
+			}).Warn("Recipient's public key does not exist")
+			return
+		}
+
+		// parse the armored key
+		entityList, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key.Key))
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":       err.Error(),
+				"fingerprint": recipient.PublicKey,
+			}).Warn("Cannot parse an armored key")
+			return
+		}
+
+		// first key should be the pkey
+		publicKey := entityList[0]
+
+		// prepare a buffer for ciphertext and initialize openpgp
+		output := &bytes.Buffer{}
+		input, err := openpgp.Encrypt(output, []*openpgp.Entity{publicKey}, nil, nil, nil)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":       err.Error(),
+				"fingerprint": recipient.PublicKey,
+			}).Warn("Cannot set up an OpenPGP encrypter")
+			return
+		}
+
+		// write email's contents into input
+		_, err = input.Write([]byte(newEmail.Body.Data))
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":       err.Error(),
+				"fingerprint": recipient.PublicKey,
+			}).Warn("Cannot write into the OpenPGP's input")
+			return
+		}
+
+		// close the input
+		if err := input.Close(); err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":       err.Error(),
+				"fingerprint": recipient.PublicKey,
+			}).Warn("Cannot close OpenPGP's input")
+			return
+		}
+
+		// encode output into armor
+		armoredOutput := &bytes.Buffer{}
+		armoredInput, err := armor.Encode(armoredOutput, "PGP MESSAGE", map[string]string{
+			"Version": "Lavaboom " + env.Config.APIVersion,
+		})
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Warn("Cannot initialize a new armor encoding")
+			return
+		}
+
+		_, err = io.Copy(armoredInput, output)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Warn("Unable to copy encrypted ciphertext into the armor processor")
+			return
+		}
+
+		if err := armoredInput.Close(); err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":       err.Error(),
+				"fingerprint": recipient.PublicKey,
+			}).Warn("Cannot close armoring's input")
+			return
+		}
+
+		newEmail.Body.PGPFingerprints = []string{recipient.PublicKey}
+		newEmail.Body.Data = armoredOutput.String()
+	}
+
+	// Get the "Inbox" label's ID
+	var inbox *models.Label
+	err = env.Labels.WhereAndFetchOne(map[string]interface{}{
+		"name":    "Inbox",
+		"builtin": true,
+		"owner":   recipient.ID,
+	}, &inbox)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    recipient.ID,
+			"error": err.Error(),
+		}).Warn("Account has no inbox label")
+		return
+	}
+
+	// strip prefixes from the subject
+	rawSubject := prefixesRegex.ReplaceAllString(newEmail.Name, "")
+
+	emailResource := models.MakeResource(recipient.ID, newEmail.Name)
+
+	var thread *models.Thread
+	err = env.Threads.WhereAndFetchOne(map[string]interface{}{
+		"name":  rawSubject,
+		"owner": recipient.ID,
+	}, &thread)
+	if err != nil {
+		thread = &models.Thread{
+			Resource: models.MakeResource(recipient.ID, rawSubject),
+			Emails:   []string{emailResource.ID},
+			Labels:   []string{inbox.ID},
+			Members:  append(append(newEmail.To, newEmail.CC...), newEmail.BCC...),
+			IsRead:   false,
+		}
+
+		err := env.Threads.Insert(thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Unable to create a new thread")
+			return
+		}
+	} else {
+		existingMembers := make(map[string]struct{})
+
+		for _, member := range thread.Members {
+			existingMembers[member] = struct{}{}
+		}
+
+		for _, member := range newEmail.To {
+			if _, ok := existingMembers[member]; !ok {
+				thread.Members = append(thread.Members, member)
+				existingMembers[member] = struct{}{}
+			}
+		}
+
+		for _, member := range newEmail.CC {
+			if _, ok := existingMembers[member]; !ok {
+				thread.Members = append(thread.Members, member)
+				existingMembers[member] = struct{}{}
+			}
+		}
+
+		for _, member := range newEmail.BCC {
+			if _, ok := existingMembers[member]; !ok {
+				thread.Members = append(thread.Members, member)
+				existingMembers[member] = struct{}{}
+			}
+		}
+
+		err := env.Threads.UpdateID(thread.ID, thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"id":    thread.ID,
+				"error": err.Error(),
+			}).Error("Unable to update an existing thread")
+			return
+		}
+	}
+
+	// Insert the new email
+	newEmail.Resource = emailResource
+	newEmail.Status = "processed"
+	newEmail.Thread = thread.ID
+
+	err = env.Emails.Insert(newEmail)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Unable to create a new email")
+		return
+	}
+
+	// Send notifications
+	err = env.NATS.Publish("delivery", map[string]interface{}{
+		"id":    email.ID,
+		"owner": email.Owner,
+	})
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    email.ID,
+			"error": err.Error(),
+		}).Error("Unable to publish a delivery message")
+	}
+
+	err = env.NATS.Publish("receipt", map[string]interface{}{
+		"id":    newEmail.ID,
+		"owner": newEmail.Owner,
+	})
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"id":    newEmail.ID,
+			"error": err.Error(),
+		}).Error("Unable to publish a receipt message")
+	}
 }
