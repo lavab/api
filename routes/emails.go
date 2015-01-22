@@ -12,6 +12,7 @@ import (
 	"github.com/zenazn/goji/web"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
+	_ "golang.org/x/crypto/ripemd160"
 
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
@@ -575,6 +576,42 @@ func sendEmail(account string, email *models.Email) {
 			env.Log.WithFields(logrus.Fields{
 				"error": err.Error(),
 			}).Error("Unable to create a new thread")
+			return
+		}
+	} else {
+		existingMembers := make(map[string]struct{})
+
+		for _, member := range thread.Members {
+			existingMembers[member] = struct{}{}
+		}
+
+		for _, member := range newEmail.To {
+			if _, ok := existingMembers[member]; !ok {
+				thread.Members = append(thread.Members, member)
+				existingMembers[member] = struct{}{}
+			}
+		}
+
+		for _, member := range newEmail.CC {
+			if _, ok := existingMembers[member]; !ok {
+				thread.Members = append(thread.Members, member)
+				existingMembers[member] = struct{}{}
+			}
+		}
+
+		for _, member := range newEmail.BCC {
+			if _, ok := existingMembers[member]; !ok {
+				thread.Members = append(thread.Members, member)
+				existingMembers[member] = struct{}{}
+			}
+		}
+
+		err := env.Threads.UpdateID(thread.ID, thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"id":    thread.ID,
+				"error": err.Error(),
+			}).Error("Unable to update an existing thread")
 			return
 		}
 	}
