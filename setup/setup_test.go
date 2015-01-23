@@ -15,8 +15,7 @@ func TestSetup(t *testing.T) {
 		LogFormatterType: "text",
 		ForceColors:      true,
 
-		SessionDuration:     72,
-		ClassicRegistration: true,
+		SessionDuration: 72,
 
 		RedisAddress: "127.0.0.1:6379",
 
