@@ -27,9 +27,7 @@ var (
 	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
 	emailDomain      = flag.String("email_domain", "lavaboom.io", "Domain of the default email service")
 	// Registration settings
-	sessionDuration     = flag.Int("session_duration", 72, "Session duration expressed in hours")
-	classicRegistration = flag.Bool("classic_registration", false, "Classic registration enabled?")
-	usernameReservation = flag.Bool("username_reservation", false, "Username reservation enabled?")
+	sessionDuration = flag.Int("session_duration", 72, "Session duration expressed in hours")
 	// Cache-related flags
 	redisAddress = flag.String("redis_address", func() string {
 		address := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
@@ -89,9 +87,7 @@ func main() {
 		ForceColors:      *forceColors,
 		EmailDomain:      *emailDomain,
 
-		SessionDuration:     *sessionDuration,
-		ClassicRegistration: *classicRegistration,
-		UsernameReservation: *usernameReservation,
+		SessionDuration: *sessionDuration,
 
 		RedisAddress:  *redisAddress,
 		RedisDatabase: *redisDatabase,
