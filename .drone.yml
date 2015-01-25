@@ -12,3 +12,11 @@ script:
   - GOMAXPROCS=4 go test -v github.com/lavab/api/setup
   - GOMAXPROCS=4 go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
   - /var/cache/drone/bin/goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
+notify:
+  slack:
+   - webhook_url: $SLACK_URL
+   - channel: integration
+   - username: lavadrone
+   - on_started: true
+   - on_success: true
+   - on_failure: true
