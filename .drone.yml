@@ -9,6 +9,6 @@ script:
   - go get -t -v ./...
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
-  - go test -v github.com/lavab/api/setup
-  - go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
+  - GOMAXPROCS=4 go test -v github.com/lavab/api/setup
+  - GOMAXPROCS=4 go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
   - /var/cache/drone/bin/goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
