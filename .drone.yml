@@ -1,0 +1,13 @@
+image: go1.4
+env:
+  - GOPATH=/var/cache/drone
+services:
+  - redis
+  - apcera/gnatsd
+  - dockerfile/rethinkdb
+script:
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/mattn/goveralls
+  - go test -v github.com/lavab/api/setup
+  - go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
+  - goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
