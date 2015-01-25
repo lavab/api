@@ -15,7 +15,7 @@ script:
 notify:
   slack:
    - webhook_url: $$SLACK_URL
-   - channel: integration
+   - channel: $$SLACK_CHANNEL
    - username: lavadrone
    - on_started: true
    - on_success: true
