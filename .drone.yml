@@ -15,10 +15,10 @@ script:
   - sudo curl https://get.docker.io/builds/Linux/x86_64/docker-latest -o /usr/local/bin/docker
   - sudo chmod +x /usr/local/bin/docker 
   - export DOCKER_HOST="unix:///var/run/docker.sock"
-  - sudo docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
+  - docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
   - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
   - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10001; fi"
-  - "if [ -n $CONTAINER_NAME ]; then sudo docker build -t \"registry.lavaboom.io/lavaboom/$CONTAINER_NAME\" && docker push registry.lavaboom.io/lavaboom/$CONTAINER_NAME; fi"
+  - "if [ -n $CONTAINER_NAME ]; then docker build -t \"registry.lavaboom.io/lavaboom/$CONTAINER_NAME\" && docker push registry.lavaboom.io/lavaboom/$CONTAINER_NAME; fi"
   - "if [ -n $CONTAINER_NAME ]; then ssh -p 36412 root@lisa.lavaboom.io \"/opt/deploy/$CONTAINER_NAME.sh\"; fi"
 notify:
   slack:
