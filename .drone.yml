@@ -12,14 +12,15 @@ script:
   - GOMAXPROCS=4 go test -v github.com/lavab/api/setup
   - GOMAXPROCS=4 go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
   - /var/cache/drone/bin/goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
-  - sudo curl https://get.docker.io/builds/Linux/x86_64/docker-latest -o /usr/local/bin/docker
-  - sudo chmod +x /usr/local/bin/docker 
-  - export DOCKER_HOST="unix:///var/run/docker.sock"
-  - sudo chmod 777 /var/run/docker.sock
-  - docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
+  - sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+  - sudo sh -c \"echo deb https://get.docker.com/ubuntu docker main > /etc/apt/sources.list.d/docker.list\"
+  - sudo apt-get update
+  - sudo apt-get install lxc-docker
+  - sudo docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
   - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
-  - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10001; fi"
-  - "if [ -n $CONTAINER_NAME ]; then docker build -t \"registry.lavaboom.io/lavaboom/$CONTAINER_NAME\" && docker push registry.lavaboom.io/lavaboom/$CONTAINER_NAME; fi"
+  - "if [ \"$DRONE_BRANCH\" = \"staging\" ]; then export CONTAINER_NAME=api-staging; export CONTAINER_PORT=10001; fi"
+  - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10002; fi"
+  - "if [ -n $CONTAINER_NAME ]; then sudo docker build -t \"registry.lavaboom.io/lavaboom/$CONTAINER_NAME\" && docker push registry.lavaboom.io/lavaboom/$CONTAINER_NAME; fi"
   - "if [ -n $CONTAINER_NAME ]; then ssh -p 36412 root@lisa.lavaboom.io \"/opt/deploy/$CONTAINER_NAME.sh\"; fi"
 notify:
   slack:
