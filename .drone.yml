@@ -1,4 +1,4 @@
-image: go1.3
+image: registry.lavaboom.io/lavaboom/wrapper
 env:
   - GOPATH=/var/cache/drone
 services:
@@ -6,22 +6,21 @@ services:
   - apcera/gnatsd
   - dockerfile/rethinkdb
 script:
+#  - sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+#  - sudo sh -c "echo deb https://get.docker.com/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
+#  - sudo apt-get update
+#  - sudo apt-get install lxc-docker
+#  - sudo service docker start
   - go get -t -v ./...
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
   - GOMAXPROCS=4 go test -v github.com/lavab/api/setup
   - GOMAXPROCS=4 go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
   - /var/cache/drone/bin/goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
-  - sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
-  - sudo sh -c "echo deb https://get.docker.com/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
-  - sudo apt-get update
-  - sudo apt-get install lxc-docker
-  - sudo service docker start
-  - sudo docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
   - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
   - "if [ \"$DRONE_BRANCH\" = \"staging\" ]; then export CONTAINER_NAME=api-staging; export CONTAINER_PORT=10001; fi"
   - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10002; fi"
-  - "if [ -n $CONTAINER_NAME ]; then sudo docker build -t \"registry.lavaboom.io/lavaboom/$CONTAINER_NAME\" && docker push registry.lavaboom.io/lavaboom/$CONTAINER_NAME; fi"
+  - "if [ -n $CONTAINER_NAME ]; then ./.drone/build.sh; fi"
   - "if [ -n $CONTAINER_NAME ]; then ssh -p 36412 root@lisa.lavaboom.io \"/opt/deploy/$CONTAINER_NAME.sh\"; fi"
 notify:
   slack:
