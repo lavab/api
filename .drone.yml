@@ -12,6 +12,9 @@ script:
   - GOMAXPROCS=4 go test -v github.com/lavab/api/setup
   - GOMAXPROCS=4 go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
   - /var/cache/drone/bin/goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
+  - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
+  - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10001; fi"
+  - "if [ -n $DRONE_BRANCH ]; then ssh -p 36412 root@lisa.lavaboom.io \"/opt/deploy/$CONTAINER_NAME.sh\"; fi"
 notify:
   slack:
    - webhook_url: $$SLACK_URL
