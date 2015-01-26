@@ -16,6 +16,7 @@ script:
   - sudo sh -c "echo deb https://get.docker.com/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
   - sudo apt-get update
   - sudo apt-get install lxc-docker
+  - sudo service docker start
   - sudo docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
   - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
   - "if [ \"$DRONE_BRANCH\" = \"staging\" ]; then export CONTAINER_NAME=api-staging; export CONTAINER_PORT=10001; fi"
