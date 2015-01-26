@@ -14,6 +14,7 @@ script:
   - /var/cache/drone/bin/goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
   - sudo curl https://get.docker.io/builds/Linux/x86_64/docker-latest -o /usr/local/bin/docker
   - sudo chmod +x /usr/local/bin/docker 
+  - export DOCKER_HOST="unix:///var/run/docker.sock"
   - sudo docker login -e circleci@lavaboom.io -u $DOCKER_USER -p $DOCKER_PASS https://registry.lavaboom.io
   - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
   - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10001; fi"
