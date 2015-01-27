@@ -27,9 +27,7 @@ var (
 	forceColors      = flag.Bool("force_colors", false, "Force colored prompt?")
 	emailDomain      = flag.String("email_domain", "lavaboom.io", "Domain of the default email service")
 	// Registration settings
-	sessionDuration     = flag.Int("session_duration", 72, "Session duration expressed in hours")
-	classicRegistration = flag.Bool("classic_registration", false, "Classic registration enabled?")
-	usernameReservation = flag.Bool("username_reservation", false, "Username reservation enabled?")
+	sessionDuration = flag.Int("session_duration", 72, "Session duration expressed in hours")
 	// Cache-related flags
 	redisAddress = flag.String("redis_address", func() string {
 		address := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
@@ -70,11 +68,11 @@ var (
 	// Loggly URL
 	logglyToken = flag.String("loggly_token", "", "Loggly token")
 	// etcd
-	etcdAddress  = flag.String("etcd-address", "", "etcd peer addresses split by commas")
-	etcdCAFile   = flag.String("etcd-ca-file", "", "etcd path to server cert's ca")
-	etcdCertFile = flag.String("etcd-cert-file", "", "etcd path to client cert file")
-	etcdKeyFile  = flag.String("etcd-key-file", "", "etcd path to client key file")
-	etcdPath     = flag.String("etcd-path", "settings/", "Path of the keys")
+	etcdAddress  = flag.String("etcd_address", "", "etcd peer addresses split by commas")
+	etcdCAFile   = flag.String("etcd_ca_file", "", "etcd path to server cert's ca")
+	etcdCertFile = flag.String("etcd_cert_file", "", "etcd path to client cert file")
+	etcdKeyFile  = flag.String("etcd_key_file", "", "etcd path to client key file")
+	etcdPath     = flag.String("etcd_path", "settings/", "Path of the keys")
 )
 
 func main() {
@@ -89,9 +87,7 @@ func main() {
 		ForceColors:      *forceColors,
 		EmailDomain:      *emailDomain,
 
-		SessionDuration:     *sessionDuration,
-		ClassicRegistration: *classicRegistration,
-		UsernameReservation: *usernameReservation,
+		SessionDuration: *sessionDuration,
 
 		RedisAddress:  *redisAddress,
 		RedisDatabase: *redisDatabase,

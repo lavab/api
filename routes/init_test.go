@@ -23,9 +23,7 @@ func init() {
 		LogFormatterType: "text",
 		ForceColors:      true,
 
-		SessionDuration:     72,
-		ClassicRegistration: true,
-		UsernameReservation: true,
+		SessionDuration: 72,
 
 		RedisAddress: "127.0.0.1:6379",
 

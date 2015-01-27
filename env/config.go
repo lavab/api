@@ -8,9 +8,7 @@ type Flags struct {
 	ForceColors      bool
 	EmailDomain      string
 
-	SessionDuration     int
-	ClassicRegistration bool
-	UsernameReservation bool
+	SessionDuration int
 
 	RedisAddress  string
 	RedisDatabase int

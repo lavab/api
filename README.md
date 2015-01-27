@@ -4,10 +4,8 @@ To install:
 
 ```
 go get github.com/lavab/api
-api
-curl --data "username=abc&password=def" localhost:5000/signup
-curl --data "username=abc&password=def" localhost:5000/login
-curl --header "Auth: <token>" localhost:5000/me
+./api
+curl localhost:5000
 ```
 
 ## Configuration variables
@@ -15,23 +13,34 @@ curl --header "Auth: <token>" localhost:5000/me
 You can use either commandline flags:
 ```
 { api } master » ./api -help
-Usage of api:
+Usage of api
+  -api_version="v0": Shown API version
   -bind=":5000": Network address used to bind
-  -classic_registration=false: Classic registration enabled?
+  -config="": config file to load
+  -email_domain="lavaboom.io": Domain of the default email service
+  -etcd_address="": etcd peer addresses split by commas
+  -etcd_ca_file="": etcd path to server cert's ca
+  -etcd_cert_file="": etcd path to client cert file
+  -etcd_key_file="": etcd path to client key file
+  -etcd_path="settings/": Path of the keys
   -force_colors=false: Force colored prompt?
   -log="text": Log formatter type. Either "json" or "text"
+  -loggly_token="": Loggly token
+  -nats_address="nats://127.0.0.1:4222": Address of the NATS server
+  -redis_address="127.0.0.1:6379": Address of the redis server
+  -redis_db=0: Index of redis database to use
+  -redis_password="": Password of the redis server
+  -rethinkdb_address="127.0.0.1:28015": Address of the RethinkDB database
   -rethinkdb_db="dev": Database name on the RethinkDB server
   -rethinkdb_key="": Authentication key of the RethinkDB database
-  -rethinkdb_url="localhost:28015": Address of the RethinkDB database
   -session_duration=72: Session duration expressed in hours
-  -version="v0": Shown API version
+  -yubicloud_id="": YubiCloud API id
+  -yubicloud_key="": YubiCloud API key
 ```
 
 Or environment variables:
 ```
-{ api } master » BIND=127.0.0.1:5000 CLASSIC_REGISTRATION=false \
-FORCE_COLORS=false LOG=text RETHINKDB_DB=dev RETHINKDB_KEY="" \
-RETHINKDB_URL=localhost:28015 SESSION_DURATION=72 VERSION=v0 ./api
+{ api } master » BIND=127.0.0.1:6000 VERSION=v1 ./api
 ```
 
 Or configuration files:
@@ -39,7 +48,6 @@ Or configuration files:
 { api } master » cat api.conf
 # lines beggining with a "#" character are treated as comments
 bind :5000
-classic_registration false
 force_colors false
 log text
 
@@ -53,6 +61,33 @@ session_duration=72
 version=v0
 { api } master » ./api -config api.conf
 ```
+
+## Flags list
+
+| Flag or config variable name | Environment variable name | Default value | Description |
+|:---------------------------- | ------------------------- | --------| ----- |
+| api_version    | `API_VERSION` | v0 | Shown API version |
+| bind           | `BIND` | 0.0.0.0:5000 | Network address used to bind |
+| config         | `CONFIG` | _empty_ | Config file to load |
+| email_domain   | `EMAIL_DOMAIN` | lavaboom.io | Domain of the default email service |
+| etcd_address   | `ETCD_ADDRESS` | _empty_ | etcd peer addresses split by commas |
+| etcd_ca_file   | `ETCD_CA_FILE` | _empty_ | etcd path to server cert's ca |
+| etcd_cert_file | `ETCD_CERT_FILE` | _empty_ | etcd path to client cert file |
+| etcd_key_file  | `ETCD_KEY_FILE` | _empty_ |  etcd path to client key file |
+| etcd_path      | `ETCD_PATH` | _empty_ | Path of the keys |
+| force_colors   | `FORCE_COLORS` | false | Force colored prompt? |
+| log            | `LOG` | text | Log formatter type. Either "json" or "text". |
+| loggly_token   | `LOGGLY_TOKEN` | _empty_ |  Token used to connect to Loggly |
+| nats_address   | `NATS_ADDRESS` | nats://127.0.0.1:4222 | Address of the NATS server |
+| redis_address  | `REDIS_ADDRESS` | 127.0.0.1:6379 | Address of the redis server |
+| redis_db       | `REDIS_DB` | 0 | Index of redis database to use |
+| redis_password | `REDIS_PASSWORD` | _empty_ | Password of the redis server |
+| rethinkdb_address | `RETHINKDB_ADDRESS` | 127.0.0.1:28015 | Address of the RethinkDB database |
+| rethinkdb_db      | `RETHINKDB_DB` | dev |Database name on the RethinkDB server |
+| rethinkdb_key     | `RETHINKDB_KEY` | _empty_ | Authentication key of the RethinkDB database |
+| session_duration  | `SESSION_DURATION` | 72 | Session duration expressed in hours |
+| yubicloud_id      | `YUBICLOUD_ID` | _empty_ | YubiCloud API ID. |
+| yubicloud_key     | `YUBICLOUD_KEY` | _empty_ | YubiCloud API key. |
 
 ## Build status:
 
