@@ -15,8 +15,8 @@ script:
   - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
   - "if [ \"$DRONE_BRANCH\" = \"staging\" ]; then export CONTAINER_NAME=api-staging; export CONTAINER_PORT=10001; fi"
   - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10002; fi"
-  - "if [ -z \"$CONTAINER_NAME\" ]; then chmod +x ./.drone/build.sh && ./.drone/build.sh; fi"
-  - "if [ -z \"$CONTAINER_NAME\" ]; then ssh -p 36412 root@lisa.lavaboom.io \"/opt/deploy/$CONTAINER_NAME.sh\"; fi"
+  - "if [ -n \"$CONTAINER_NAME\" ]; then chmod +x ./.drone/build.sh && ./.drone/build.sh; fi"
+  - "if [ -n \"$CONTAINER_NAME\" ]; then ssh -p 36412 root@lisa.lavaboom.io \"/opt/deploy/$CONTAINER_NAME.sh\"; fi"
 notify:
   slack:
    - webhook_url: $$SLACK_URL
