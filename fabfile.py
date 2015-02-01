@@ -1,5 +1,5 @@
 import os, random, string
-from fabric.api import run, env, cd
+from fabric.api import run, env, cd, settings
 
 env.key_filename = os.getenv('HOME', '/root') + '/.ssh/id_rsa'
 
@@ -16,8 +16,9 @@ def deploy():
 			run('docker build -t registry.lavaboom.io/lavaboom/api-' + branch + ' .')
 
 		run('git clone git@github.com:lavab/docker.git')
-		with cd('docker/runners'):
+		with settings(warn_only=True):
 			run('docker rm -f api-' + branch)
+		with cd('docker/runners'):
 			run('./api-' + branch + '.sh')
 
 	run('rm -r ' + tmp_dir)
