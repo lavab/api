@@ -8,6 +8,7 @@ def deploy():
 	commit = os.getenv('DRONE_COMMIT', 'master')
 	tmp_dir = '/tmp/' + ''.join(random.choice(string.lowercase) for i in xrange(10))
 
+	run('mkdir ' + tmp_dir)
 	with cd(tmp_dir):
 		run('git clone git@github.com:lavab/api.git')
 		with cd('api'):
