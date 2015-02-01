@@ -9,6 +9,7 @@ def deploy():
 	with cd(tmp_dir):
 		run('git clone git@github.com:lavab/api.git')
 		with cd('api'):
+			run('git checkout ' + commit)
 			run('docker build -t registry.lavaboom.io/lavaboom/api-' + branch + ' .')
 
 		run('git clone git@github.com:lavab/docker.git')
