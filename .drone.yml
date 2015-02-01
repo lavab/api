@@ -6,17 +6,16 @@ services:
   - apcera/gnatsd
   - dockerfile/rethinkdb
 script:
+  - pip install fabric
   - go get -t -v ./...
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
   - GOMAXPROCS=4 go test -v github.com/lavab/api/setup
   - GOMAXPROCS=4 go test -v -covermode=count -coverprofile=coverage.out github.com/lavab/api/routes
   - /var/cache/drone/bin/goveralls -coverprofile=coverage.out -service=lavadrone -repotoken $COVERALLS_TOKEN
-  - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then export CONTAINER_NAME=api-master; export CONTAINER_PORT=10000; fi"
-  - "if [ \"$DRONE_BRANCH\" = \"staging\" ]; then export CONTAINER_NAME=api-staging; export CONTAINER_PORT=10001; fi"
-  - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then export CONTAINER_NAME=api-develop; export CONTAINER_PORT=10002; fi"
-  - "if [ -n \"$CONTAINER_NAME\" ]; then chmod +x ./.drone/build.sh && ./.drone/build.sh; fi"
-  - "if [ -n \"$CONTAINER_NAME\" ]; then ssh -p 36412 root@lisa.lavaboom.io \"/opt/deploy/$CONTAINER_NAME.sh\"; fi"
+  - "if [ \"$DRONE_BRANCH\" = \"master\" ]; then fab -H marge.lavaboom.io:36104 deploy; fi"
+  - "if [ \"$DRONE_BRANCH\" = \"staging\" ]; then fab -H lisa.lavaboom.io:36412 deploy; fi"
+  - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then fab -H bart.lavaboom.io:36467 deploy; fi"
 notify:
   slack:
    - webhook_url: $$SLACK_URL
