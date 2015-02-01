@@ -1,5 +1,5 @@
 import os, random, string
-from fabric.api import run, env
+from fabric.api import run, env, cd
 
 def deploy():
 	branch = os.getenv('DRONE_BRANCH', 'master')
@@ -10,7 +10,7 @@ def deploy():
 		run('git clone git@github.com:lavab/api.git')
 		with cd('api'):
 			run('docker build -t registry.lavaboom.io/lavaboom/api-' + branch + ' .')
-			
+
 		run('git clone git@github.com:lavab/docker.git')
 		with cd('docker/runners'):
 			run('docker rm -f api-' + branch)
