@@ -106,10 +106,10 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 	// Set up the database
 	rethinkOpts := gorethink.ConnectOpts{
-		Address:     flags.RethinkDBAddress,
-		AuthKey:     flags.RethinkDBKey,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
+		Address: flags.RethinkDBAddress,
+		AuthKey: flags.RethinkDBKey,
+		MaxIdle: 10,
+		Timeout: time.Second * 10,
 	}
 	err = db.Setup(rethinkOpts)
 	if err != nil {
