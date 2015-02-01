@@ -1,6 +1,8 @@
 import os, random, string
 from fabric.api import run, env, cd
 
+env.key_filename = os.getenv('HOME', '/root') + '/.ssh/id_rsa'
+
 def deploy():
 	branch = os.getenv('DRONE_BRANCH', 'master')
 	commit = os.getenv('DRONE_COMMIT', 'master')
