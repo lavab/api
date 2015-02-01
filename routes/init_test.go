@@ -36,10 +36,10 @@ func init() {
 
 	// Connect to the RethinkDB server
 	rdbSession, err := gorethink.Connect(gorethink.ConnectOpts{
-		Address:     env.Config.RethinkDBAddress,
-		AuthKey:     env.Config.RethinkDBKey,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
+		Address: env.Config.RethinkDBAddress,
+		AuthKey: env.Config.RethinkDBKey,
+		MaxIdle: 10,
+		Timeout: time.Second * 10,
 	})
 	if err != nil {
 		panic("connecting to RethinkDB should not return an error, got " + err.Error())
