@@ -13,6 +13,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
+	"github.com/johntdyer/slackrus"
 	"github.com/pzduniak/glogrus"
 	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
@@ -56,6 +57,33 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	if flags.LogglyToken != "" {
 		log.Hooks.Add(&logglyHook{
 			Loggly: loggly.New(flags.LogglyToken),
+		})
+	}
+
+	if flags.SlackURL != "" {
+		var level []logrus.Level
+
+		switch flags.SlackLevels {
+		case "debug":
+			level = slackrus.LevelThreshold(logrus.DebugLevel)
+		case "error":
+			level = slackrus.LevelThreshold(logrus.ErrorLevel)
+		case "fatal":
+			level = slackrus.LevelThreshold(logrus.FatalLevel)
+		case "info":
+			level = slackrus.LevelThreshold(logrus.InfoLevel)
+		case "panic":
+			level = slackrus.LevelThreshold(logrus.PanicLevel)
+		case "warn":
+			level = slackrus.LevelThreshold(logrus.WarnLevel)
+		}
+
+		log.Hooks.Add(&slackrus.SlackrusHook{
+			HookURL:        flags.SlackURL,
+			AcceptedLevels: level,
+			Channel:        flags.SlackChannel,
+			IconEmoji:      flags.SlackIcon,
+			Username:       flags.SlackUsername,
 		})
 	}
 

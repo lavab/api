@@ -65,7 +65,7 @@ var (
 	// YubiCloud params
 	yubiCloudID  = flag.String("yubicloud_id", "", "YubiCloud API id")
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
-	// Loggly URL
+	// loggly
 	logglyToken = flag.String("loggly_token", "", "Loggly token")
 	// etcd
 	etcdAddress  = flag.String("etcd_address", "", "etcd peer addresses split by commas")
@@ -73,6 +73,12 @@ var (
 	etcdCertFile = flag.String("etcd_cert_file", "", "etcd path to client cert file")
 	etcdKeyFile  = flag.String("etcd_key_file", "", "etcd path to client key file")
 	etcdPath     = flag.String("etcd_path", "settings/", "Path of the keys")
+	// slack
+	slackURL      = flag.String("slack_url", "", "URL of the Slack Incoming webhook")
+	slackLevels   = flag.String("slack_level", "warning", "minimal level required to have messages sent to slack")
+	slackChannel  = flag.String("slack_channel", "#api-logs", "channel to which Slack bot will send messages")
+	slackIcon     = flag.String("slack_icon", ":ghost:", "emoji icon of the Slack bot")
+	slackUsername = flag.String("slack_username", "API", "username of the Slack bot")
 )
 
 func main() {
@@ -103,6 +109,12 @@ func main() {
 		YubiCloudKey: *yubiCloudKey,
 
 		LogglyToken: *logglyToken,
+
+		SlackURL:      *slackURL,
+		SlackLevels:   *slackLevels,
+		SlackChannel:  *slackChannel,
+		SlackIcon:     *slackIcon,
+		SlackUsername: *slackUsername,
 	}
 
 	// Generate a mux

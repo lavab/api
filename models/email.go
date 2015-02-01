@@ -31,6 +31,8 @@ type Email struct {
 	// 		Snippet       string
 	//Preview Encrypted `json:"preview" gorethink:"preview"`
 
+	Headers []string `json:"headers" gorethink:"headers"`
+
 	// ThreadID
 	Thread string `json:"thread" gorethink:"thread"`
 
