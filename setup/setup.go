@@ -451,10 +451,12 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			// Read a message from the input
 			msg, err := session.Recv()
 			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"id":    session.ID(),
-					"error": err.Error(),
-				}).Warn("Error while reading from a WebSocket")
+				if err != sockjs.ErrSessionNotOpen {
+					env.Log.WithFields(logrus.Fields{
+						"id":    session.ID(),
+						"error": err.Error(),
+					}).Warn("Error while reading from a WebSocket")
+				}
 				break
 			}
 
