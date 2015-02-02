@@ -13,6 +13,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
 	"github.com/dancannon/gorethink"
+	"github.com/johntdyer/slackrus"
 	"github.com/pzduniak/glogrus"
 	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
@@ -59,6 +60,33 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		})
 	}
 
+	if flags.SlackURL != "" {
+		var level []logrus.Level
+
+		switch flags.SlackLevels {
+		case "debug":
+			level = slackrus.LevelThreshold(logrus.DebugLevel)
+		case "error":
+			level = slackrus.LevelThreshold(logrus.ErrorLevel)
+		case "fatal":
+			level = slackrus.LevelThreshold(logrus.FatalLevel)
+		case "info":
+			level = slackrus.LevelThreshold(logrus.InfoLevel)
+		case "panic":
+			level = slackrus.LevelThreshold(logrus.PanicLevel)
+		case "warn":
+			level = slackrus.LevelThreshold(logrus.WarnLevel)
+		}
+
+		log.Hooks.Add(&slackrus.SlackrusHook{
+			HookURL:        flags.SlackURL,
+			AcceptedLevels: level,
+			Channel:        flags.SlackChannel,
+			IconEmoji:      flags.SlackIcon,
+			Username:       flags.SlackUsername,
+		})
+	}
+
 	// Pass it to the environment package
 	env.Log = log
 
@@ -78,10 +106,10 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 	// Set up the database
 	rethinkOpts := gorethink.ConnectOpts{
-		Address:     flags.RethinkDBAddress,
-		AuthKey:     flags.RethinkDBKey,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
+		Address: flags.RethinkDBAddress,
+		AuthKey: flags.RethinkDBKey,
+		MaxIdle: 10,
+		Timeout: time.Second * 10,
 	}
 	err = db.Setup(rethinkOpts)
 	if err != nil {
