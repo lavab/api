@@ -416,6 +416,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Get("/threads", routes.ThreadsList)
 	auth.Get("/threads/:id", routes.ThreadsGet)
 	auth.Put("/threads/:id", routes.ThreadsUpdate)
+	auth.Delete("/threads/:id", routes.ThreadsDelete)
 
 	// Emails
 	auth.Get("/emails", routes.EmailsList)

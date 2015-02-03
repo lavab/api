@@ -283,6 +283,21 @@ func ThreadsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Remove dependent emails
+	err = env.Emails.DeleteByThread(c.URLParams["id"])
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"id":    c.URLParams["id"],
+		}).Error("Unable to delete emails by thread")
+
+		utils.JSONResponse(w, 500, &ThreadsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code TH/DE/02)",
+		})
+		return
+	}
+
 	// Write the thread to the response
 	utils.JSONResponse(w, 200, &ThreadsDeleteResponse{
 		Success: true,
