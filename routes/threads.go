@@ -217,7 +217,7 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	thread.DateModified = time.Now()
 
-	err = env.Threads.UpdateID(c.URLParams["id"], input)
+	err = env.Threads.UpdateID(c.URLParams["id"], thread)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
