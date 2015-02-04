@@ -77,9 +77,9 @@ func (a *AttachmentsTable) CountByEmail(id string) (int, error) {
 	return result, nil
 }
 
-func (a *AttachmentsTable) CountByThread(id string) (int, error) {
+func (a *AttachmentsTable) CountByThread(id ...interface{}) (int, error) {
 	query, err := a.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-		return a.Emails.GetTable().GetAllByIndex("owner", id).Field("attachments").Contains(row.Field("id"))
+		return gorethink.Table("emails").GetAllByIndex("owner", id...).Field("attachments").Contains(row.Field("id"))
 	}).Count().Run(a.GetSession())
 	if err != nil {
 		return 0, err
