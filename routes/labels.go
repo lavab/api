@@ -80,6 +80,14 @@ func LabelsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := env.Labels.GetLabelByNameAndOwner(session.Owner, input.Name); err == nil {
+		utils.JSONResponse(w, 409, &LabelsCreateResponse{
+			Success: false,
+			Message: "Label with such name already exists",
+		})
+		return
+	}
+
 	// Create a new label struct
 	label := &models.Label{
 		Resource: models.MakeResource(session.Owner, input.Name),

@@ -204,7 +204,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"labels",
 		),
 		Emails: env.Emails,
-		Cache:  redis,
+		//Cache:  redis,
 	}
 	env.Attachments = &db.AttachmentsTable{
 		RethinkCRUD: db.NewCRUDTable(
