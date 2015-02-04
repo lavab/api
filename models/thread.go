@@ -15,4 +15,6 @@ type Thread struct {
 	Members []string `json:"members" gorethink:"members"`
 
 	IsRead bool `json:"is_read" gorethink:"is_read"`
+
+	AttachmentsCount *int `json:"attachments_count,omitempty" gorethink:"attachments_count,omitempty"`
 }
