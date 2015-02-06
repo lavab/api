@@ -14,5 +14,8 @@ type Thread struct {
 	// Members is a slice containing userIDs or email addresses for all members of the thread
 	Members []string `json:"members" gorethink:"members"`
 
-	IsRead bool `json:"is_read" gorethink:"is_read"`
+	IsRead   bool   `json:"is_read" gorethink:"is_read"`
+	LastRead string `json:"last_read" gorethink:"last_read"`
+
+	AttachmentsCount *int `json:"attachments_count,omitempty" gorethink:"attachments_count,omitempty"`
 }

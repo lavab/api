@@ -204,7 +204,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"labels",
 		),
 		Emails: env.Emails,
-		Cache:  redis,
+		//Cache:  redis,
 	}
 	env.Attachments = &db.AttachmentsTable{
 		RethinkCRUD: db.NewCRUDTable(
@@ -416,6 +416,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Get("/threads", routes.ThreadsList)
 	auth.Get("/threads/:id", routes.ThreadsGet)
 	auth.Put("/threads/:id", routes.ThreadsUpdate)
+	auth.Delete("/threads/:id", routes.ThreadsDelete)
 
 	// Emails
 	auth.Get("/emails", routes.EmailsList)
@@ -451,10 +452,12 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			// Read a message from the input
 			msg, err := session.Recv()
 			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"id":    session.ID(),
-					"error": err.Error(),
-				}).Warn("Error while reading from a WebSocket")
+				if err != sockjs.ErrSessionNotOpen {
+					env.Log.WithFields(logrus.Fields{
+						"id":    session.ID(),
+						"error": err.Error(),
+					}).Warn("Error while reading from a WebSocket")
+				}
 				break
 			}
 
