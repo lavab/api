@@ -27,14 +27,15 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	var (
-		query     = r.URL.Query()
-		sortRaw   = query.Get("sort")
-		offsetRaw = query.Get("offset")
-		limitRaw  = query.Get("limit")
-		label     = query.Get("label")
-		sort      []string
-		offset    int
-		limit     int
+		query            = r.URL.Query()
+		sortRaw          = query.Get("sort")
+		offsetRaw        = query.Get("offset")
+		limitRaw         = query.Get("limit")
+		attachmentsCount = query.Get("attachments_count")
+		label            = query.Get("label")
+		sort             []string
+		offset           int
+		limit            int
 	)
 
 	if offsetRaw != "" {
@@ -104,6 +105,26 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Total-Count", strconv.Itoa(count))
 	}
 
+	if attachmentsCount == "true" || attachmentsCount == "1" {
+		for _, thread := range threads {
+			count, err := env.Attachments.CountByThread(thread.ID)
+			if err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"error":  err.Error(),
+					"thread": thread.ID,
+				}).Error("Unable to count attachments per thread")
+
+				utils.JSONResponse(w, 500, &ThreadsListResponse{
+					Success: false,
+					Message: "Internal error (code TH/LI/03)",
+				})
+				return
+			}
+
+			thread.AttachmentsCount = &count
+		}
+	}
+
 	utils.JSONResponse(w, 200, &ThreadsListResponse{
 		Success: true,
 		Threads: &threads,
@@ -140,7 +161,7 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var emails []*models.Email
-	if ok := r.URL.Query().Get("list_emails"); ok == "true" {
+	if ok := r.URL.Query().Get("list_emails"); ok == "true" || ok == "1" {
 		emails, err = env.Emails.GetByThread(thread.ID)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
@@ -156,6 +177,24 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if ok := r.URL.Query().Get("attachments_count"); ok == "true" || ok == "1" {
+		count, err := env.Attachments.CountByThread(thread.ID)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"id":    thread.ID,
+			}).Error("Unable to count attachments linked to a thread")
+
+			utils.JSONResponse(w, 500, &ThreadsGetResponse{
+				Success: false,
+				Message: "Unable to count attachments",
+			})
+			return
+		}
+
+		thread.AttachmentsCount = &count
+	}
+
 	utils.JSONResponse(w, 200, &ThreadsGetResponse{
 		Success: true,
 		Thread:  thread,
@@ -164,7 +203,9 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 type ThreadsUpdateRequest struct {
-	Labels []string `json:"labels"`
+	Labels   []string `json:"labels"`
+	IsRead   *bool    `json:"is_read"`
+	LastRead string   `json:"last_read"`
 }
 
 type ThreadsUpdateResponse struct {
@@ -215,9 +256,17 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		thread.Labels = input.Labels
 	}
 
+	if thread.LastRead != input.LastRead {
+		thread.LastRead = input.LastRead
+	}
+
+	if input.IsRead != nil && *input.IsRead != thread.IsRead {
+		thread.IsRead = *input.IsRead
+	}
+
 	thread.DateModified = time.Now()
 
-	err = env.Threads.UpdateID(c.URLParams["id"], input)
+	err = env.Threads.UpdateID(c.URLParams["id"], thread)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -279,6 +328,21 @@ func ThreadsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, 500, &ThreadsDeleteResponse{
 			Success: false,
 			Message: "Internal error (code TH/DE/01)",
+		})
+		return
+	}
+
+	// Remove dependent emails
+	err = env.Emails.DeleteByThread(c.URLParams["id"])
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"id":    c.URLParams["id"],
+		}).Error("Unable to delete emails by thread")
+
+		utils.JSONResponse(w, 500, &ThreadsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code TH/DE/02)",
 		})
 		return
 	}

@@ -61,3 +61,35 @@ func (a *AttachmentsTable) GetEmailAttachments(id string) ([]*models.Attachment,
 
 	return result, nil
 }
+
+func (a *AttachmentsTable) CountByEmail(id string) (int, error) {
+	query, err := a.GetTable().GetAllByIndex("owner", id).Count().Run(a.GetSession())
+	if err != nil {
+		return 0, err
+	}
+
+	var result int
+	err = query.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
+func (a *AttachmentsTable) CountByThread(id ...interface{}) (int, error) {
+	query, err := a.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return gorethink.Table("emails").GetAllByIndex("owner", id...).Field("attachments").Contains(row.Field("id"))
+	}).Count().Run(a.GetSession())
+	if err != nil {
+		return 0, err
+	}
+
+	var result int
+	err = query.One(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}

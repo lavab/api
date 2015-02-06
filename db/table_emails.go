@@ -122,3 +122,9 @@ func (e *EmailsTable) GetByThread(thread string) ([]*models.Email, error) {
 
 	return result, nil
 }
+
+func (e *EmailsTable) DeleteByThread(id string) error {
+	return e.Delete(map[string]interface{}{
+		"thread": id,
+	})
+}

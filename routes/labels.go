@@ -80,6 +80,14 @@ func LabelsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := env.Labels.GetLabelByNameAndOwner(session.Owner, input.Name); err == nil {
+		utils.JSONResponse(w, 409, &LabelsCreateResponse{
+			Success: false,
+			Message: "Label with such name already exists",
+		})
+		return
+	}
+
 	// Create a new label struct
 	label := &models.Label{
 		Resource: models.MakeResource(session.Owner, input.Name),
@@ -198,7 +206,7 @@ func LabelsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Perform the update
-	err = env.Labels.UpdateID(c.URLParams["id"], input)
+	err = env.Labels.UpdateID(c.URLParams["id"], label)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),

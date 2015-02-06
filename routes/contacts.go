@@ -242,7 +242,7 @@ func ContactsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Perform the update
-	err = env.Contacts.UpdateID(c.URLParams["id"], input)
+	err = env.Contacts.UpdateID(c.URLParams["id"], contact)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),

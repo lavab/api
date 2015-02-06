@@ -236,7 +236,7 @@ func AttachmentsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Perform the update
-	err = env.Attachments.UpdateID(c.URLParams["id"], input)
+	err = env.Attachments.UpdateID(c.URLParams["id"], attachment)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),

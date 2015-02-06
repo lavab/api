@@ -9,7 +9,7 @@ type Encrypted struct {
 	PGPFingerprints []string `json:"pgp_fingerprints" gorethink:"pgp_fingerprints"`
 
 	// Data is the raw, PGP-encrypted data
-	Data string `json:"raw" gorethink:"raw"`
+	Data string `json:"data" gorethink:"data"`
 
 	// Schema is the name of the schema used to encode the data
 	// Examples: string, contact, email
