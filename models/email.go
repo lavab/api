@@ -19,7 +19,7 @@ type Email struct {
 
 	// AttachmentsIDs is a slice of the FileIDs associated with this email
 	// For uploading attachments see `POST /upload`
-	Attachments []string `json:"attachments" gorethink:"attachments"`
+	Files []string `json:"files" gorethink:"files"`
 
 	// Body contains all the data needed to send this email
 	Body Encrypted `json:"body" gorethink:"body"`

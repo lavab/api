@@ -17,5 +17,5 @@ type Thread struct {
 	IsRead   bool   `json:"is_read" gorethink:"is_read"`
 	LastRead string `json:"last_read" gorethink:"last_read"`
 
-	AttachmentsCount *int `json:"attachments_count,omitempty" gorethink:"attachments_count,omitempty"`
+	FilesCount *int `json:"files_count,omitempty" gorethink:"-"`
 }

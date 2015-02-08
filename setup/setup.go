@@ -206,11 +206,11 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		Emails: env.Emails,
 		//Cache:  redis,
 	}
-	env.Attachments = &db.AttachmentsTable{
+	env.Files = &db.FilesTable{
 		RethinkCRUD: db.NewCRUDTable(
 			rethinkSession,
 			rethinkOpts.Database,
-			"attachments",
+			"files",
 		),
 	}
 
@@ -386,13 +386,6 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	// Index route
 	mux.Get("/", routes.Hello)
 
-	// Attachments
-	auth.Get("/attachments", routes.AttachmentsList)
-	auth.Post("/attachments", routes.AttachmentsCreate)
-	auth.Get("/attachments/:id", routes.AttachmentsGet)
-	auth.Put("/attachments/:id", routes.AttachmentsUpdate)
-	auth.Delete("/attachments/:id", routes.AttachmentsDelete)
-
 	// Accounts
 	auth.Get("/accounts", routes.AccountsList)
 	mux.Post("/accounts", routes.AccountsCreate)
@@ -404,6 +397,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	// Avatars
 	mux.Get(regexp.MustCompile(`/avatars/(?P<hash>[\S\s]*?)\.(?P<ext>svg|png)(?:[\S\s]*?)$`), routes.Avatars)
 	//mux.Get("/avatars/:hash.:ext", routes.Avatars)
+
+	// Files
+	auth.Get("/files", routes.FilesList)
+	auth.Post("/files", routes.FilesCreate)
+	auth.Get("/files/:id", routes.FilesGet)
+	auth.Put("/files/:id", routes.FilesUpdate)
+	auth.Delete("/files/:id", routes.FilesDelete)
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)

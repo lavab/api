@@ -138,7 +138,7 @@ type EmailsCreateRequest struct {
 	PreviewVersionMajor int      `json:"preview_version_major"`
 	PreviewVersionMinor int      `json:"preview_version_minor"`
 	Encoding            string   `json:"encoding"`
-	Attachments         []string `json:"attachments"`
+	Files               []string `json:"files"`
 	PGPFingerprints     []string `json:"pgp_fingerprints"`
 }
 
@@ -260,14 +260,14 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Create a new email struct
 	email := &models.Email{
-		Kind:        "sent",
-		From:        []string{account.Name + "@" + env.Config.EmailDomain},
-		To:          input.To,
-		CC:          input.CC,
-		BCC:         input.BCC,
-		Resource:    emailResource,
-		Attachments: input.Attachments,
-		Thread:      input.Thread,
+		Kind:     "sent",
+		From:     []string{account.Name + "@" + env.Config.EmailDomain},
+		To:       input.To,
+		CC:       input.CC,
+		BCC:      input.BCC,
+		Resource: emailResource,
+		Files:    input.Files,
+		Thread:   input.Thread,
 		Body: models.Encrypted{
 			Encoding:        "json",
 			PGPFingerprints: input.PGPFingerprints,

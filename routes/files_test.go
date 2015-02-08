@@ -12,7 +12,7 @@ import (
 	"github.com/lavab/api/routes"
 )
 
-func TestAttachmentsRoute(t *testing.T) {
+func TestFilesRoute(t *testing.T) {
 	Convey("When uploading a new attachment", t, func() {
 		account := &models.Account{
 			Resource: models.MakeResource("", "johnorange"),
@@ -47,7 +47,7 @@ func TestAttachmentsRoute(t *testing.T) {
 		Convey("Misformatted body should fail", func() {
 			request := goreq.Request{
 				Method:      "POST",
-				Uri:         server.URL + "/attachments",
+				Uri:         server.URL + "/files",
 				ContentType: "application/json",
 				Body:        "!@#!@#",
 			}
@@ -55,7 +55,7 @@ func TestAttachmentsRoute(t *testing.T) {
 			result, err := request.Do()
 			So(err, ShouldBeNil)
 
-			var response routes.AttachmentsCreateResponse
+			var response routes.FilesCreateResponse
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
@@ -66,7 +66,7 @@ func TestAttachmentsRoute(t *testing.T) {
 		Convey("Invalid set of data should fail", func() {
 			request := goreq.Request{
 				Method: "POST",
-				Uri:    server.URL + "/attachments",
+				Uri:    server.URL + "/files",
 			}
 			request.AddHeader("Authorization", "Bearer "+authToken.ID)
 			result, err := request.Do()
@@ -83,7 +83,7 @@ func TestAttachmentsRoute(t *testing.T) {
 		Convey("Attachment upload should succeed", func() {
 			request := goreq.Request{
 				Method:      "POST",
-				Uri:         server.URL + "/attachments",
+				Uri:         server.URL + "/files",
 				ContentType: "application/json",
 				Body: `{
 	"data": "` + uniuri.NewLen(64) + `",
@@ -98,7 +98,7 @@ func TestAttachmentsRoute(t *testing.T) {
 			result, err := request.Do()
 			So(err, ShouldBeNil)
 
-			var response routes.AttachmentsCreateResponse
+			var response routes.FilesCreateResponse
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
@@ -111,13 +111,13 @@ func TestAttachmentsRoute(t *testing.T) {
 			Convey("Getting that attachment should succeed", func() {
 				request := goreq.Request{
 					Method: "GET",
-					Uri:    server.URL + "/attachments/" + attachment.ID,
+					Uri:    server.URL + "/files/" + attachment.ID,
 				}
 				request.AddHeader("Authorization", "Bearer "+authToken.ID)
 				result, err := request.Do()
 				So(err, ShouldBeNil)
 
-				var response routes.AttachmentsGetResponse
+				var response routes.FilesGetResponse
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
@@ -128,21 +128,21 @@ func TestAttachmentsRoute(t *testing.T) {
 			Convey("The attachment should be visible on the list", func() {
 				request := goreq.Request{
 					Method: "GET",
-					Uri:    server.URL + "/attachments",
+					Uri:    server.URL + "/files",
 				}
 				request.AddHeader("Authorization", "Bearer "+authToken.ID)
 				result, err := request.Do()
 				So(err, ShouldBeNil)
 
-				var response routes.AttachmentsListResponse
+				var response routes.FilesListResponse
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
-				So(len(*response.Attachments), ShouldBeGreaterThan, 0)
+				So(len(*response.Files), ShouldBeGreaterThan, 0)
 				So(response.Success, ShouldBeTrue)
 
 				found := false
-				for _, a := range *response.Attachments {
+				for _, a := range *response.Files {
 					if a.ID == attachment.ID {
 						found = true
 						break
@@ -155,7 +155,7 @@ func TestAttachmentsRoute(t *testing.T) {
 			Convey("Updating it should succeed", func() {
 				request := goreq.Request{
 					Method:      "PUT",
-					Uri:         server.URL + "/attachments/" + attachment.ID,
+					Uri:         server.URL + "/files/" + attachment.ID,
 					ContentType: "application/json",
 					Body: `{
 		"data": "` + uniuri.NewLen(64) + `",
@@ -170,7 +170,7 @@ func TestAttachmentsRoute(t *testing.T) {
 				result, err := request.Do()
 				So(err, ShouldBeNil)
 
-				var response routes.AttachmentsUpdateResponse
+				var response routes.FilesUpdateResponse
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
@@ -182,13 +182,13 @@ func TestAttachmentsRoute(t *testing.T) {
 			Convey("Deleting it should succeed", func() {
 				request := goreq.Request{
 					Method: "DELETE",
-					Uri:    server.URL + "/attachments/" + attachment.ID,
+					Uri:    server.URL + "/files/" + attachment.ID,
 				}
 				request.AddHeader("Authorization", "Bearer "+authToken.ID)
 				result, err := request.Do()
 				So(err, ShouldBeNil)
 
-				var response routes.AttachmentsDeleteResponse
+				var response routes.FilesDeleteResponse
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
@@ -200,13 +200,13 @@ func TestAttachmentsRoute(t *testing.T) {
 		Convey("Getting a non-existing attachment should fail", func() {
 			request := goreq.Request{
 				Method: "GET",
-				Uri:    server.URL + "/attachments/doesntexist",
+				Uri:    server.URL + "/files/doesntexist",
 			}
 			request.AddHeader("Authorization", "Bearer "+authToken.ID)
 			result, err := request.Do()
 			So(err, ShouldBeNil)
 
-			var response routes.AttachmentsGetResponse
+			var response routes.FilesGetResponse
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
@@ -216,7 +216,7 @@ func TestAttachmentsRoute(t *testing.T) {
 			Convey("Updating it should fail too", func() {
 				request := goreq.Request{
 					Method:      "PUT",
-					Uri:         server.URL + "/attachments/doesntexist",
+					Uri:         server.URL + "/files/doesntexist",
 					ContentType: "application/json",
 					Body:        "{}",
 				}
@@ -224,7 +224,7 @@ func TestAttachmentsRoute(t *testing.T) {
 				result, err := request.Do()
 				So(err, ShouldBeNil)
 
-				var response routes.AttachmentsGetResponse
+				var response routes.FilesGetResponse
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
@@ -246,18 +246,18 @@ func TestAttachmentsRoute(t *testing.T) {
 				Resource: models.MakeResource("nonowned", "photo.jpg"),
 			}
 
-			err := env.Attachments.Insert(attachment)
+			err := env.Files.Insert(attachment)
 			So(err, ShouldBeNil)
 
 			request := goreq.Request{
 				Method: "GET",
-				Uri:    server.URL + "/attachments/" + attachment.ID,
+				Uri:    server.URL + "/files/" + attachment.ID,
 			}
 			request.AddHeader("Authorization", "Bearer "+authToken.ID)
 			result, err := request.Do()
 			So(err, ShouldBeNil)
 
-			var response routes.AttachmentsGetResponse
+			var response routes.FilesGetResponse
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
@@ -268,7 +268,7 @@ func TestAttachmentsRoute(t *testing.T) {
 		Convey("Updating using a misformatted body should fail", func() {
 			request := goreq.Request{
 				Method:      "PUT",
-				Uri:         server.URL + "/attachments/shizzle",
+				Uri:         server.URL + "/files/shizzle",
 				ContentType: "application/json",
 				Body:        "!@#!@#",
 			}
@@ -276,7 +276,7 @@ func TestAttachmentsRoute(t *testing.T) {
 			result, err := request.Do()
 			So(err, ShouldBeNil)
 
-			var response routes.AttachmentsUpdateResponse
+			var response routes.FilesUpdateResponse
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
@@ -287,7 +287,7 @@ func TestAttachmentsRoute(t *testing.T) {
 		Convey("Updating a non-existing attachment should fail", func() {
 			request := goreq.Request{
 				Method:      "PUT",
-				Uri:         server.URL + "/attachments/shizzle",
+				Uri:         server.URL + "/files/shizzle",
 				ContentType: "application/json",
 				Body:        "{}",
 			}
@@ -295,7 +295,7 @@ func TestAttachmentsRoute(t *testing.T) {
 			result, err := request.Do()
 			So(err, ShouldBeNil)
 
-			var response routes.AttachmentsUpdateResponse
+			var response routes.FilesUpdateResponse
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
@@ -306,13 +306,13 @@ func TestAttachmentsRoute(t *testing.T) {
 		Convey("Deleting a non-existing attachment should fail", func() {
 			request := goreq.Request{
 				Method: "DELETE",
-				Uri:    server.URL + "/attachments/shizzle",
+				Uri:    server.URL + "/files/shizzle",
 			}
 			request.AddHeader("Authorization", "Bearer "+authToken.ID)
 			result, err := request.Do()
 			So(err, ShouldBeNil)
 
-			var response routes.AttachmentsDeleteResponse
+			var response routes.FilesDeleteResponse
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 

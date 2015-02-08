@@ -33,8 +33,8 @@ var (
 	Emails *db.EmailsTable
 	// Labels is the global instance of LabelsTable
 	Labels *db.LabelsTable
-	// Attachments is the global instance of AttachmentsTable
-	Attachments *db.AttachmentsTable
+	// Files is the global instance of FilesTable
+	Files *db.FilesTable
 	// Threads is the global instance of ThreadsTable
 	Threads *db.ThreadsTable
 	// Factors contains all currently registered factors
