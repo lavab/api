@@ -18,9 +18,9 @@ script:
   - "if [ \"$DRONE_BRANCH\" = \"develop\" ]; then fab -H bart.lavaboom.io:36467 deploy; fi"
 notify:
   slack:
-   - webhook_url: $$SLACK_URL
-   - channel: $$SLACK_CHANNEL
-   - username: lavadrone
-   - on_started: true
-   - on_success: true
-   - on_failure: true
+    webhook_url: $$SLACK_URL
+    channel: $$SLACK_CHANNEL
+    username: lavadrone
+    on_started: true
+    on_success: true
+    on_failure: true
