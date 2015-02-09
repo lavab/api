@@ -13,7 +13,7 @@ import (
 )
 
 func TestFilesRoute(t *testing.T) {
-	Convey("When uploading a new attachment", t, func() {
+	Convey("When uploading a new file", t, func() {
 		account := &models.Account{
 			Resource: models.MakeResource("", "johnorange"),
 			Status:   "complete",
@@ -80,7 +80,7 @@ func TestFilesRoute(t *testing.T) {
 			So(response.Message, ShouldEqual, "Invalid request")
 		})
 
-		Convey("Attachment upload should succeed", func() {
+		Convey("File upload should succeed", func() {
 			request := goreq.Request{
 				Method:      "POST",
 				Uri:         server.URL + "/files",
@@ -102,16 +102,16 @@ func TestFilesRoute(t *testing.T) {
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
-			So(response.Message, ShouldEqual, "A new attachment was successfully created")
+			So(response.Message, ShouldEqual, "A new file was successfully created")
 			So(response.Success, ShouldBeTrue)
-			So(response.Attachment.ID, ShouldNotBeEmpty)
+			So(response.File.ID, ShouldNotBeEmpty)
 
-			attachment := response.Attachment
+			file := response.File
 
-			Convey("Getting that attachment should succeed", func() {
+			Convey("Getting that file should succeed", func() {
 				request := goreq.Request{
 					Method: "GET",
-					Uri:    server.URL + "/files/" + attachment.ID,
+					Uri:    server.URL + "/files/" + file.ID,
 				}
 				request.AddHeader("Authorization", "Bearer "+authToken.ID)
 				result, err := request.Do()
@@ -121,11 +121,11 @@ func TestFilesRoute(t *testing.T) {
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
-				So(response.Attachment.ID, ShouldNotBeNil)
+				So(response.File.ID, ShouldNotBeNil)
 				So(response.Success, ShouldBeTrue)
 			})
 
-			Convey("The attachment should be visible on the list", func() {
+			Convey("The file should be visible on the list", func() {
 				request := goreq.Request{
 					Method: "GET",
 					Uri:    server.URL + "/files",
@@ -143,7 +143,7 @@ func TestFilesRoute(t *testing.T) {
 
 				found := false
 				for _, a := range *response.Files {
-					if a.ID == attachment.ID {
+					if a.ID == file.ID {
 						found = true
 						break
 					}
@@ -155,7 +155,7 @@ func TestFilesRoute(t *testing.T) {
 			Convey("Updating it should succeed", func() {
 				request := goreq.Request{
 					Method:      "PUT",
-					Uri:         server.URL + "/files/" + attachment.ID,
+					Uri:         server.URL + "/files/" + file.ID,
 					ContentType: "application/json",
 					Body: `{
 		"data": "` + uniuri.NewLen(64) + `",
@@ -175,14 +175,14 @@ func TestFilesRoute(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				So(response.Success, ShouldBeTrue)
-				So(response.Attachment.ID, ShouldEqual, attachment.ID)
-				So(response.Attachment.Encoding, ShouldEqual, "xml")
+				So(response.File.ID, ShouldEqual, file.ID)
+				So(response.File.Encoding, ShouldEqual, "xml")
 			})
 
 			Convey("Deleting it should succeed", func() {
 				request := goreq.Request{
 					Method: "DELETE",
-					Uri:    server.URL + "/files/" + attachment.ID,
+					Uri:    server.URL + "/files/" + file.ID,
 				}
 				request.AddHeader("Authorization", "Bearer "+authToken.ID)
 				result, err := request.Do()
@@ -192,12 +192,12 @@ func TestFilesRoute(t *testing.T) {
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
-				So(response.Message, ShouldEqual, "Attachment successfully removed")
+				So(response.Message, ShouldEqual, "File successfully removed")
 				So(response.Success, ShouldBeTrue)
 			})
 		})
 
-		Convey("Getting a non-existing attachment should fail", func() {
+		Convey("Getting a non-existing file should fail", func() {
 			request := goreq.Request{
 				Method: "GET",
 				Uri:    server.URL + "/files/doesntexist",
@@ -210,7 +210,7 @@ func TestFilesRoute(t *testing.T) {
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
-			So(response.Message, ShouldEqual, "Attachment not found")
+			So(response.Message, ShouldEqual, "File not found")
 			So(response.Success, ShouldBeFalse)
 
 			Convey("Updating it should fail too", func() {
@@ -228,17 +228,17 @@ func TestFilesRoute(t *testing.T) {
 				err = result.Body.FromJsonTo(&response)
 				So(err, ShouldBeNil)
 
-				So(response.Message, ShouldEqual, "Attachment not found")
+				So(response.Message, ShouldEqual, "File not found")
 				So(response.Success, ShouldBeFalse)
 			})
 		})
 
-		Convey("Getting a non-owned attachment should fail", func() {
-			attachment := &models.Attachment{
+		Convey("Getting a non-owned file should fail", func() {
+			file := &models.File{
 				Encrypted: models.Encrypted{
 					Encoding:        "json",
 					Data:            uniuri.NewLen(64),
-					Schema:          "attachment",
+					Schema:          "file",
 					VersionMajor:    1,
 					VersionMinor:    0,
 					PGPFingerprints: []string{uniuri.New()},
@@ -246,12 +246,12 @@ func TestFilesRoute(t *testing.T) {
 				Resource: models.MakeResource("nonowned", "photo.jpg"),
 			}
 
-			err := env.Files.Insert(attachment)
+			err := env.Files.Insert(file)
 			So(err, ShouldBeNil)
 
 			request := goreq.Request{
 				Method: "GET",
-				Uri:    server.URL + "/files/" + attachment.ID,
+				Uri:    server.URL + "/files/" + file.ID,
 			}
 			request.AddHeader("Authorization", "Bearer "+authToken.ID)
 			result, err := request.Do()
@@ -261,7 +261,7 @@ func TestFilesRoute(t *testing.T) {
 			err = result.Body.FromJsonTo(&response)
 			So(err, ShouldBeNil)
 
-			So(response.Message, ShouldEqual, "Attachment not found")
+			So(response.Message, ShouldEqual, "File not found")
 			So(response.Success, ShouldBeFalse)
 		})
 
@@ -284,7 +284,7 @@ func TestFilesRoute(t *testing.T) {
 			So(response.Message, ShouldEqual, "Invalid input format")
 		})
 
-		Convey("Updating a non-existing attachment should fail", func() {
+		Convey("Updating a non-existing file should fail", func() {
 			request := goreq.Request{
 				Method:      "PUT",
 				Uri:         server.URL + "/files/shizzle",
@@ -300,10 +300,10 @@ func TestFilesRoute(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			So(response.Success, ShouldBeFalse)
-			So(response.Message, ShouldEqual, "Attachment not found")
+			So(response.Message, ShouldEqual, "File not found")
 		})
 
-		Convey("Deleting a non-existing attachment should fail", func() {
+		Convey("Deleting a non-existing file should fail", func() {
 			request := goreq.Request{
 				Method: "DELETE",
 				Uri:    server.URL + "/files/shizzle",
@@ -317,7 +317,7 @@ func TestFilesRoute(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			So(response.Success, ShouldBeFalse)
-			So(response.Message, ShouldEqual, "Attachment not found")
+			So(response.Message, ShouldEqual, "File not found")
 		})
 	})
 }
