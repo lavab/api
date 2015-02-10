@@ -254,12 +254,25 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			return
 		}
 
+		// Resolve the thread
+		thread, err := env.Threads.GetThread(email.Thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":  err.Error(),
+				"id":     msg.ID,
+				"thread": email.Thread,
+			}).Error("Unable to resolve a thread from queue")
+			return
+		}
+
 		// Send notifications to subscribers
 		for _, session := range sessions[msg.Owner] {
 			result, _ := json.Marshal(map[string]interface{}{
-				"type": "delivery",
-				"id":   msg.ID,
-				"name": email.Name,
+				"type":   "delivery",
+				"id":     msg.ID,
+				"name":   email.Name,
+				"thread": email.Thread,
+				"labels": thread.Labels,
 			})
 			err = session.Send(string(result))
 			if err != nil {
@@ -275,7 +288,6 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		ID    string `json:"id"`
 		Owner string `json:"owner"`
 	}) {
-		log.Print(msg)
 		// Check if we are handling owner's session
 		if _, ok := sessions[msg.Owner]; !ok {
 			return
@@ -295,12 +307,25 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			return
 		}
 
+		// Resolve the thread
+		thread, err := env.Threads.GetThread(email.Thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":  err.Error(),
+				"id":     msg.ID,
+				"thread": email.Thread,
+			}).Error("Unable to resolve a thread from queue")
+			return
+		}
+
 		// Send notifications to subscribers
 		for _, session := range sessions[msg.Owner] {
 			result, _ := json.Marshal(map[string]interface{}{
-				"type": "receipt",
-				"id":   msg.ID,
-				"name": email.Name,
+				"type":   "receipt",
+				"id":     msg.ID,
+				"name":   email.Name,
+				"thread": email.Thread,
+				"labels": thread.Labels,
 			})
 			err = session.Send(string(result))
 			if err != nil {

@@ -15,12 +15,12 @@ var tableIndexes = map[string][]string{
 	"accounts":     []string{"name"},
 	"contacts":     []string{"owner"},
 	"emails":       []string{"owner", "label_ids"},
+	"files":        []string{"owner"},
 	"keys":         []string{"owner", "key_id"},
 	"labels":       []string{"owner"},
 	"reservations": []string{"email", "name"},
 	"threads":      []string{"owner"},
 	"tokens":       []string{"owner"},
-	"files":        []string{"owner"},
 }
 
 // List of names of databases
