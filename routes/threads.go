@@ -252,7 +252,7 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !reflect.DeepEqual(thread.Labels, input.Labels) {
+	if thread.Labels != nil && !reflect.DeepEqual(thread.Labels, input.Labels) {
 		thread.Labels = input.Labels
 	}
 
