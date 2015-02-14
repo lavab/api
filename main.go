@@ -76,7 +76,7 @@ var (
 	// slack
 	slackURL      = flag.String("slack_url", "", "URL of the Slack Incoming webhook")
 	slackLevels   = flag.String("slack_level", "warning", "minimal level required to have messages sent to slack")
-	slackChannel  = flag.String("slack_channel", "#api-logs", "channel to which Slack bot will send messages")
+	slackChannel  = flag.String("slack_channel", "#notif-api-logs", "channel to which Slack bot will send messages")
 	slackIcon     = flag.String("slack_icon", ":ghost:", "emoji icon of the Slack bot")
 	slackUsername = flag.String("slack_username", "API", "username of the Slack bot")
 )
