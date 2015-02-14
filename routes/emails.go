@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"bytes"
-	"io"
+	//"bytes"
+	//"io"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -10,8 +10,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/armor"
+	//"golang.org/x/crypto/openpgp"
+	//"golang.org/x/crypto/openpgp/armor"
 	_ "golang.org/x/crypto/ripemd160"
 
 	"github.com/lavab/api/env"
@@ -125,21 +125,25 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 type EmailsCreateRequest struct {
-	To                  []string `json:"to"`
-	CC                  []string `json:"cc"`
-	BCC                 []string `json:"bcc"`
-	ReplyTo             string   `json:"reply_to"`
-	Thread              string   `json:"thread"`
-	Subject             string   `json:"subject"`
-	Body                string   `json:"body"`
-	BodyVersionMajor    int      `json:"body_version_major"`
-	BodyVersionMinor    int      `json:"body_version_minor"`
-	Preview             string   `json:"preview"`
-	PreviewVersionMajor int      `json:"preview_version_major"`
-	PreviewVersionMinor int      `json:"preview_version_minor"`
-	Encoding            string   `json:"encoding"`
-	Files               []string `json:"files"`
-	PGPFingerprints     []string `json:"pgp_fingerprints"`
+	// Internal properties
+	Kind   string `json:"kind"`
+	Thread string `json:"thread"`
+
+	// Metadata that has to be leaked
+	To  []string `json:"to"`
+	CC  []string `json:"cc"`
+	BCC []string `json:"bcc"`
+
+	// Encrypted parts
+	PGPFingerprints []string `json:"pgp_fingerprints"`
+	Manifest        string   `json:"manifest"`
+	Body            string   `json:"body"`
+	Files           []string `json:"files"`
+
+	// Temporary partials if you're sending unencrypted
+	Subject     string `json:"subject"`
+	ContentType string `json:"content_type"`
+	ReplyTo     string `json:"reply_to"`
 }
 
 // EmailsCreateResponse contains the result of the EmailsCreate request.
@@ -169,13 +173,30 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the middleware
 	session := c.Env["token"].(*models.Token)
 
-	// Ensure that the input data isn't empty
-	if len(input.To) == 0 || input.Subject == "" || input.Body == "" {
+	// Ensure that the kind is valid
+	if input.Kind != "raw" && input.Kind != "manifest" && input.Kind != "pgpmime" {
 		utils.JSONResponse(w, 400, &EmailsCreateResponse{
 			Success: false,
-			Message: "Invalid request",
+			Message: "Invalid email encryption kind",
 		})
 		return
+	}
+
+	// Ensure that there's at least one recipient and that there's body
+	if len(input.To) == 0 || input.Body == "" {
+		utils.JSONResponse(w, 400, &EmailsCreateResponse{
+			Success: false,
+			Message: "Invalid email",
+		})
+		return
+	}
+
+	// Create an email resource
+	resource := models.MakeResource(session.Owner, input.Subject)
+
+	// Generate metadata for manifests
+	if input.Kind == "manifest" {
+		resource.Name = "Encrypted message (" + resource.ID + ")"
 	}
 
 	// Fetch the user object from the database
@@ -193,9 +214,6 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	// Create an email resource
-	emailResource := models.MakeResource(session.Owner, input.Subject)
 
 	// Get the "Sent" label's ID
 	var label *models.Label
@@ -236,7 +254,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	} else {
 		thread := &models.Thread{
 			Resource: models.MakeResource(account.ID, input.Subject),
-			Emails:   []string{emailResource.ID},
+			Emails:   []string{resource.ID},
 			Labels:   []string{label.ID},
 			Members:  append(append(input.To, input.CC...), input.BCC...),
 			IsRead:   true,
@@ -260,22 +278,25 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Create a new email struct
 	email := &models.Email{
-		Kind:     "sent",
-		From:     []string{account.Name + "@" + env.Config.EmailDomain},
-		To:       input.To,
-		CC:       input.CC,
-		BCC:      input.BCC,
-		Resource: emailResource,
-		Files:    input.Files,
-		Thread:   input.Thread,
-		Body: models.Encrypted{
-			Encoding:        "json",
-			PGPFingerprints: input.PGPFingerprints,
-			Data:            input.Body,
-			Schema:          "email",
-			VersionMajor:    input.BodyVersionMajor,
-			VersionMinor:    input.BodyVersionMinor,
-		},
+		Resource: resource,
+
+		Kind:   input.Kind,
+		Thread: input.Thread,
+
+		From: account.Name + "@" + env.Config.EmailDomain,
+		To:   input.To,
+		CC:   input.CC,
+		BCC:  input.BCC,
+
+		PGPFingerprints: input.PGPFingerprints,
+		Manifest:        input.Manifest,
+		Body:            input.Body,
+		Files:           input.Files,
+
+		Subject:     input.Subject,
+		ContentType: input.ContentType,
+		ReplyTo:     input.ReplyTo,
+
 		Status: "queued",
 	}
 
@@ -295,7 +316,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// I'm going to whine at this part, as we are doubling the email sending code
 
 	// Check if To contains lavaboom emails
-	for _, address := range email.To {
+	/*for _, address := range email.To {
 		parts := strings.SplitN(address, "@", 2)
 		if parts[1] == env.Config.EmailDomain {
 			go sendEmail(parts[0], email)
@@ -330,7 +351,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			"error": err.Error(),
 		}).Error("Could not publish an email send request")
 		return
-	}
+	}*/
 
 	utils.JSONResponse(w, 201, &EmailsCreateResponse{
 		Success: true,
@@ -428,7 +449,7 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func sendEmail(account string, email *models.Email) {
+/*func sendEmail(account string, email *models.Email) {
 	// find recipient's account
 	recipient, err := env.Accounts.FindAccountByName(account)
 	if err != nil {
@@ -651,4 +672,4 @@ func sendEmail(account string, email *models.Email) {
 			"error": err.Error(),
 		}).Error("Unable to publish a receipt message")
 	}
-}
+}*/
