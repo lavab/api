@@ -293,7 +293,6 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		Body:            input.Body,
 		Files:           input.Files,
 
-		Subject:     input.Subject,
 		ContentType: input.ContentType,
 		ReplyTo:     input.ReplyTo,
 
