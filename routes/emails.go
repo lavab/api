@@ -337,7 +337,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		if parts[1] == env.Config.EmailDomain {
 			go sendEmail(parts[0], email)
 		}
-	}
+	}*/
 
 	// Add a send request to the queue
 	err = env.NATS.Publish("send", email.ID)
@@ -351,7 +351,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			"error": err.Error(),
 		}).Error("Could not publish an email send request")
 		return
-	}*/
+	}
 
 	utils.JSONResponse(w, 201, &EmailsCreateResponse{
 		Success: true,
