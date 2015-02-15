@@ -32,7 +32,6 @@ type Email struct {
 
 	// ContentType of the body in unencrypted emails
 	ContentType string `json:"content_type" gorethink:"content_type"`
-	Subject     string `json:"subject" gorethink:"subject"`
 	ReplyTo     string `json:"reply_to" gorethink:"reply_to"`
 
 	// Contains ID of the thread
