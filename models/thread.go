@@ -18,4 +18,7 @@ type Thread struct {
 	LastRead string `json:"last_read" gorethink:"last_read"`
 
 	FilesCount *int `json:"files_count,omitempty" gorethink:"-"`
+
+	// SHA256 hash of the raw subject without prefixes
+	SubjectHash string `json:"subject_hash" gorethink:"subject_hash"`
 }

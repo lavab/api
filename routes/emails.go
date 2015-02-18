@@ -3,6 +3,7 @@ package routes
 import (
 	//"bytes"
 	//"io"
+	"crypto/sha256"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -252,12 +253,15 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
+		hash := sha256.Sum256([]byte(input.Subject))
+
 		thread := &models.Thread{
-			Resource: models.MakeResource(account.ID, input.Subject),
-			Emails:   []string{resource.ID},
-			Labels:   []string{label.ID},
-			Members:  append(append(input.To, input.CC...), input.BCC...),
-			IsRead:   true,
+			Resource:    models.MakeResource(account.ID, "Encrypted thread"),
+			Emails:      []string{resource.ID},
+			Labels:      []string{label.ID},
+			Members:     append(append(input.To, input.CC...), input.BCC...),
+			IsRead:      true,
+			SubjectHash: string(hash[:]),
 		}
 
 		err := env.Threads.Insert(thread)
