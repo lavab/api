@@ -19,7 +19,7 @@ var tableIndexes = map[string][]string{
 	"keys":         []string{"owner", "key_id"},
 	"labels":       []string{"owner"},
 	"reservations": []string{"email", "name"},
-	"threads":      []string{"owner"},
+	"threads":      []string{"owner", "subject_hash"},
 	"tokens":       []string{"owner"},
 }
 
