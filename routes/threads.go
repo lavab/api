@@ -160,6 +160,16 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	manifest, err := env.Emails.GetThreadManifest(thread.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"id":    thread.ID,
+		}).Error("Unable to get a manifest")
+	} else {
+		thread.Manifest = manifest
+	}
+
 	var emails []*models.Email
 	if ok := r.URL.Query().Get("list_emails"); ok == "true" || ok == "1" {
 		emails, err = env.Emails.GetByThread(thread.ID)
