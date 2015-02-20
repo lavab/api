@@ -102,7 +102,7 @@ func (t *ThreadsTable) List(
 	}
 
 	// Add manifests
-	term = term.InnerJoin(gorethink.Table("emails").Pluck("thread", "manifest"), func(thread gorethink.Term, email gorethink.Term) gorethink.Term {
+	term = term.InnerJoin(gorethink.Db(t.GetDBName()).Table("emails").Pluck("thread", "manifest"), func(thread gorethink.Term, email gorethink.Term) gorethink.Term {
 		return thread.Field("id").Eq(email.Field("thread"))
 	}).Without(map[string]interface{}{
 		"right": map[string]interface{}{
