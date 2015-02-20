@@ -96,15 +96,6 @@ func (e *EmailsTable) List(
 		term = term.Slice(offset, offset+limit)
 	}
 
-	// Add manifests
-	term = term.InnerJoin(gorethink.Table("emails").Pluck("thread", "manifest"), func(thread gorethink.Term, email gorethink.Term) gorethink.Term {
-		return thread.Field("id").Eq(email.Field("thread"))
-	}).Without(map[string]interface{}{
-		"right": map[string]interface{}{
-			"thread": true,
-		},
-	}).Zip()
-
 	// Run the query
 	cursor, err := term.Run(e.GetSession())
 	if err != nil {
