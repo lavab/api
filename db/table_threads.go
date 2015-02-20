@@ -60,18 +60,16 @@ func (t *ThreadsTable) List(
 				row.Field("labels").Contains(label),
 			)
 		})
-	}
-
-	if owner != "" && label == "" {
+	} else if owner != "" && label == "" {
 		term = t.GetTable().Filter(map[string]interface{}{
 			"owner": owner,
 		})
-	}
-
-	if owner == "" && label != "" {
+	} else if owner == "" && label != "" {
 		term = t.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
 			return row.Field("labels").Contains(label)
 		})
+	} else {
+		term = t.GetTable()
 	}
 
 	// If sort array has contents, parse them and add to the term
