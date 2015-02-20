@@ -4,6 +4,7 @@ import (
 	//"bytes"
 	//"io"
 	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -261,7 +262,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			Labels:      []string{label.ID},
 			Members:     append(append(input.To, input.CC...), input.BCC...),
 			IsRead:      true,
-			SubjectHash: string(hash[:]),
+			SubjectHash: hex.EncodeToString(hash[:]),
 		}
 
 		err := env.Threads.Insert(thread)
