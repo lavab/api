@@ -97,11 +97,11 @@ func (e *EmailsTable) List(
 	}
 
 	// Add manifests
-	term = term.InnerJoin(gorethink.Table("emails").Pluck("id", "manifest"), func(thread gorethink.Term, email gorethink.Term) gorethink.Term {
-		return thread.Field("emails").Contains(email.Field("id"))
+	term = term.InnerJoin(gorethink.Table("emails").Pluck("thread", "manifest"), func(thread gorethink.Term, email gorethink.Term) gorethink.Term {
+		return thread.Field("id").Eq(email.Field("thread"))
 	}).Without(map[string]interface{}{
 		"right": map[string]interface{}{
-			"id": true,
+			"thread": true,
 		},
 	}).Zip()
 
