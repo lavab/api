@@ -132,7 +132,7 @@ func (e *EmailsTable) DeleteByThread(id string) error {
 func (e *EmailsTable) GetThreadManifest(thread string) (string, error) {
 	cursor, err := e.GetTable().
 		GetAllByIndex("thread", thread).
-		OrderBy(gorethink.OrderByOpts{Index: "date_created"}).
+		OrderBy("date_created").
 		Limit(1).
 		Pluck("manifest").
 		Field("manifest").
