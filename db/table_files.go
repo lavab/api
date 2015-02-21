@@ -79,7 +79,7 @@ func (f *FilesTable) CountByEmail(id string) (int, error) {
 
 func (f *FilesTable) CountByThread(id ...interface{}) (int, error) {
 	query, err := f.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-		return gorethink.Table("emails").GetAllByIndex("owner", id...).Field("files").Contains(row.Field("id"))
+		return gorethink.Table("emails").GetAllByIndex("thread", id...).Field("files").Contains(row.Field("id"))
 	}).Count().Run(f.GetSession())
 	if err != nil {
 		return 0, err
