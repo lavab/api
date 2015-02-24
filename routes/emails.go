@@ -352,7 +352,8 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
+			"error":  err.Error(),
+			"rawerr": err,
 		}).Error("Could not publish an email send request")
 		return
 	}
