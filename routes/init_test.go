@@ -27,7 +27,7 @@ func init() {
 
 		RedisAddress: "127.0.0.1:6379",
 
-		NSQAddress:     "127.0.0.1:4150",
+		NSQdAddress:    "127.0.0.1:4150",
 		LookupdAddress: "127.0.0.1:4160",
 
 		RethinkDBAddress:  "127.0.0.1:28015",
