@@ -2,7 +2,7 @@ package env
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/apcera/nats"
+	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 
 	"github.com/lavab/api/cache"
@@ -39,6 +39,6 @@ var (
 	Threads *db.ThreadsTable
 	// Factors contains all currently registered factors
 	Factors map[string]factor.Factor
-	// NATS is the encoded connection to the NATS queue
-	NATS *nats.EncodedConn
+	// Producer is the nsq producer used to send messages to other components of the system
+	Producer *nsq.Producer
 )

@@ -344,7 +344,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}*/
 
 	// Add a send request to the queue
-	err = env.NATS.Publish("send", email.ID)
+	err = env.Producer.Publish("send_email", []byte(`"`+email.ID+`"`))
 	if err != nil {
 		utils.JSONResponse(w, 500, &EmailsCreateResponse{
 			Success: false,
@@ -352,8 +352,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 
 		env.Log.WithFields(logrus.Fields{
-			"error":  err.Error(),
-			"rawerr": err,
+			"error": err.Error(),
 		}).Error("Could not publish an email send request")
 		return
 	}
@@ -656,7 +655,7 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send notifications
-	err = env.NATS.Publish("delivery", map[string]interface{}{
+	err = env.Producer.Publish("email_delivery", map[string]interface{}{
 		"id":    email.ID,
 		"owner": email.Owner,
 	})
@@ -667,7 +666,7 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		}).Error("Unable to publish a delivery message")
 	}
 
-	err = env.NATS.Publish("receipt", map[string]interface{}{
+	err = env.NATS.Publish("email_receipt", map[string]interface{}{
 		"id":    newEmail.ID,
 		"owner": newEmail.Owner,
 	})

@@ -5,13 +5,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/apcera/nats"
+	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 	"github.com/johntdyer/slackrus"
 	"github.com/pzduniak/glogrus"
@@ -214,34 +215,52 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		),
 	}
 
-	// NATS queue connection
-	nc, err := nats.Connect(flags.NATSAddress)
+	// Create a producer
+	producer, err := nsq.NewProducer(flags.NSQdAddress, nsq.NewConfig())
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error":   err,
-			"address": flags.NATSAddress,
-		}).Fatal("Unable to connect to NATS")
+			"error": err.Error(),
+		}).Fatal("Unable to create a new nsq producer")
 	}
+	defer producer.Stop()
 
-	c, err := nats.NewEncodedConn(nc, "json")
+	env.Producer = producer
+
+	// Get the hostname
+	hostname, err := os.Hostname()
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error":   err,
-			"address": flags.NATSAddress,
-		}).Fatal("Unable to initialize a JSON NATS connection")
+			"error": err.Error(),
+		}).Fatal("Unable to get the hostname")
 	}
 
-	c.Subscribe("delivery", func(msg *struct {
-		ID    string `json:"id"`
-		Owner string `json:"owner"`
-	}) {
+	// Create a delivery consumer
+	deliveryConsumer, err := nsq.NewConsumer("email_delivery", hostname, nsq.NewConfig())
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"topic": "email_delivery",
+		}).Fatal("Unable to create a new nsq consumer")
+	}
+	defer deliveryConsumer.Stop()
+
+	deliveryConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		var msg *struct {
+			ID    string `json:"id"`
+			Owner string `json:"owner"`
+		}
+
+		if err := json.Unmarshal(m.Body, &msg); err != nil {
+			return err
+		}
+
 		// Check if we are handling owner's session
 		if _, ok := sessions[msg.Owner]; !ok {
-			return
+			return nil
 		}
 
 		if len(sessions[msg.Owner]) == 0 {
-			return
+			return nil
 		}
 
 		// Resolve the email
@@ -251,7 +270,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				"error": err.Error(),
 				"id":    msg.ID,
 			}).Error("Unable to resolve an email from queue")
-			return
+			return nil
 		}
 
 		// Resolve the thread
@@ -262,7 +281,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				"id":     msg.ID,
 				"thread": email.Thread,
 			}).Error("Unable to resolve a thread from queue")
-			return
+			return nil
 		}
 
 		// Send notifications to subscribers
@@ -282,19 +301,43 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				}).Warn("Error while writing to a WebSocket")
 			}
 		}
-	})
 
-	c.Subscribe("receipt", func(msg *struct {
-		ID    string `json:"id"`
-		Owner string `json:"owner"`
-	}) {
+		return nil
+	}), 10)
+
+	if err := deliveryConsumer.ConnectToNSQLookupd(flags.LookupdAddress); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to connect to nsqlookupd")
+	}
+
+	// Create a receipt consumer
+	receiptConsumer, err := nsq.NewConsumer("email_receipt", hostname, nsq.NewConfig())
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"topic": "email_receipt",
+		}).Fatal("Unable to create a new nsq consumer")
+	}
+	defer receiptConsumer.Stop()
+
+	receiptConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		var msg *struct {
+			ID    string `json:"id"`
+			Owner string `json:"owner"`
+		}
+
+		if err := json.Unmarshal(m.Body, &msg); err != nil {
+			return err
+		}
+
 		// Check if we are handling owner's session
 		if _, ok := sessions[msg.Owner]; !ok {
-			return
+			return nil
 		}
 
 		if len(sessions[msg.Owner]) == 0 {
-			return
+			return nil
 		}
 
 		// Resolve the email
@@ -304,7 +347,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				"error": err.Error(),
 				"id":    msg.ID,
 			}).Error("Unable to resolve an email from queue")
-			return
+			return nil
 		}
 
 		// Resolve the thread
@@ -315,7 +358,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				"id":     msg.ID,
 				"thread": email.Thread,
 			}).Error("Unable to resolve a thread from queue")
-			return
+			return nil
 		}
 
 		// Send notifications to subscribers
@@ -335,9 +378,15 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				}).Warn("Error while writing to a WebSocket")
 			}
 		}
-	})
 
-	env.NATS = c
+		return nil
+	}), 10)
+
+	if err := receiptConsumer.ConnectToNSQLookupd(flags.LookupdAddress); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to connect to nsqlookupd")
+	}
 
 	// Create a new goji mux
 	mux := web.New()

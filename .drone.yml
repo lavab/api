@@ -3,7 +3,7 @@ env:
   - GOPATH=/var/cache/drone
 services:
   - redis
-  - apcera/gnatsd
+  - mikedewar/nsqd
   - dockerfile/rethinkdb
 script:
   - pip install fabric

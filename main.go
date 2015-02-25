@@ -54,14 +54,21 @@ var (
 		}
 		return database
 	}(), "Database name on the RethinkDB server")
-	// NATS address
-	natsAddress = flag.String("nats_address", func() string {
-		address := os.Getenv("NATS_PORT_4222_TCP_ADDR")
+	// nsq and lookupd addresses
+	nsqdAddress = flag.String("nsqd_address", func() string {
+		address := os.Getenv("NSQD_PORT_4150_TCP_ADDR")
 		if address == "" {
 			address = "127.0.0.1"
 		}
-		return "nats://" + address + ":4222"
-	}(), "Address of the NATS server")
+		return address + ":4150"
+	}(), "Address of the nsqd server")
+	lookupdAddress = flag.String("lookupd_address", func() string {
+		address := os.Getenv("NSQLOOKUPD_PORT_4160_TCP_ADDR")
+		if address == "" {
+			address = "127.0.0.1"
+		}
+		return address + ":4160"
+	}(), "Address of the lookupd server")
 	// YubiCloud params
 	yubiCloudID  = flag.String("yubicloud_id", "", "YubiCloud API id")
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
@@ -103,7 +110,8 @@ func main() {
 		RethinkDBKey:      *rethinkdbKey,
 		RethinkDBDatabase: *rethinkdbDatabase,
 
-		NATSAddress: *natsAddress,
+		NSQdAddress:    *nsqdAddress,
+		LookupdAddress: *lookupdAddress,
 
 		YubiCloudID:  *yubiCloudID,
 		YubiCloudKey: *yubiCloudKey,
