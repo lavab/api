@@ -223,9 +223,9 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		}).Fatal("Unable to create a new nsq producer")
 	}
 
-	defer func(producer *nsq.Producer) {
+	/*defer func(producer *nsq.Producer) {
 		producer.Stop()
-	}(producer)
+	}(producer)*/
 
 	env.Producer = producer
 
@@ -245,7 +245,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"topic": "email_delivery",
 		}).Fatal("Unable to create a new nsq consumer")
 	}
-	defer deliveryConsumer.Stop()
+	//defer deliveryConsumer.Stop()
 
 	deliveryConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
 		var msg *struct {
@@ -322,7 +322,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"topic": "email_receipt",
 		}).Fatal("Unable to create a new nsq consumer")
 	}
-	defer receiptConsumer.Stop()
+	//defer receiptConsumer.Stop()
 
 	receiptConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
 		var msg *struct {
