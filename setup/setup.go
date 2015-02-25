@@ -222,7 +222,10 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"error": err.Error(),
 		}).Fatal("Unable to create a new nsq producer")
 	}
-	defer producer.Stop()
+
+	defer func(producer *nsq.Producer) {
+		producer.Stop()
+	}(producer)
 
 	env.Producer = producer
 
