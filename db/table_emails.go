@@ -65,7 +65,7 @@ func (e *EmailsTable) List(
 		filter["thread"] = thread
 	}
 
-	term := e.GetTable().Filter(filter)
+	term := e.GetTable().Filter(filter).Filter(gorethink.Not(gorethink.Row.Field("status").Eq(gorethink.Expr("queued"))))
 
 	// If sort array has contents, parse them and add to the term
 	if sort != nil && len(sort) > 0 {
