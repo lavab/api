@@ -27,15 +27,15 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	var (
-		query            = r.URL.Query()
-		sortRaw          = query.Get("sort")
-		offsetRaw        = query.Get("offset")
-		limitRaw         = query.Get("limit")
-		attachmentsCount = query.Get("attachments_count")
-		label            = query.Get("label")
-		sort             []string
-		offset           int
-		limit            int
+		query      = r.URL.Query()
+		sortRaw    = query.Get("sort")
+		offsetRaw  = query.Get("offset")
+		limitRaw   = query.Get("limit")
+		countFiles = query.Get("count_files")
+		label      = query.Get("label")
+		sort       []string
+		offset     int
+		limit      int
 	)
 
 	if offsetRaw != "" {
@@ -105,14 +105,14 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Total-Count", strconv.Itoa(count))
 	}
 
-	if attachmentsCount == "true" || attachmentsCount == "1" {
+	if countFiles == "true" || countFiles == "1" {
 		for _, thread := range threads {
-			count, err := env.Attachments.CountByThread(thread.ID)
+			count, err := env.Files.CountByThread(thread.ID)
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
 					"error":  err.Error(),
 					"thread": thread.ID,
-				}).Error("Unable to count attachments per thread")
+				}).Error("Unable to count files per thread")
 
 				utils.JSONResponse(w, 500, &ThreadsListResponse{
 					Success: false,
@@ -121,7 +121,7 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			thread.AttachmentsCount = &count
+			thread.FilesCount = &count
 		}
 	}
 
@@ -160,6 +160,16 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	manifest, err := env.Emails.GetThreadManifest(thread.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"id":    thread.ID,
+		}).Error("Unable to get a manifest")
+	} else {
+		thread.Manifest = manifest
+	}
+
 	var emails []*models.Email
 	if ok := r.URL.Query().Get("list_emails"); ok == "true" || ok == "1" {
 		emails, err = env.Emails.GetByThread(thread.ID)
@@ -177,22 +187,22 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if ok := r.URL.Query().Get("attachments_count"); ok == "true" || ok == "1" {
-		count, err := env.Attachments.CountByThread(thread.ID)
+	if ok := r.URL.Query().Get("count_files"); ok == "true" || ok == "1" {
+		count, err := env.Files.CountByThread(thread.ID)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"error": err.Error(),
 				"id":    thread.ID,
-			}).Error("Unable to count attachments linked to a thread")
+			}).Error("Unable to count files linked to a thread")
 
 			utils.JSONResponse(w, 500, &ThreadsGetResponse{
 				Success: false,
-				Message: "Unable to count attachments",
+				Message: "Unable to count files",
 			})
 			return
 		}
 
-		thread.AttachmentsCount = &count
+		thread.FilesCount = &count
 	}
 
 	utils.JSONResponse(w, 200, &ThreadsGetResponse{
@@ -252,7 +262,7 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !reflect.DeepEqual(thread.Labels, input.Labels) {
+	if thread.Labels != nil && !reflect.DeepEqual(thread.Labels, input.Labels) {
 		thread.Labels = input.Labels
 	}
 

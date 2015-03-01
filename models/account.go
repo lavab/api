@@ -4,6 +4,7 @@ import (
 	"github.com/gyepisam/mcf"
 	_ "github.com/gyepisam/mcf/scrypt" // Required to have mcf hash the password into scrypt
 	"github.com/lavab/api/factor"
+	"golang.org/x/crypto/openpgp"
 )
 
 // Account stores essential data for a Lavaboom user, and is thus not encrypted.
@@ -38,6 +39,8 @@ type Account struct {
 	FactorValue []string `json:"-" gorethink:"factor_value"`
 
 	Status string `json:"status" gorethink:"status"`
+
+	Key *openpgp.Entity `json:"-" gorethink:"-"`
 }
 
 // SetPassword changes the account's password

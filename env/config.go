@@ -18,7 +18,8 @@ type Flags struct {
 	RethinkDBKey      string
 	RethinkDBDatabase string
 
-	NATSAddress string
+	LookupdAddress string
+	NSQdAddress    string
 
 	YubiCloudID  string
 	YubiCloudKey string

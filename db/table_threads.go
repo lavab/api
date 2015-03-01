@@ -60,18 +60,16 @@ func (t *ThreadsTable) List(
 				row.Field("labels").Contains(label),
 			)
 		})
-	}
-
-	if owner != "" && label == "" {
+	} else if owner != "" && label == "" {
 		term = t.GetTable().Filter(map[string]interface{}{
 			"owner": owner,
 		})
-	}
-
-	if owner == "" && label != "" {
+	} else if owner == "" && label != "" {
 		term = t.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
 			return row.Field("labels").Contains(label)
 		})
+	} else {
+		term = t.GetTable()
 	}
 
 	// If sort array has contents, parse them and add to the term
@@ -102,6 +100,15 @@ func (t *ThreadsTable) List(
 	if offset != 0 && limit != 0 {
 		term = term.Slice(offset, offset+limit)
 	}
+
+	// Add manifests
+	term = term.InnerJoin(gorethink.Db(t.GetDBName()).Table("emails").Pluck("thread", "manifest"), func(thread gorethink.Term, email gorethink.Term) gorethink.Term {
+		return thread.Field("id").Eq(email.Field("thread"))
+	}).Without(map[string]interface{}{
+		"right": map[string]interface{}{
+			"thread": true,
+		},
+	}).Zip()
 
 	// Run the query
 	cursor, err := term.Run(t.GetSession())
