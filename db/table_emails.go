@@ -65,7 +65,7 @@ func (e *EmailsTable) List(
 		filter["thread"] = thread
 	}
 
-	term := e.GetTable().Filter(filter)
+	term := e.GetTable().Filter(filter).Filter(gorethink.Not(gorethink.Row.Field("status").Eq(gorethink.Expr("queued"))))
 
 	// If sort array has contents, parse them and add to the term
 	if sort != nil && len(sort) > 0 {
@@ -127,4 +127,25 @@ func (e *EmailsTable) DeleteByThread(id string) error {
 	return e.Delete(map[string]interface{}{
 		"thread": id,
 	})
+}
+
+func (e *EmailsTable) GetThreadManifest(thread string) (string, error) {
+	cursor, err := e.GetTable().
+		GetAllByIndex("thread", thread).
+		OrderBy("date_created").
+		Limit(1).
+		Pluck("manifest").
+		Field("manifest").
+		Run(e.GetSession())
+	if err != nil {
+		return "", err
+	}
+
+	var manifest string
+	err = cursor.One(&manifest)
+	if err != nil {
+		return "", err
+	}
+
+	return manifest, nil
 }

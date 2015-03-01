@@ -5,13 +5,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/apcera/nats"
+	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 	"github.com/johntdyer/slackrus"
 	"github.com/pzduniak/glogrus"
@@ -206,42 +207,63 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		Emails: env.Emails,
 		//Cache:  redis,
 	}
-	env.Attachments = &db.AttachmentsTable{
+	env.Files = &db.FilesTable{
 		RethinkCRUD: db.NewCRUDTable(
 			rethinkSession,
 			rethinkOpts.Database,
-			"attachments",
+			"files",
 		),
 	}
 
-	// NATS queue connection
-	nc, err := nats.Connect(flags.NATSAddress)
+	// Create a producer
+	producer, err := nsq.NewProducer(flags.NSQdAddress, nsq.NewConfig())
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error":   err,
-			"address": flags.NATSAddress,
-		}).Fatal("Unable to connect to NATS")
+			"error": err.Error(),
+		}).Fatal("Unable to create a new nsq producer")
 	}
 
-	c, err := nats.NewEncodedConn(nc, "json")
+	/*defer func(producer *nsq.Producer) {
+		producer.Stop()
+	}(producer)*/
+
+	env.Producer = producer
+
+	// Get the hostname
+	hostname, err := os.Hostname()
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
-			"error":   err,
-			"address": flags.NATSAddress,
-		}).Fatal("Unable to initialize a JSON NATS connection")
+			"error": err.Error(),
+		}).Fatal("Unable to get the hostname")
 	}
 
-	c.Subscribe("delivery", func(msg *struct {
-		ID    string `json:"id"`
-		Owner string `json:"owner"`
-	}) {
+	// Create a delivery consumer
+	deliveryConsumer, err := nsq.NewConsumer("email_delivery", hostname, nsq.NewConfig())
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"topic": "email_delivery",
+		}).Fatal("Unable to create a new nsq consumer")
+	}
+	//defer deliveryConsumer.Stop()
+
+	deliveryConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		var msg *struct {
+			ID    string `json:"id"`
+			Owner string `json:"owner"`
+		}
+
+		if err := json.Unmarshal(m.Body, &msg); err != nil {
+			return err
+		}
+
 		// Check if we are handling owner's session
 		if _, ok := sessions[msg.Owner]; !ok {
-			return
+			return nil
 		}
 
 		if len(sessions[msg.Owner]) == 0 {
-			return
+			return nil
 		}
 
 		// Resolve the email
@@ -251,15 +273,28 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				"error": err.Error(),
 				"id":    msg.ID,
 			}).Error("Unable to resolve an email from queue")
-			return
+			return nil
+		}
+
+		// Resolve the thread
+		thread, err := env.Threads.GetThread(email.Thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":  err.Error(),
+				"id":     msg.ID,
+				"thread": email.Thread,
+			}).Error("Unable to resolve a thread from queue")
+			return nil
 		}
 
 		// Send notifications to subscribers
 		for _, session := range sessions[msg.Owner] {
 			result, _ := json.Marshal(map[string]interface{}{
-				"type": "delivery",
-				"id":   msg.ID,
-				"name": email.Name,
+				"type":   "delivery",
+				"id":     msg.ID,
+				"name":   email.Name,
+				"thread": email.Thread,
+				"labels": thread.Labels,
 			})
 			err = session.Send(string(result))
 			if err != nil {
@@ -269,20 +304,43 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				}).Warn("Error while writing to a WebSocket")
 			}
 		}
-	})
 
-	c.Subscribe("receipt", func(msg *struct {
-		ID    string `json:"id"`
-		Owner string `json:"owner"`
-	}) {
-		log.Print(msg)
+		return nil
+	}), 10)
+
+	if err := deliveryConsumer.ConnectToNSQLookupd(flags.LookupdAddress); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to connect to nsqlookupd")
+	}
+
+	// Create a receipt consumer
+	receiptConsumer, err := nsq.NewConsumer("email_receipt", hostname, nsq.NewConfig())
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"topic": "email_receipt",
+		}).Fatal("Unable to create a new nsq consumer")
+	}
+	//defer receiptConsumer.Stop()
+
+	receiptConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		var msg *struct {
+			ID    string `json:"id"`
+			Owner string `json:"owner"`
+		}
+
+		if err := json.Unmarshal(m.Body, &msg); err != nil {
+			return err
+		}
+
 		// Check if we are handling owner's session
 		if _, ok := sessions[msg.Owner]; !ok {
-			return
+			return nil
 		}
 
 		if len(sessions[msg.Owner]) == 0 {
-			return
+			return nil
 		}
 
 		// Resolve the email
@@ -292,15 +350,28 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				"error": err.Error(),
 				"id":    msg.ID,
 			}).Error("Unable to resolve an email from queue")
-			return
+			return nil
+		}
+
+		// Resolve the thread
+		thread, err := env.Threads.GetThread(email.Thread)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error":  err.Error(),
+				"id":     msg.ID,
+				"thread": email.Thread,
+			}).Error("Unable to resolve a thread from queue")
+			return nil
 		}
 
 		// Send notifications to subscribers
 		for _, session := range sessions[msg.Owner] {
 			result, _ := json.Marshal(map[string]interface{}{
-				"type": "receipt",
-				"id":   msg.ID,
-				"name": email.Name,
+				"type":   "receipt",
+				"id":     msg.ID,
+				"name":   email.Name,
+				"thread": email.Thread,
+				"labels": thread.Labels,
 			})
 			err = session.Send(string(result))
 			if err != nil {
@@ -310,9 +381,15 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 				}).Warn("Error while writing to a WebSocket")
 			}
 		}
-	})
 
-	env.NATS = c
+		return nil
+	}), 10)
+
+	if err := receiptConsumer.ConnectToNSQLookupd(flags.LookupdAddress); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to connect to nsqlookupd")
+	}
 
 	// Create a new goji mux
 	mux := web.New()
@@ -386,13 +463,6 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	// Index route
 	mux.Get("/", routes.Hello)
 
-	// Attachments
-	auth.Get("/attachments", routes.AttachmentsList)
-	auth.Post("/attachments", routes.AttachmentsCreate)
-	auth.Get("/attachments/:id", routes.AttachmentsGet)
-	auth.Put("/attachments/:id", routes.AttachmentsUpdate)
-	auth.Delete("/attachments/:id", routes.AttachmentsDelete)
-
 	// Accounts
 	auth.Get("/accounts", routes.AccountsList)
 	mux.Post("/accounts", routes.AccountsCreate)
@@ -404,6 +474,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	// Avatars
 	mux.Get(regexp.MustCompile(`/avatars/(?P<hash>[\S\s]*?)\.(?P<ext>svg|png)(?:[\S\s]*?)$`), routes.Avatars)
 	//mux.Get("/avatars/:hash.:ext", routes.Avatars)
+
+	// Files
+	auth.Get("/files", routes.FilesList)
+	auth.Post("/files", routes.FilesCreate)
+	auth.Get("/files/:id", routes.FilesGet)
+	auth.Put("/files/:id", routes.FilesUpdate)
+	auth.Delete("/files/:id", routes.FilesDelete)
 
 	// Tokens
 	auth.Get("/tokens", routes.TokensGet)

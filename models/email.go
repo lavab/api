@@ -1,42 +1,42 @@
 package models
 
-// Email is the cornerstone of our application.
-// TODO mime info
+// Email is a message in a thread
 type Email struct {
 	Resource
 
-	// Kind of the email. Value is either sent or received.
+	// Kind is the type of encryption used in the email:
+	//  - raw      - when sending raw emails before they get sent
+	//  - manifest - Manifest field is not empty,
+	//  - pgpmime  - PGP/MIME format, aka everything is in body
 	Kind string `json:"kind" gorethink:"kind"`
 
-	From []string `json:"from" gorethink:"from"`
+	// Unencrypted metadata information, available in both received in sent emails
+	From string   `json:"from" gorethink:"from"`
+	To   []string `json:"to" gorethink:"to"`
+	CC   []string `json:"cc" gorethink:"cc"`
 
-	// Who is supposed to receive the email / what email received it.
-	To []string `json:"to" gorethink:"to"`
-
-	CC []string `json:"cc" gorethink:"cc"`
-
+	// BCC is only visible in sent emails
 	BCC []string `json:"bcc" gorethink:"bcc"`
 
-	// AttachmentsIDs is a slice of the FileIDs associated with this email
-	// For uploading attachments see `POST /upload`
-	Attachments []string `json:"attachments" gorethink:"attachments"`
+	// Fingerprints used for body and manifest
+	PGPFingerprints []string `json:"pgp_fingerprints" gorethink:"pgp_fingerprints"`
+
+	// Files contains IDs of other files
+	Files []string `json:"files" gorethink:"files"`
+
+	// Manifest is only available in emails that were encrypted using PGP manifests
+	Manifest string `json:"manifest" gorethink:"manifest"`
 
 	// Body contains all the data needed to send this email
-	Body Encrypted `json:"body" gorethink:"body"`
+	Body string `json:"body" gorethink:"body"`
 
-	// Preview contains the encrypted preview information (needed to show a list of emails)
-	// Example: Headers []string, Body string,
-	// 		Headers       []string
-	// 		Body          string
-	// 		Snippet       string
-	//Preview Encrypted `json:"preview" gorethink:"preview"`
+	// ContentType of the body in unencrypted emails
+	ContentType string `json:"content_type" gorethink:"content_type"`
+	ReplyTo     string `json:"reply_to" gorethink:"reply_to"`
 
-	Headers []string `json:"headers" gorethink:"headers"`
-
-	// ThreadID
+	// Contains ID of the thread
 	Thread string `json:"thread" gorethink:"thread"`
 
+	// received or (queued|processed)
 	Status string `json:"status" gorethink:"status"`
-
-	IsRead string `json:"is_read" gorethink:"is_read"`
 }
