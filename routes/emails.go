@@ -240,7 +240,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Check if Thread is set
 	if input.Thread != "" {
 		// todo: make it an actual exists check to reduce lan bandwidth
-		_, err := env.Threads.GetThread(input.Thread)
+		thread, err := env.Threads.GetThread(input.Thread)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"id":    input.Thread,
@@ -253,8 +253,34 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+
+		// update thread.secure depending on email's kind
+		if (input.Kind == "raw" && thread.Secure == "all") ||
+			(input.Kind == "manifest" && thread.Secure == "none") ||
+			(input.Kind == "pgpmime" && thread.Secure == "none") {
+			if err := env.Threads.UpdateID(thread.ID, map[string]interface{}{
+				"secure": "some",
+			}); err != nil {
+				env.Log.WithFields(logrus.Fields{
+					"id":    input.Thread,
+					"error": err.Error(),
+				}).Warn("Cannot update a thread")
+
+				utils.JSONResponse(w, 400, &EmailsCreateResponse{
+					Success: false,
+					Message: "Unable to update the thread",
+				})
+				return
+			}
+
+		}
 	} else {
 		hash := sha256.Sum256([]byte(input.Subject))
+
+		secure := "all"
+		if input.Kind == "raw" {
+			secure = "none"
+		}
 
 		thread := &models.Thread{
 			Resource:    models.MakeResource(account.ID, "Encrypted thread"),
@@ -263,6 +289,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			Members:     append(append(input.To, input.CC...), input.BCC...),
 			IsRead:      true,
 			SubjectHash: hex.EncodeToString(hash[:]),
+			Secure:      secure,
 		}
 
 		err := env.Threads.Insert(thread)
