@@ -22,4 +22,7 @@ type Thread struct {
 
 	// SHA256 hash of the raw subject without prefixes
 	SubjectHash string `json:"subject_hash" gorethink:"subject_hash"`
+
+	// all, some, none
+	Secure string `json:"secure" gorethink:"secure"`
 }
