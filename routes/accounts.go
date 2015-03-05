@@ -322,6 +322,10 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				Builtin:  true,
 			},
 			&models.Label{
+				Resource: models.MakeResource(account.ID, "Drafts"),
+				Builtin:  true,
+			},
+			&models.Label{
 				Resource: models.MakeResource(account.ID, "Trash"),
 				Builtin:  true,
 			},

@@ -272,7 +272,6 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-
 		}
 	} else {
 		hash := sha256.Sum256([]byte(input.Subject))
