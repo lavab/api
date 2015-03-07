@@ -75,8 +75,7 @@ func FilesCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	// Ensure that the input data isn't empty
-	if input.Data == "" || input.Name == "" || input.Encoding == "" ||
-		input.PGPFingerprints == nil || len(input.PGPFingerprints) == 0 {
+	if input.Data == "" || input.Name == "" || input.Encoding == "" {
 		utils.JSONResponse(w, 400, &FilesCreateResponse{
 			Success: false,
 			Message: "Invalid request",
