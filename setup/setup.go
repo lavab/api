@@ -208,6 +208,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		//Cache:  redis,
 	}
 	env.Files = &db.FilesTable{
+		Emails: env.Emails,
 		RethinkCRUD: db.NewCRUDTable(
 			rethinkSession,
 			rethinkOpts.Database,
