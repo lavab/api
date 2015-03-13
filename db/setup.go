@@ -12,9 +12,9 @@ var (
 
 // Indexes of tables in the database
 var tableIndexes = map[string][]string{
-	"accounts":     []string{"name"},
+	"accounts":     []string{"name", "alt_email"},
 	"contacts":     []string{"owner"},
-	"emails":       []string{"owner", "alt_email", "label_ids", "date_created", "thread"},
+	"emails":       []string{"owner", "label_ids", "date_created", "thread"},
 	"files":        []string{"owner"},
 	"keys":         []string{"owner", "key_id"},
 	"labels":       []string{"owner"},
