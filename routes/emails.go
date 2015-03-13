@@ -314,7 +314,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		Kind:   input.Kind,
 		Thread: input.Thread,
 
-		From: account.Name + "@" + env.Config.EmailDomain,
+		From: account.StyledName + "@" + env.Config.EmailDomain,
 		To:   input.To,
 		CC:   input.CC,
 		BCC:  input.BCC,
