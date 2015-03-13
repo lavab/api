@@ -84,6 +84,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestType == "register" {
+		// Normalize the username
+		input.Username = utils.NormalizeUsername(input.Username)
+
 		// Ensure that the username is not used
 		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
 			if err != nil {
@@ -113,9 +116,6 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-
-		// Normalize the username
-		input.Username = utils.NormalizeUsername(input.Username)
 
 		// Both username and email are filled, so we can create a new account.
 		account := &models.Account{
