@@ -84,6 +84,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestType == "register" {
+		// Normalize the username
+		input.Username = utils.NormalizeUsername(input.Username)
+
 		// Ensure that the username is not used
 		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
 			if err != nil {
@@ -116,10 +119,11 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		// Both username and email are filled, so we can create a new account.
 		account := &models.Account{
-			Resource: models.MakeResource("", input.Username),
-			Type:     "beta", // Is this the proper value?
-			AltEmail: input.AltEmail,
-			Status:   "registered",
+			Resource:   models.MakeResource("", utils.RemoveDots(input.Username)),
+			StyledName: input.Username,
+			Type:       "beta", // Is this the proper value?
+			AltEmail:   input.AltEmail,
+			Status:     "registered",
 		}
 
 		// Try to save it in the database
@@ -146,6 +150,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if requestType == "verify" {
 		// We're pretty much checking whether an invitation code can be used by the user
+		input.Username = utils.RemoveDots(
+			utils.NormalizeUsername(input.Username),
+		)
 
 		// Fetch the user from database
 		account, err := env.Accounts.FindAccountByName(input.Username)
@@ -217,6 +224,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	} else if requestType == "setup" {
 		// User is setting the password in the setup wizard. This should be one of the first steps,
 		// as it's required for him to acquire an authentication token to configure their account.
+		input.Username = utils.RemoveDots(
+			utils.NormalizeUsername(input.Username),
+		)
 
 		// Fetch the user from database
 		account, err := env.Accounts.FindAccountByName(input.Username)
@@ -319,6 +329,10 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			},
 			&models.Label{
 				Resource: models.MakeResource(account.ID, "Sent"),
+				Builtin:  true,
+			},
+			&models.Label{
+				Resource: models.MakeResource(account.ID, "Drafts"),
 				Builtin:  true,
 			},
 			&models.Label{

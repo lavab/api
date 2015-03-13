@@ -97,6 +97,10 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	input.Username = utils.RemoveDots(
+		utils.NormalizeUsername(input.Username),
+	)
+
 	// Check if account exists
 	user, err := env.Accounts.FindAccountByName(input.Username)
 	if err != nil {

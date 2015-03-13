@@ -11,6 +11,8 @@ import (
 type Account struct {
 	Resource
 
+	StyledName string `json:"styled_name" gorethink:"styled_name"`
+
 	// Billing is a struct containing billing information.
 	// TODO Work in progress
 	Billing BillingData `json:"billing" gorethink:"billing"`

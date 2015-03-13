@@ -93,3 +93,29 @@ func (f *FilesTable) CountByThread(id ...interface{}) (int, error) {
 
 	return result, nil
 }
+
+func (f *FilesTable) GetInEmail(owner string, email string, name string) ([]*models.File, error) {
+	e, err := f.Emails.GetEmail(email)
+	if err != nil {
+		return nil, err
+	}
+
+	query, err := f.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
+		return gorethink.And(
+			row.Field("owner").Eq(gorethink.Expr(owner)),
+			gorethink.Expr(e.Files).Contains(row.Field("id")),
+			row.Field("name").Eq(gorethink.Expr(name)),
+		)
+	}).Run(f.GetSession())
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*models.File
+	err = query.All(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
