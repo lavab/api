@@ -20,7 +20,19 @@ type FilesListResponse struct {
 func FilesList(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
-	files, err := env.Files.GetOwnedBy(session.Owner)
+	query := r.URL.Query()
+	email := query.Get("email")
+	name := query.Get("name")
+
+	if email == "" || name == "" {
+		utils.JSONResponse(w, 400, &FilesListResponse{
+			Success: false,
+			Message: "No email or name in get params",
+		})
+		return
+	}
+
+	files, err := env.Files.GetInEmail(session.Owner, email, name)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -75,8 +87,7 @@ func FilesCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	// Ensure that the input data isn't empty
-	if input.Data == "" || input.Name == "" || input.Encoding == "" ||
-		input.PGPFingerprints == nil || len(input.PGPFingerprints) == 0 {
+	if input.Data == "" || input.Name == "" || input.Encoding == "" {
 		utils.JSONResponse(w, 400, &FilesCreateResponse{
 			Success: false,
 			Message: "Invalid request",

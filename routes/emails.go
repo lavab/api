@@ -3,8 +3,8 @@ package routes
 import (
 	//"bytes"
 	//"io"
-	"crypto/sha256"
-	"encoding/hex"
+	//"crypto/sha256"
+	//"encoding/hex"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -146,6 +146,8 @@ type EmailsCreateRequest struct {
 	Subject     string `json:"subject"`
 	ContentType string `json:"content_type"`
 	ReplyTo     string `json:"reply_to"`
+
+	SubjectHash string `json:"subject_hash"`
 }
 
 // EmailsCreateResponse contains the result of the EmailsCreate request.
@@ -272,11 +274,8 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-
 		}
 	} else {
-		hash := sha256.Sum256([]byte(input.Subject))
-
 		secure := "all"
 		if input.Kind == "raw" {
 			secure = "none"
@@ -288,7 +287,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			Labels:      []string{label.ID},
 			Members:     append(append(input.To, input.CC...), input.BCC...),
 			IsRead:      true,
-			SubjectHash: hex.EncodeToString(hash[:]),
+			SubjectHash: input.SubjectHash,
 			Secure:      secure,
 		}
 
@@ -315,7 +314,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		Kind:   input.Kind,
 		Thread: input.Thread,
 
-		From: account.Name + "@" + env.Config.EmailDomain,
+		From: account.StyledName + "@" + env.Config.EmailDomain,
 		To:   input.To,
 		CC:   input.CC,
 		BCC:  input.BCC,

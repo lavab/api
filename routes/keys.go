@@ -35,6 +35,8 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user = utils.RemoveDots(utils.NormalizeUsername(user))
+
 	account, err := env.Accounts.FindAccountByName(user)
 	if err != nil {
 		utils.JSONResponse(w, 409, &KeysListResponse{
@@ -213,6 +215,8 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(id, "@") {
 		// Who cares about the second part? I don't!
 		username := strings.Split(id, "@")[0]
+
+		username = utils.RemoveDots(utils.NormalizeUsername(username))
 
 		// Resolve account
 		account, err := env.Accounts.FindAccountByName(username)
