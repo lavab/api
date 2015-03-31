@@ -1,6 +1,8 @@
 package db
 
 import (
+	"time"
+
 	"github.com/dancannon/gorethink"
 
 	"github.com/lavab/api/models"
@@ -102,13 +104,18 @@ func (t *ThreadsTable) List(
 	}
 
 	// Add manifests
-	term = term.InnerJoin(gorethink.Db(t.GetDBName()).Table("emails").Pluck("thread", "manifest"), func(thread gorethink.Term, email gorethink.Term) gorethink.Term {
-		return thread.Field("id").Eq(email.Field("thread"))
-	}).Without(map[string]interface{}{
-		"right": map[string]interface{}{
-			"thread": true,
-		},
-	}).Zip()
+	term = term.Map(func(thread gorethink.Term) gorethink.Term {
+		return gorethink.Db(t.GetDBName()).Table("emails").Between([]interface{}{
+			thread.Field("id"),
+			time.Date(1990, time.January, 1, 23, 0, 0, 0, time.UTC),
+		}, []interface{}{
+			thread.Field("id"),
+			time.Date(2090, time.January, 1, 23, 0, 0, 0, time.UTC),
+		}, gorethink.BetweenOpts{
+			Index: "threadAndDate",
+		}).OrderBy(gorethink.OrderByOpts{Index: "threadAndDate"}).
+			Nth(0).Pluck("manifest").Merge(thread)
+	})
 
 	// Run the query
 	cursor, err := term.Run(t.GetSession())
