@@ -77,8 +77,8 @@
 		},
 		{
 			"ImportPath": "github.com/dancannon/gorethink",
-			"Comment": "v0.6.1",
-			"Rev": "441666ad982764e434a151f17dfe399a846cee54"
+			"Comment": "v0.6.3-13-g67d2428",
+			"Rev": "67d2428ba6800ad5a3441f8740dbc77070e253b1"
 		},
 		{
 			"ImportPath": "github.com/dchest/uniuri",

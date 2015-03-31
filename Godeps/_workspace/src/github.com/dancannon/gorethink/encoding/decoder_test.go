@@ -3,7 +3,6 @@ package encoding
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"image"
 	"reflect"
 	"testing"
@@ -125,6 +124,11 @@ type S13 struct {
 	S8
 }
 
+type Pointer struct {
+	PPoint *Point
+	Point  Point
+}
+
 type decodeTest struct {
 	in  interface{}
 	ptr interface{}
@@ -149,7 +153,7 @@ var decodeTests = []decodeTest{
 	{in: string("2"), ptr: new(interface{}), out: string("2")},
 	{in: "a\u1234", ptr: new(string), out: "a\u1234"},
 	{in: []interface{}{}, ptr: new([]string), out: []string{}},
-	{in: map[string]interface{}{"X": []interface{}{1, 2, 3}, "Y": 4}, ptr: new(T), out: T{}, err: &DecodeTypeError{reflect.TypeOf([0]interface{}{}), reflect.TypeOf(""), ""}},
+	{in: map[string]interface{}{"X": []interface{}{1, 2, 3}, "Y": 4}, ptr: new(T), out: T{}, err: &DecodeTypeError{reflect.TypeOf(""), reflect.TypeOf([]interface{}{}), ""}},
 	{in: map[string]interface{}{"x": 1}, ptr: new(tx), out: tx{}},
 	{in: map[string]interface{}{"F1": float64(1), "F2": 2, "F3": 3}, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: string("3")}},
 	{in: map[string]interface{}{"F1": string("1"), "F2": 2, "F3": 3}, ptr: new(V), out: V{F1: string("1"), F2: int32(2), F3: string("3")}},
@@ -239,6 +243,16 @@ var decodeTests = []decodeTest{
 		ptr: new(S10),
 		out: S10{S13: S13{S8: S8{S9: S9{Y: 2}}}},
 	},
+	{
+		in:  map[string]interface{}{"PPoint": map[string]interface{}{"Z": 1}, "Point": map[string]interface{}{"Z": 2}},
+		ptr: new(Pointer),
+		out: Pointer{PPoint: &Point{Z: 1}, Point: Point{Z: 2}},
+	},
+	{
+		in:  map[string]interface{}{"Point": map[string]interface{}{"Z": 2}},
+		ptr: new(Pointer),
+		out: Pointer{PPoint: nil, Point: Point{Z: 2}},
+	},
 }
 
 func TestDecode(t *testing.T) {
@@ -256,9 +270,7 @@ func TestDecode(t *testing.T) {
 			continue
 		}
 
-		if !jsonEqual(v.Elem().Interface(), tt.out) {
-			fmt.Printf("%#v\n", v.Elem().Interface())
-			fmt.Printf("%#v\n", tt.out)
+		if tt.err == nil && !jsonEqual(v.Elem().Interface(), tt.out) {
 			t.Errorf("#%d: mismatch\nhave: %+v\nwant: %+v", i, v.Elem().Interface(), tt.out)
 			continue
 		}
@@ -345,6 +357,59 @@ type Foo struct {
 }
 type Bar struct {
 	Baz int `gorethink:"baz"`
+}
+
+type UnmarshalerPointer struct {
+	Value *UnmarshalerValue
+}
+
+type UnmarshalerValue struct {
+	ValueInt    int64
+	ValueString string
+}
+
+func (v *UnmarshalerValue) MarshalRQL() (interface{}, error) {
+	if v.ValueInt != int64(0) {
+		return Encode(v.ValueInt)
+	}
+	if v.ValueString != "" {
+		return Encode(v.ValueString)
+	}
+
+	return Encode(nil)
+}
+
+func (v *UnmarshalerValue) UnmarshalRQL(b interface{}) (err error) {
+	n, s := int64(0), ""
+
+	if err = Decode(&s, b); err == nil {
+		v.ValueString = s
+		return
+	}
+	if err = Decode(&n, b); err == nil {
+		v.ValueInt = n
+
+	}
+
+	return
+}
+
+func TestDecodeUnmarshalerPointer(t *testing.T) {
+	input := map[string]interface{}{
+		"Value": "abc",
+	}
+	want := &UnmarshalerPointer{
+		Value: &UnmarshalerValue{ValueString: "abc"},
+	}
+
+	out := &UnmarshalerPointer{}
+	err := Decode(out, input)
+	if err != nil {
+		t.Errorf("got error %v, expected nil", err)
+	}
+	if !jsonEqual(out, want) {
+		t.Errorf("got %q, want %q", out, want)
+	}
 }
 
 func jsonEqual(a, b interface{}) bool {

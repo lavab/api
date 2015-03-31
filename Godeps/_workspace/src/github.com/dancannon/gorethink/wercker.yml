@@ -6,14 +6,7 @@ services:
 build:
     # The steps that will be executed on build
     steps:
-        # Sets the go workspace and places you package
-        # at the right place in the workspace tree
         - pjvds/setup-go-workspace
-
-        - script:
-            name: Populate cache
-            code: |-
-                if test -d "$WERCKER_CACHE_DIR/go-pkg-cache"; then rsync -avzv --exclude "$WERCKER_SOURCE_DIR" "$WERCKER_CACHE_DIR/go-pkg-cache/" "$GOPATH/" ; fi
         # Gets the dependencies
         - script:
             name: get dependencies
@@ -31,7 +24,4 @@ build:
             name: Test
             code: |-
                 go get -u gopkg.in/check.v1
-        - script:
-            name: Store cache
-            code: |-
-                rsync -avzv --exclude "$WERCKER_SOURCE_DIR" "$GOPATH/" "$WERCKER_CACHE_DIR/go-pkg-cache/"
+                go test ./... -short

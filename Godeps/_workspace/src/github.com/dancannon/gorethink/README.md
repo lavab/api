@@ -7,7 +7,7 @@
 [Go](http://golang.org/) driver for [RethinkDB](http://www.rethinkdb.com/) 
 
 
-Current version: v0.6.1 (RethinkDB v1.16) 
+Current version: v0.6.3 (RethinkDB v1.16) 
 
 **Version 0.6 introduced some small API changes and some significant internal changes, for more information check the [change log](CHANGELOG.md) and please be aware the driver is not yet stable**
 
@@ -135,7 +135,7 @@ Cursors have a number of methods available for accessing the query results
 
 - `Next` retrieves the next document from the result set, blocking if necessary.
 - `All` retrieves all documents from the result set into the provided slice.
-- `One` retrieves the first document from the result se.
+- `One` retrieves the first document from the result set.
 
 Examples:
 
@@ -205,6 +205,38 @@ func (a A) FieldMap() map[string]string {
         "Field": "myName",
     }
 }
+```
+
+## Benchmarks
+
+Everyone wants their project's benchmarks to be speedy. And while we know that rethinkDb and the gorethink driver are quite fast, our primary goal is for our benchmarks to be correct. They are designed to give you, the user, an accurate picture of writes per second (w/s). If you come up with a accurate test that meets this aim, submit a pull request please. 
+
+Thanks to @jaredfolkins for the contribution.
+
+| Type    |  Value   |
+| --- | --- |
+| **Model Name** | MacBook Pro |
+| **Model Identifier** | MacBookPro11,3 |
+| **Processor Name** | Intel Core i7 | 
+| **Processor Speed** | 2.3 GHz | 
+| **Number of Processors** | 1 |
+| **Total Number of Cores** | 4 |
+| **L2 Cache (per Core)** | 256 KB | 
+| **L3 Cache** | 6 MB | 
+| **Memory** | 16 GB |
+
+```bash
+BenchmarkBatch200RandomWrites                20                              557227775                     ns/op
+BenchmarkBatch200RandomWritesParallel10      30                              354465417                     ns/op
+BenchmarkBatch200SoftRandomWritesParallel10  100                             761639276                     ns/op
+BenchmarkRandomWrites                        100                             10456580                      ns/op
+BenchmarkRandomWritesParallel10              1000                            1614175                       ns/op
+BenchmarkRandomSoftWrites                    3000                            589660                        ns/op
+BenchmarkRandomSoftWritesParallel10          10000                           247588                        ns/op
+BenchmarkSequentialWrites                    50                              24408285                      ns/op
+BenchmarkSequentialWritesParallel10          1000                            1755373                       ns/op
+BenchmarkSequentialSoftWrites                3000                            631211                        ns/op
+BenchmarkSequentialSoftWritesParallel10      10000                           263481                        ns/op
 ```
 
 ## Examples
