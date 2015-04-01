@@ -77,23 +77,6 @@ func (f *FilesTable) CountByEmail(id string) (int, error) {
 	return result, nil
 }
 
-func (f *FilesTable) CountByThread(id ...interface{}) (int, error) {
-	query, err := f.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-		return gorethink.Table("emails").GetAllByIndex("thread", id...).Field("files").Contains(row.Field("id"))
-	}).Count().Run(f.GetSession())
-	if err != nil {
-		return 0, err
-	}
-
-	var result int
-	err = query.One(&result)
-	if err != nil {
-		return 0, err
-	}
-
-	return result, nil
-}
-
 func (f *FilesTable) GetInEmail(owner string, email string, name string) ([]*models.File, error) {
 	e, err := f.Emails.GetEmail(email)
 	if err != nil {
