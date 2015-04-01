@@ -32,7 +32,8 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		offsetRaw  = query.Get("offset")
 		limitRaw   = query.Get("limit")
 		countFiles = query.Get("count_files")
-		label      = query.Get("label")
+		labelsRaw  = query.Get("label")
+		labels     []string
 		sort       []string
 		offset     int
 		limit      int
@@ -76,7 +77,11 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		sort = strings.Split(sortRaw, ",")
 	}
 
-	threads, err := env.Threads.List(session.Owner, sort, offset, limit, label)
+	if labelsRaw != "" {
+		labels = strings.Split(labelsRaw, "")
+	}
+
+	threads, err := env.Threads.List(session.Owner, sort, offset, limit, labels)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
