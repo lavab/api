@@ -50,7 +50,7 @@ func (t *ThreadsTable) List(
 	sort []string,
 	offset int,
 	limit int,
-	labels string,
+	labels []string,
 ) ([]*models.Thread, error) {
 
 	term := t.GetTable()
