@@ -80,7 +80,7 @@ func (t *ThreadsTable) List(
 	excLabels := []string{}
 	for _, label := range labels {
 		if label[0] == '-' {
-			excLabels = append(excLabels, label)
+			excLabels = append(excLabels, label[1:])
 		} else {
 			hasLabels = append(hasLabels, label)
 		}
