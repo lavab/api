@@ -35,7 +35,7 @@ func LabelsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, label := range labels {
-		if label.Builtin && (label.Name == "Spam" || label.Name == "Trash") {
+		if label.Builtin && label.Name != "Inbox" {
 			continue
 		}
 
