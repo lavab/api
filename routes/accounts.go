@@ -215,6 +215,15 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Ensure that the account is "registered"
+		if account.Status != "registered" {
+			utils.JSONResponse(w, 403, &AccountsCreateResponse{
+				Success: true,
+				Message: "This account was already configured",
+			})
+			return
+		}
+
 		// Everything is fine, return it.
 		utils.JSONResponse(w, 200, &AccountsCreateResponse{
 			Success: true,
@@ -285,6 +294,15 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Expired invitation code",
+			})
+			return
+		}
+
+		// Ensure that the account is "registered"
+		if account.Status != "registered" {
+			utils.JSONResponse(w, 403, &AccountsCreateResponse{
+				Success: true,
+				Message: "This account was already configured",
 			})
 			return
 		}
