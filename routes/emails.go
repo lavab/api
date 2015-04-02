@@ -195,6 +195,25 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check rights to files
+	files, err := env.Files.GetFiles(input.Files...)
+	if err != nil {
+		utils.JSONResponse(w, 500, &EmailsCreateResponse{
+			Success: false,
+			Message: "Unable to fetch emails",
+		})
+		return
+	}
+	for _, file := range files {
+		if file.Owner != session.Owner {
+			utils.JSONResponse(w, 403, &EmailsCreateResponse{
+				Success: false,
+				Message: "You are not the owner of file " + file.ID,
+			})
+			return
+		}
+	}
+
 	// Create an email resource
 	resource := models.MakeResource(session.Owner, input.Subject)
 

@@ -21,6 +21,25 @@ func (f *FilesTable) GetFile(id string) (*models.File, error) {
 	return &result, nil
 }
 
+func (f *FilesTable) GetFiles(ids ...string) ([]*models.File, error) {
+	iids := make([]interface{}, len(ids))
+	for i, v := range ids {
+		iids[i] = v
+	}
+
+	query, err := f.GetTable().GetAll(iids...).Run(f.GetSession())
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*models.File
+	if err := query.All(&result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (f *FilesTable) GetOwnedBy(id string) ([]*models.File, error) {
 	var result []*models.File
 
