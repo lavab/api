@@ -77,7 +77,7 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if labelsRaw != "" {
-		labels = strings.Split(labelsRaw, "")
+		labels = strings.Split(labelsRaw, ",")
 	}
 
 	threads, err := env.Threads.List(session.Owner, sort, offset, limit, labels)
