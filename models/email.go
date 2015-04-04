@@ -4,6 +4,8 @@ package models
 type Email struct {
 	Resource
 
+	MessageID string `json:"message_id" gorethink:"message_id"`
+
 	// Kind is the type of encryption used in the email:
 	//  - raw      - when sending raw emails before they get sent
 	//  - manifest - Manifest field is not empty,

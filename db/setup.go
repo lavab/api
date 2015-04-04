@@ -45,9 +45,16 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("emails").IndexCreate("thread").Exec(ss)
 		r.Db(d).Table("emails").IndexCreate("kind").Exec(ss)
 		r.Db(d).Table("emails").IndexCreate("from").Exec(ss)
+		r.Db(d).Table("emails").IndexCreate("message_id").Exec(ss)
 		r.Db(d).Table("emails").IndexCreate("to", r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.Db(d).Table("emails").IndexCreate("cc", r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.Db(d).Table("emails").IndexCreate("bcc", r.IndexCreateOpts{Multi: true}).Exec(ss)
+		r.Db(d).Table("emails").IndexCreateFunc("messageIDOwner", func(row r.Term) r.Term {
+			return r.Expr([]interface{}{
+				row.Field("message_id"),
+				row.Field("owner"),
+			})
+		}).Exec(ss)
 
 		r.Db(d).TableCreate("files").Exec(ss)
 		r.Db(d).Table("files").IndexCreate("owner").Exec(ss)
@@ -65,7 +72,13 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("labels").IndexCreate("name").Exec(ss)
 		r.Db(d).Table("labels").IndexCreate("builtin").Exec(ss)
 		r.Db(d).Table("labels").IndexCreate("owner").Exec(ss)
-		r.Db(d).Table("labels").IndexCreate([]interface{}{"name", "owner", "builtin"}).Exec(ss)
+		r.Db(d).Table("labels").IndexCreateFunc("nameOwnerBuiltin", func(row r.Term) r.Term {
+			return r.Expr([]interface{}{
+				row.Field("name"),
+				row.Field("owner"),
+				row.Field("builtin"),
+			})
+		}).Exec(ss)
 
 		r.Db(d).TableCreate("threads").Exec(ss)
 		r.Db(d).Table("threads").IndexCreate("name").Exec(ss)
@@ -77,6 +90,12 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("threads").IndexCreate("members", r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.Db(d).Table("threads").IndexCreate("subject_hash").Exec(ss)
 		r.Db(d).Table("threads").IndexCreate("secure").Exec(ss)
+		r.Db(d).Table("threads").IndexCreateFunc("subjectOwner", func(row r.Term) r.Term {
+			return r.Expr([]interface{}{
+				row.Field("subject_hash"),
+				row.Field("owner"),
+			})
+		})
 
 		r.Db(d).TableCreate("tokens").Exec(ss)
 		r.Db(d).Table("tokens").IndexCreate("name").Exec(ss)
