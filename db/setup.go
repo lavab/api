@@ -55,6 +55,12 @@ func Setup(opts r.ConnectOpts) error {
 				row.Field("owner"),
 			})
 		}).Exec(ss)
+		r.Db(d).Table("emails").IndexCreateFunc("threadStatus", func(row r.Term) r.Term {
+			return r.Expr([]interface{}{
+				row.Field("thread"),
+				row.Field("status"),
+			})
+		})
 
 		r.Db(d).TableCreate("files").Exec(ss)
 		r.Db(d).Table("files").IndexCreate("owner").Exec(ss)
