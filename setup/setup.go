@@ -163,6 +163,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		),
 		Tokens: env.Tokens,
 	}
+	env.Addresses = &db.AddressesTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"addresses",
+		),
+	}
 	env.Keys = &db.KeysTable{
 		RethinkCRUD: db.NewCRUDTable(
 			rethinkSession,
@@ -471,6 +478,9 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Put("/accounts/:id", routes.AccountsUpdate)
 	auth.Delete("/accounts/:id", routes.AccountsDelete)
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
+
+	// Addresses
+	auth.Get("/addresses", routes.AddressesList)
 
 	// Avatars
 	mux.Get(regexp.MustCompile(`/avatars/(?P<hash>[\S\s]*?)\.(?P<ext>svg|png)(?:[\S\s]*?)$`), routes.Avatars)

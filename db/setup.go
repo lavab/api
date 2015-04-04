@@ -32,6 +32,11 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("accounts").IndexCreate("type").Exec(ss)
 		r.Db(d).Table("accounts").IndexCreate("status").Exec(ss)
 
+		r.Db(d).TableCreate("addresses").Exec(ss)
+		r.Db(d).Table("addresses").IndexCreate("owner").Exec(ss)
+		r.Db(d).Table("addresses").IndexCreate("date_created").Exec(ss)
+		r.Db(d).Table("addresses").IndexCreate("date_modified").Exec(ss)
+
 		r.Db(d).TableCreate("contacts").Exec(ss)
 		r.Db(d).Table("contacts").IndexCreate("owner").Exec(ss)
 		r.Db(d).Table("contacts").IndexCreate("name").Exec(ss)
@@ -60,7 +65,7 @@ func Setup(opts r.ConnectOpts) error {
 				row.Field("thread"),
 				row.Field("status"),
 			}
-		})
+		}).Exec(ss)
 
 		r.Db(d).TableCreate("files").Exec(ss)
 		r.Db(d).Table("files").IndexCreate("owner").Exec(ss)
@@ -101,7 +106,7 @@ func Setup(opts r.ConnectOpts) error {
 				row.Field("subject_hash"),
 				row.Field("owner"),
 			}
-		})
+		}).Exec(ss)
 
 		r.Db(d).TableCreate("tokens").Exec(ss)
 		r.Db(d).Table("tokens").IndexCreate("name").Exec(ss)

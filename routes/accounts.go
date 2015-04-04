@@ -378,6 +378,27 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Add a new mapping
+		err = env.Addresses.Insert(&models.Address{
+			Resource: models.Resource{
+				ID:           account.Name,
+				DateCreated:  time.Now(),
+				DateModified: time.Now(),
+				Owner:        account.ID,
+			},
+		})
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Unable to create a new address mapping",
+			})
+
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Could not insert an address mapping into db")
+			return
+		}
+
 		// Update the account
 		err = env.Accounts.UpdateID(account.ID, account)
 		if err != nil {

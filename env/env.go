@@ -21,6 +21,8 @@ var (
 	Cache cache.Cache
 	// Accounts is the global instance of AccountsTable
 	Accounts *db.AccountsTable
+	// Addresses is the global instance of Addresses table
+	Addresses *db.AddressesTable
 	// Tokens is the global instance of TokensTable
 	Tokens *db.TokensTable
 	// Keys is the global instance of KeysTable
