@@ -37,21 +37,21 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 
 	user = utils.RemoveDots(utils.NormalizeUsername(user))
 
-	account, err := env.Accounts.FindAccountByName(user)
+	address, err := env.Addresses.GetAddress(user)
 	if err != nil {
 		utils.JSONResponse(w, 409, &KeysListResponse{
 			Success: false,
-			Message: "Invalid username",
+			Message: "Invalid address",
 		})
 		return
 	}
 
 	// Find all keys owner by user
-	keys, err := env.Keys.FindByOwner(account.ID)
+	keys, err := env.Keys.FindByOwner(address.Owner)
 	if err != nil {
 		utils.JSONResponse(w, 500, &KeysListResponse{
 			Success: false,
-			Message: "Internal server error (KE/LI/01)",
+			Message: "Internal server error (KE//LI/01)",
 		})
 		return
 	}
@@ -218,8 +218,23 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 		username = utils.RemoveDots(utils.NormalizeUsername(username))
 
-		// Resolve account
-		account, err := env.Accounts.FindAccountByName(username)
+		// Resolve address
+		address, err := env.Addresses.GetAddress(username)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"name":  username,
+			}).Warn("Unable to fetch the requested address from the database")
+
+			utils.JSONResponse(w, 404, &KeysGetResponse{
+				Success: false,
+				Message: "No such address",
+			})
+			return
+		}
+
+		// Get its owner
+		account, err := env.Accounts.GetAccount(address.Owner)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
 				"error": err.Error(),
@@ -228,7 +243,7 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 			utils.JSONResponse(w, 404, &KeysGetResponse{
 				Success: false,
-				Message: "No such user",
+				Message: "No such account",
 			})
 			return
 		}
