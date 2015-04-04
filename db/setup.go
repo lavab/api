@@ -49,17 +49,17 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("emails").IndexCreate("to", r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.Db(d).Table("emails").IndexCreate("cc", r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.Db(d).Table("emails").IndexCreate("bcc", r.IndexCreateOpts{Multi: true}).Exec(ss)
-		r.Db(d).Table("emails").IndexCreateFunc("messageIDOwner", func(row r.Term) r.Term {
-			return r.Expr([]interface{}{
+		r.Db(d).Table("emails").IndexCreateFunc("messageIDOwner", func(row r.Term) interface{} {
+			return []interface{}{
 				row.Field("message_id"),
 				row.Field("owner"),
-			})
+			}
 		}).Exec(ss)
-		r.Db(d).Table("emails").IndexCreateFunc("threadStatus", func(row r.Term) r.Term {
-			return r.Expr([]interface{}{
+		r.Db(d).Table("emails").IndexCreateFunc("threadStatus", func(row r.Term) interface{} {
+			return []interface{}{
 				row.Field("thread"),
 				row.Field("status"),
-			})
+			}
 		})
 
 		r.Db(d).TableCreate("files").Exec(ss)
@@ -78,12 +78,12 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("labels").IndexCreate("name").Exec(ss)
 		r.Db(d).Table("labels").IndexCreate("builtin").Exec(ss)
 		r.Db(d).Table("labels").IndexCreate("owner").Exec(ss)
-		r.Db(d).Table("labels").IndexCreateFunc("nameOwnerBuiltin", func(row r.Term) r.Term {
-			return r.Expr([]interface{}{
+		r.Db(d).Table("labels").IndexCreateFunc("nameOwnerBuiltin", func(row r.Term) interface{} {
+			return []interface{}{
 				row.Field("name"),
 				row.Field("owner"),
 				row.Field("builtin"),
-			})
+			}
 		}).Exec(ss)
 
 		r.Db(d).TableCreate("threads").Exec(ss)
@@ -96,11 +96,11 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("threads").IndexCreate("members", r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.Db(d).Table("threads").IndexCreate("subject_hash").Exec(ss)
 		r.Db(d).Table("threads").IndexCreate("secure").Exec(ss)
-		r.Db(d).Table("threads").IndexCreateFunc("subjectOwner", func(row r.Term) r.Term {
-			return r.Expr([]interface{}{
+		r.Db(d).Table("threads").IndexCreateFunc("subjectOwner", func(row r.Term) interface{} {
+			return []interface{}{
 				row.Field("subject_hash"),
 				row.Field("owner"),
-			})
+			}
 		})
 
 		r.Db(d).TableCreate("tokens").Exec(ss)
