@@ -330,7 +330,8 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Create a new email struct
 	email := &models.Email{
-		Resource: resource,
+		Resource:  resource,
+		MessageID: resource.ID + "@lavaboom.com",
 
 		Kind:   input.Kind,
 		Thread: input.Thread,
