@@ -88,7 +88,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		input.Username = utils.NormalizeUsername(input.Username)
 
 		// Ensure that the username is not used
-		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
+		if used, err := env.Addresses.GetAddress(input.Username); err != nil || used != nil {
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
 					"error": err.Error(),
