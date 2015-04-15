@@ -87,15 +87,24 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Normalize the username
 		input.Username = utils.NormalizeUsername(input.Username)
 
+		// Validate the username
+		if len(input.Username) < 3 || len(input.Username) > 32 {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid username - it has to be at least 3 and at max 32 characters long",
+			})
+			return
+		}
+
 		// Ensure that the username is not used
-		if used, err := env.Addresses.GetAddress(input.Username); err != nil || used != nil {
+		if used, err := env.Addresses.GetAddress(utils.RemoveDots(input.Username)); err != nil || used != nil {
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
 					"error": err.Error(),
 				}).Error("Unable to lookup registered accounts for usernames")
 			}
 
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Username already used",
 			})
@@ -110,7 +119,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				}).Error("Unable to lookup registered accounts for emails")
 			}
 
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Email already used",
 			})
