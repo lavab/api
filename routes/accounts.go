@@ -84,15 +84,27 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestType == "register" {
+		// Normalize the username
+		input.Username = utils.NormalizeUsername(input.Username)
+
+		// Validate the username
+		if len(input.Username) < 3 || len(input.Username) > 32 {
+			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid username - it has to be at least 3 and at max 32 characters long",
+			})
+			return
+		}
+
 		// Ensure that the username is not used
-		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
+		if used, err := env.Addresses.GetAddress(utils.RemoveDots(input.Username)); err != nil || used != nil {
 			if err != nil {
 				env.Log.WithFields(logrus.Fields{
 					"error": err.Error(),
 				}).Error("Unable to lookup registered accounts for usernames")
 			}
 
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Username already used",
 			})
@@ -107,7 +119,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				}).Error("Unable to lookup registered accounts for emails")
 			}
 
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Email already used",
 			})
@@ -116,10 +128,11 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		// Both username and email are filled, so we can create a new account.
 		account := &models.Account{
-			Resource: models.MakeResource("", input.Username),
-			Type:     "beta", // Is this the proper value?
-			AltEmail: input.AltEmail,
-			Status:   "registered",
+			Resource:   models.MakeResource("", utils.RemoveDots(input.Username)),
+			StyledName: input.Username,
+			Type:       "beta", // Is this the proper value?
+			AltEmail:   input.AltEmail,
+			Status:     "registered",
 		}
 
 		// Try to save it in the database
@@ -146,6 +159,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if requestType == "verify" {
 		// We're pretty much checking whether an invitation code can be used by the user
+		input.Username = utils.RemoveDots(
+			utils.NormalizeUsername(input.Username),
+		)
 
 		// Fetch the user from database
 		account, err := env.Accounts.FindAccountByName(input.Username)
@@ -204,6 +220,15 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Expired invitation code",
+			})
+			return
+		}
+
+		// Ensure that the account is "registered"
+		if account.Status != "registered" {
+			utils.JSONResponse(w, 403, &AccountsCreateResponse{
+				Success: true,
+				Message: "This account was already configured",
 			})
 			return
 		}
@@ -217,6 +242,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	} else if requestType == "setup" {
 		// User is setting the password in the setup wizard. This should be one of the first steps,
 		// as it's required for him to acquire an authentication token to configure their account.
+		input.Username = utils.RemoveDots(
+			utils.NormalizeUsername(input.Username),
+		)
 
 		// Fetch the user from database
 		account, err := env.Accounts.FindAccountByName(input.Username)
@@ -275,6 +303,15 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Expired invitation code",
+			})
+			return
+		}
+
+		// Ensure that the account is "registered"
+		if account.Status != "registered" {
+			utils.JSONResponse(w, 403, &AccountsCreateResponse{
+				Success: true,
+				Message: "This account was already configured",
 			})
 			return
 		}
@@ -322,6 +359,10 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				Builtin:  true,
 			},
 			&models.Label{
+				Resource: models.MakeResource(account.ID, "Drafts"),
+				Builtin:  true,
+			},
+			&models.Label{
 				Resource: models.MakeResource(account.ID, "Trash"),
 				Builtin:  true,
 			},
@@ -343,6 +384,27 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			env.Log.WithFields(logrus.Fields{
 				"error": err.Error(),
 			}).Error("Could not insert labels into the database")
+			return
+		}
+
+		// Add a new mapping
+		err = env.Addresses.Insert(&models.Address{
+			Resource: models.Resource{
+				ID:           account.Name,
+				DateCreated:  time.Now(),
+				DateModified: time.Now(),
+				Owner:        account.ID,
+			},
+		})
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Unable to create a new address mapping",
+			})
+
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Could not insert an address mapping into db")
 			return
 		}
 

@@ -34,6 +34,43 @@ func LabelsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for _, label := range labels {
+		if label.Builtin && label.Name != "Inbox" {
+			continue
+		}
+
+		totalCount, err := env.Threads.CountByLabel(label.ID)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"label": label.ID,
+			}).Error("Unable to fetch total threads count")
+
+			utils.JSONResponse(w, 500, &LabelsListResponse{
+				Success: false,
+				Message: "Internal error (code LA/LI/02)",
+			})
+			return
+		}
+
+		unreadCount, err := env.Threads.CountByLabelUnread(label.ID)
+		if err != nil {
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"label": label.ID,
+			}).Error("Unable to fetch unread threads count")
+
+			utils.JSONResponse(w, 500, &LabelsListResponse{
+				Success: false,
+				Message: "Internal error (code LA/LI/03)",
+			})
+			return
+		}
+
+		label.TotalThreadsCount = totalCount
+		label.UnreadThreadsCount = unreadCount
+	}
+
 	utils.JSONResponse(w, 200, &LabelsListResponse{
 		Success: true,
 		Labels:  &labels,
@@ -76,6 +113,14 @@ func LabelsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, 400, &LabelsCreateResponse{
 			Success: false,
 			Message: "Invalid request",
+		})
+		return
+	}
+
+	if _, err := env.Labels.GetLabelByNameAndOwner(session.Owner, input.Name); err == nil {
+		utils.JSONResponse(w, 409, &LabelsCreateResponse{
+			Success: false,
+			Message: "Label with such name already exists",
 		})
 		return
 	}
@@ -135,6 +180,37 @@ func LabelsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	totalCount, err := env.Threads.CountByLabel(label.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"label": label.ID,
+		}).Error("Unable to fetch total threads count")
+
+		utils.JSONResponse(w, 500, &LabelsListResponse{
+			Success: false,
+			Message: "Internal error (code LA/GE/01)",
+		})
+		return
+	}
+
+	unreadCount, err := env.Threads.CountByLabelUnread(label.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"label": label.ID,
+		}).Error("Unable to fetch unread threads count")
+
+		utils.JSONResponse(w, 500, &LabelsListResponse{
+			Success: false,
+			Message: "Internal error (code LA/GE/01)",
+		})
+		return
+	}
+
+	label.TotalThreadsCount = totalCount
+	label.UnreadThreadsCount = unreadCount
 
 	// Write the label to the response
 	utils.JSONResponse(w, 200, &LabelsGetResponse{
@@ -198,7 +274,7 @@ func LabelsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Perform the update
-	err = env.Labels.UpdateID(c.URLParams["id"], input)
+	err = env.Labels.UpdateID(c.URLParams["id"], label)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),

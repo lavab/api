@@ -18,10 +18,17 @@ type Flags struct {
 	RethinkDBKey      string
 	RethinkDBDatabase string
 
-	NATSAddress string
+	LookupdAddress string
+	NSQdAddress    string
 
 	YubiCloudID  string
 	YubiCloudKey string
 
 	LogglyToken string
+
+	SlackURL      string
+	SlackLevels   string
+	SlackChannel  string
+	SlackIcon     string
+	SlackUsername string
 }

@@ -27,7 +27,8 @@ func init() {
 
 		RedisAddress: "127.0.0.1:6379",
 
-		NATSAddress: "nats://127.0.0.1:4222",
+		NSQdAddress:    "127.0.0.1:4150",
+		LookupdAddress: "127.0.0.1:4160",
 
 		RethinkDBAddress:  "127.0.0.1:28015",
 		RethinkDBKey:      "",
@@ -36,10 +37,10 @@ func init() {
 
 	// Connect to the RethinkDB server
 	rdbSession, err := gorethink.Connect(gorethink.ConnectOpts{
-		Address:     env.Config.RethinkDBAddress,
-		AuthKey:     env.Config.RethinkDBKey,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
+		Address: env.Config.RethinkDBAddress,
+		AuthKey: env.Config.RethinkDBKey,
+		MaxIdle: 10,
+		Timeout: time.Second * 10,
 	})
 	if err != nil {
 		panic("connecting to RethinkDB should not return an error, got " + err.Error())

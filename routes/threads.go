@@ -31,7 +31,8 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		sortRaw   = query.Get("sort")
 		offsetRaw = query.Get("offset")
 		limitRaw  = query.Get("limit")
-		label     = query.Get("label")
+		labelsRaw = query.Get("label")
+		labels    []string
 		sort      []string
 		offset    int
 		limit     int
@@ -75,7 +76,11 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		sort = strings.Split(sortRaw, ",")
 	}
 
-	threads, err := env.Threads.List(session.Owner, sort, offset, limit, label)
+	if labelsRaw != "" {
+		labels = strings.Split(labelsRaw, ",")
+	}
+
+	threads, err := env.Threads.List(session.Owner, sort, offset, limit, labels)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -139,8 +144,18 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	manifest, err := env.Emails.GetThreadManifest(thread.ID)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"id":    thread.ID,
+		}).Error("Unable to get a manifest")
+	} else {
+		thread.Manifest = manifest
+	}
+
 	var emails []*models.Email
-	if ok := r.URL.Query().Get("list_emails"); ok == "true" {
+	if ok := r.URL.Query().Get("list_emails"); ok == "true" || ok == "1" {
 		emails, err = env.Emails.GetByThread(thread.ID)
 		if err != nil {
 			env.Log.WithFields(logrus.Fields{
@@ -164,7 +179,9 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 type ThreadsUpdateRequest struct {
-	Labels []string `json:"labels"`
+	Labels   []string `json:"labels"`
+	IsRead   *bool    `json:"is_read"`
+	LastRead string   `json:"last_read"`
 }
 
 type ThreadsUpdateResponse struct {
@@ -211,13 +228,21 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !reflect.DeepEqual(thread.Labels, input.Labels) {
+	if thread.Labels != nil && !reflect.DeepEqual(thread.Labels, input.Labels) {
 		thread.Labels = input.Labels
+	}
+
+	if thread.LastRead != input.LastRead {
+		thread.LastRead = input.LastRead
+	}
+
+	if input.IsRead != nil && *input.IsRead != thread.IsRead {
+		thread.IsRead = *input.IsRead
 	}
 
 	thread.DateModified = time.Now()
 
-	err = env.Threads.UpdateID(c.URLParams["id"], input)
+	err = env.Threads.UpdateID(c.URLParams["id"], thread)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -279,6 +304,21 @@ func ThreadsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, 500, &ThreadsDeleteResponse{
 			Success: false,
 			Message: "Internal error (code TH/DE/01)",
+		})
+		return
+	}
+
+	// Remove dependent emails
+	err = env.Emails.DeleteByThread(c.URLParams["id"])
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+			"id":    c.URLParams["id"],
+		}).Error("Unable to delete emails by thread")
+
+		utils.JSONResponse(w, 500, &ThreadsDeleteResponse{
+			Success: false,
+			Message: "Internal error (code TH/DE/02)",
 		})
 		return
 	}

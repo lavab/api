@@ -2,7 +2,7 @@ package env
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/apcera/nats"
+	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 
 	"github.com/lavab/api/cache"
@@ -21,6 +21,8 @@ var (
 	Cache cache.Cache
 	// Accounts is the global instance of AccountsTable
 	Accounts *db.AccountsTable
+	// Addresses is the global instance of Addresses table
+	Addresses *db.AddressesTable
 	// Tokens is the global instance of TokensTable
 	Tokens *db.TokensTable
 	// Keys is the global instance of KeysTable
@@ -33,12 +35,12 @@ var (
 	Emails *db.EmailsTable
 	// Labels is the global instance of LabelsTable
 	Labels *db.LabelsTable
-	// Attachments is the global instance of AttachmentsTable
-	Attachments *db.AttachmentsTable
+	// Files is the global instance of FilesTable
+	Files *db.FilesTable
 	// Threads is the global instance of ThreadsTable
 	Threads *db.ThreadsTable
 	// Factors contains all currently registered factors
 	Factors map[string]factor.Factor
-	// NATS is the encoded connection to the NATS queue
-	NATS *nats.EncodedConn
+	// Producer is the nsq producer used to send messages to other components of the system
+	Producer *nsq.Producer
 )

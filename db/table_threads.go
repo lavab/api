@@ -1,6 +1,8 @@
 package db
 
 import (
+	"time"
+
 	"github.com/dancannon/gorethink"
 
 	"github.com/lavab/api/models"
@@ -48,30 +50,13 @@ func (t *ThreadsTable) List(
 	sort []string,
 	offset int,
 	limit int,
-	label string,
+	labels []string,
 ) ([]*models.Thread, error) {
 
-	var term gorethink.Term
+	term := t.GetTable()
 
-	if owner != "" && label != "" {
-		term = t.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-			return gorethink.And(
-				row.Field("owner").Eq(owner),
-				row.Field("labels").Contains(label),
-			)
-		})
-	}
-
-	if owner != "" && label == "" {
-		term = t.GetTable().Filter(map[string]interface{}{
-			"owner": owner,
-		})
-	}
-
-	if owner == "" && label != "" {
-		term = t.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-			return row.Field("labels").Contains(label)
-		})
+	if owner != "" {
+		term = t.GetTable().GetAllByIndex("owner", owner)
 	}
 
 	// If sort array has contents, parse them and add to the term
@@ -90,18 +75,73 @@ func (t *ThreadsTable) List(
 		term = term.OrderBy(conds...)
 	}
 
-	// Slice the result in 3 cases
-	if offset != 0 && limit == 0 {
-		term = term.Skip(offset)
+	// Parse labels
+	hasLabels := []string{}
+	excLabels := []string{}
+	for _, label := range labels {
+		if label[0] == '-' {
+			excLabels = append(excLabels, label[1:])
+		} else {
+			hasLabels = append(hasLabels, label)
+		}
 	}
 
-	if offset == 0 && limit != 0 {
-		term = term.Limit(limit)
+	// Transform that into a term
+	if len(hasLabels) > 0 || len(excLabels) > 0 {
+		var hasTerm gorethink.Term
+		if len(hasLabels) == 1 {
+			hasTerm = gorethink.Row.Field("labels").Contains(hasLabels[0])
+		} else if len(hasLabels) > 0 {
+			for i, label := range hasLabels {
+				if i == 0 {
+					hasTerm = gorethink.Row.Field("labels").Contains(label)
+				} else {
+					hasTerm = hasTerm.And(gorethink.Row.Field("labels").Contains(label))
+				}
+			}
+		}
+
+		var excTerm gorethink.Term
+		if len(excLabels) == 1 {
+			excTerm = gorethink.Not(gorethink.Row.Field("labels").Contains(excLabels[0]))
+		} else {
+			for i, label := range excLabels {
+				if i == 0 {
+					excTerm = gorethink.Not(gorethink.Row.Field("labels").Contains(label))
+				} else {
+					excTerm = excTerm.And(gorethink.Not(gorethink.Row.Field("labels").Contains(label)))
+				}
+			}
+		}
+
+		// Append them into the term
+		if len(hasLabels) > 0 && len(excLabels) > 0 {
+			term = term.Filter(hasTerm.And(excTerm))
+		} else if len(hasLabels) > 0 && len(excLabels) == 0 {
+			term = term.Filter(hasTerm)
+		} else if len(hasLabels) == 0 && len(excLabels) > 0 {
+			term = term.Filter(excTerm)
+		}
 	}
 
-	if offset != 0 && limit != 0 {
+	// Slice the result
+	if offset != 0 || limit != 0 {
 		term = term.Slice(offset, offset+limit)
 	}
+
+	// Add manifests
+	term = term.Map(func(thread gorethink.Term) gorethink.Term {
+		return thread.Merge(gorethink.Db(t.GetDBName()).Table("emails").Between([]interface{}{
+			thread.Field("id"),
+			time.Date(1990, time.January, 1, 23, 0, 0, 0, time.UTC),
+		}, []interface{}{
+			thread.Field("id"),
+			time.Date(2090, time.January, 1, 23, 0, 0, 0, time.UTC),
+		}, gorethink.BetweenOpts{
+			Index: "threadAndDate",
+		}).OrderBy(gorethink.OrderByOpts{Index: "threadAndDate"}).
+			Nth(0).Pluck("manifest"))
+	})
 
 	// Run the query
 	cursor, err := term.Run(t.GetSession())
