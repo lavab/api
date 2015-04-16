@@ -2,6 +2,8 @@ FROM google/golang
 
 MAINTAINER "Andrei Simionescu <andrei@lavaboom.com>"
 
+RUN go get github.com/tools/godep
+
 RUN mkdir -p /gopath/src/github.com/lavab/api
 ADD . /gopath/src/github.com/lavab/api
 #RUN go get github.com/lavab/api
