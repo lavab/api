@@ -98,12 +98,6 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		// Ensure that the username is not used
 		if used, err := env.Addresses.GetAddress(utils.RemoveDots(input.Username)); err != nil || used != nil {
-			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"error": err.Error(),
-				}).Error("Unable to lookup registered accounts for usernames")
-			}
-
 			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Username already used",
