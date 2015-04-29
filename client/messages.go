@@ -4,6 +4,11 @@ import (
 	"encoding/json"
 )
 
+type Message struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+
 type Request struct {
 	Type    string            `json:"type,omitempty"`
 	ID      string            `json:"id,omitempty"`
