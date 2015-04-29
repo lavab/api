@@ -19,7 +19,7 @@ type Client struct {
 	Address  string
 	SockJS   *sockjs.Client
 	Headers  map[string]string
-	Incoming map[string]chan string
+	Incoming map[string]chan *Response
 	Timeout  time.Duration
 }
 
@@ -37,7 +37,7 @@ func New(address string, timeout time.Duration) (*Client, error) {
 		Address:  address,
 		SockJS:   sjs,
 		Headers:  map[string]string{},
-		Incoming: map[string]chan string{},
+		Incoming: map[string]chan *Response{},
 		Timeout:  timeout,
 	}
 
@@ -48,14 +48,15 @@ func New(address string, timeout time.Duration) (*Client, error) {
 
 func (c *Client) Loop() {
 	for {
+
 		x := []string{}
 		if err := c.SockJS.ReadMessage(&x); err != nil {
 			log.Print(err)
 			break
 		}
 
-		var resp *Message
-		if err := Decode(x, &resp); err != nil {
+		var resp *Response
+		if err := json.Unmarshal([]byte(x[0]), &resp); err != nil {
 			log.Print(err)
 			continue
 		}
@@ -64,8 +65,9 @@ func (c *Client) Loop() {
 			c.RLock()
 			d, ok := c.Incoming[resp.ID]
 			c.RUnlock()
+
 			if ok {
-				d <- x[0]
+				d <- resp
 			}
 		} else {
 			// Run event handlers
@@ -73,19 +75,19 @@ func (c *Client) Loop() {
 	}
 }
 
-func (c *Client) Receive(id string) (string, error) {
+func (c *Client) Receive(id string) (*Response, error) {
 	c.Lock()
-	c.Incoming[id] = make(chan string)
+	c.Incoming[id] = make(chan *Response)
 	c.Unlock()
 
 	select {
 	case <-time.After(c.Timeout):
-		return "", errors.New("Request timeout")
+		return nil, errors.New("Request timeout")
 	case data := <-c.Incoming[id]:
 		return data, nil
 	}
 
-	return "", errors.New("This shouldn't happen!")
+	return nil, errors.New("This shouldn't happen!")
 }
 
 func (c *Client) Request(method, path string, headers map[string]string, body interface{}) ([]string, string, error) {
@@ -128,17 +130,17 @@ func (c *Client) CreateToken(req *routes.TokensCreateRequest) (*models.Token, er
 		return nil, err
 	}
 
+	if err := c.SockJS.WriteMessage(data); err != nil {
+		return nil, err
+	}
+
 	rcv, err := c.Receive(id)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := c.SockJS.WriteMessage(data); err != nil {
-		return nil, err
-	}
-
 	var resp *routes.TokensCreateResponse
-	if err := json.Unmarshal([]byte(rcv), &resp); err != nil {
+	if err := json.Unmarshal([]byte(rcv.Body), &resp); err != nil {
 		return nil, err
 	}
 
@@ -153,21 +155,19 @@ func (c *Client) CreateEmail(req *routes.EmailsCreateRequest) ([]string, error) 
 		return nil, err
 	}
 
+	if err := c.SockJS.WriteMessage(data); err != nil {
+		return nil, err
+	}
+
 	rcv, err := c.Receive(id)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := c.SockJS.WriteMessage(data); err != nil {
-		return nil, err
-	}
-
 	var resp *routes.EmailsCreateResponse
-	if err := json.Unmarshal([]byte(rcv), &resp); err != nil {
+	if err := json.Unmarshal([]byte(rcv.Body), &resp); err != nil {
 		return nil, err
 	}
-
-	log.Printf("%+v", resp)
 
 	return resp.Created, nil
 }
