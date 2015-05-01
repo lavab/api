@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -413,6 +414,29 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			utils.JSONResponse(w, 500, &AccountsCreateResponse{
 				Success: false,
 				Message: "Unable to update the account",
+			})
+			return
+		}
+
+		// Add to onboarding emails
+		data, err := json.Marshal(map[string]interface{}{
+			"type":  "onboarding",
+			"email": account.Name + "@lavaboom.com",
+			// polish roulette
+			"first_name": account.Settings.(map[string]interface{})["firstName"].(string),
+		})
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Unable to initialize onboarding emails",
+			})
+			return
+		}
+
+		if err := env.Producer.Publish("hub", data); err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Unable to initialize onboarding emails #2",
 			})
 			return
 		}
