@@ -478,6 +478,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Put("/accounts/:id", routes.AccountsUpdate)
 	auth.Delete("/accounts/:id", routes.AccountsDelete)
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
+	auth.Post("/accounts/:id/start-onboarding", routes.AccountsStartOnboarding)
 
 	// Addresses
 	auth.Get("/addresses", routes.AddressesList)

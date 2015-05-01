@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -834,5 +835,97 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 200, &AccountsWipeDataResponse{
 		Success: true,
 		Message: "Your account has been successfully wiped",
+	})
+}
+
+type AccountsStartOnboardingResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+func AccountsStartOnboarding(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the account ID from the request
+	id := c.URLParams["id"]
+
+	// Right now we only support "me" as the ID
+	if id != "me" {
+		utils.JSONResponse(w, 501, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: `Only the "me" user is implemented`,
+		})
+		return
+	}
+
+	// Fetch the current session from the database
+	session := c.Env["token"].(*models.Token)
+
+	// Fetch the user object from the database
+	account, err := env.Accounts.GetTokenOwner(session)
+	if err != nil {
+		// The session refers to a non-existing user
+		env.Log.WithFields(logrus.Fields{
+			"id":    session.ID,
+			"error": err.Error(),
+		}).Warn("Valid session referred to a removed account")
+
+		utils.JSONResponse(w, 410, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: "Account disabled",
+		})
+		return
+	}
+
+	x1, ok := account.Settings.(map[string]interface{})
+	if !ok {
+		utils.JSONResponse(w, 403, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: "Account misconfigured #1",
+		})
+		return
+	}
+
+	x2, ok := x1["firstName"]
+	if !ok {
+		utils.JSONResponse(w, 403, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: "Account misconfigured #2",
+		})
+		return
+	}
+
+	x3, ok := x2.(string)
+	if !ok {
+		utils.JSONResponse(w, 403, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: "Account misconfigured #3",
+		})
+		return
+	}
+
+	data, err := json.Marshal(map[string]interface{}{
+		"type":  "onboarding",
+		"email": account.Name + "@lavaboom.com",
+		// polish roulette
+		"first_name": x3,
+	})
+	if !ok {
+		utils.JSONResponse(w, 500, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: "Unable to encode a message",
+		})
+		return
+	}
+
+	if err := env.Producer.Publish("hub", data); err != nil {
+		utils.JSONResponse(w, 500, &AccountsCreateResponse{
+			Success: false,
+			Message: "Unable to initialize onboarding emails",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &AccountsStartOnboardingResponse{
+		Success: true,
+		Message: "Onboarding emails for your account have been initialized",
 	})
 }
