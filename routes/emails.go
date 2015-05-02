@@ -6,6 +6,7 @@ import (
 	//"crypto/sha256"
 	//"encoding/hex"
 	"net/http"
+	"net/mail"
 	"regexp"
 	"strconv"
 	"strings"
@@ -132,9 +133,10 @@ type EmailsCreateRequest struct {
 	Thread string `json:"thread"`
 
 	// Metadata that has to be leaked
-	To  []string `json:"to"`
-	CC  []string `json:"cc"`
-	BCC []string `json:"bcc"`
+	From string   `json:"from"`
+	To   []string `json:"to"`
+	CC   []string `json:"cc"`
+	BCC  []string `json:"bcc"`
 
 	// Encrypted parts
 	PGPFingerprints []string `json:"pgp_fingerprints"`
@@ -260,6 +262,65 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if input.From != "" {
+		// Parse the from field
+		from, err := mail.ParseAddress(input.From)
+		if err != nil {
+			utils.JSONResponse(w, 400, &EmailsCreateResponse{
+				Success: false,
+				Message: "Invalid email.From",
+			})
+			return
+		}
+
+		// We have a specified address
+		if from.Address != "" {
+			parts := strings.SplitN(from.Address, "@", 2)
+
+			if parts[1] != env.Config.EmailDomain {
+				utils.JSONResponse(w, 400, &EmailsCreateResponse{
+					Success: false,
+					Message: "Invalid email.From (invalid domain)",
+				})
+				return
+			}
+
+			address, err := env.Addresses.GetAddress(parts[0])
+			if err != nil {
+				utils.JSONResponse(w, 400, &EmailsCreateResponse{
+					Success: false,
+					Message: "Invalid email.From (invalid username)",
+				})
+				return
+			}
+
+			if address.Owner != account.ID {
+				utils.JSONResponse(w, 400, &EmailsCreateResponse{
+					Success: false,
+					Message: "Invalid email.From (address not owned)",
+				})
+				return
+			}
+		}
+	} else {
+		displayName := ""
+
+		if x, ok := account.Settings.(map[string]interface{}); ok {
+			if y, ok := x["displayName"]; ok {
+				if z, ok := y.(string); ok {
+					displayName = z
+				}
+			}
+		}
+
+		addr := &mail.Address{
+			Name:    displayName,
+			Address: account.StyledName + "@" + env.Config.EmailDomain,
+		}
+
+		input.From = addr.String()
+	}
+
 	// Check if Thread is set
 	if input.Thread != "" {
 		// todo: make it an actual exists check to reduce lan bandwidth
@@ -336,7 +397,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		Kind:   input.Kind,
 		Thread: input.Thread,
 
-		From: account.StyledName + "@" + env.Config.EmailDomain,
+		From: input.From,
 		To:   input.To,
 		CC:   input.CC,
 		BCC:  input.BCC,
