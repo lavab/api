@@ -143,6 +143,9 @@ func (c *Client) CreateToken(req *routes.TokensCreateRequest) (*models.Token, er
 	if err := json.Unmarshal([]byte(rcv.Body), &resp); err != nil {
 		return nil, err
 	}
+	if !resp.Success {
+		return nil, errors.New(resp.Message)
+	}
 
 	return resp.Token, nil
 }
@@ -168,6 +171,35 @@ func (c *Client) CreateEmail(req *routes.EmailsCreateRequest) ([]string, error) 
 	if err := json.Unmarshal([]byte(rcv.Body), &resp); err != nil {
 		return nil, err
 	}
+	if !resp.Success {
+		return nil, errors.New(resp.Message)
+	}
 
 	return resp.Created, nil
+}
+
+func (c *Client) GetKey(id string) (*models.Key, error) {
+	data, id, err := c.Request("GET", "/keys/"+id, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.SockJS.WriteMessage(data); err != nil {
+		return nil, err
+	}
+
+	rcv, err := c.Receive(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *routes.KeysGetResponse
+	if err := json.Unmarshal([]byte(rcv.Body), &resp); err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, errors.New(resp.Message)
+	}
+
+	return resp.Key, nil
 }
