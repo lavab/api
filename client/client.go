@@ -91,6 +91,10 @@ func (c *Client) Receive(id string) (*Response, error) {
 }
 
 func (c *Client) Request(method, path string, headers map[string]string, body interface{}) ([]string, string, error) {
+	if headers == nil {
+		headers = map[string]string{}
+	}
+
 	if c.Headers != nil {
 		for k, v := range c.Headers {
 			headers[k] = v
