@@ -97,8 +97,17 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Ensure that the username is not used
+		// Ensure that the username is not used in address table
 		if used, err := env.Addresses.GetAddress(utils.RemoveDots(input.Username)); err == nil || used != nil {
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
+				Success: false,
+				Message: "Username already used",
+			})
+			return
+		}
+
+		// Then check it in the accounts table
+		if ok, err := env.Accounts.IsUsernameUsed(utils.RemoveDots(input.Username)); ok || err != nil {
 			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Username already used",
