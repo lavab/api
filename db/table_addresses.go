@@ -21,6 +21,7 @@ func (a *AddressesTable) GetOwnedBy(id string) ([]*models.Address, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer cursor.Close()
 	var result []*models.Address
 	if err := cursor.All(&result); err != nil {
 		return nil, err
