@@ -20,6 +20,7 @@ type Client struct {
 	SockJS   *sockjs.Client
 	Headers  map[string]string
 	Incoming map[string]chan *Response
+	Handlers []func(ev *Event)
 	Timeout  time.Duration
 }
 
@@ -37,6 +38,7 @@ func New(address string, timeout time.Duration) (*Client, error) {
 		Address:  address,
 		SockJS:   sjs,
 		Headers:  map[string]string{},
+		Handlers: []func(ev *Event){},
 		Incoming: map[string]chan *Response{},
 		Timeout:  timeout,
 	}
@@ -48,7 +50,6 @@ func New(address string, timeout time.Duration) (*Client, error) {
 
 func (c *Client) Loop() {
 	for {
-
 		x := []string{}
 		if err := c.SockJS.ReadMessage(&x); err != nil {
 			log.Print(err)
@@ -71,6 +72,13 @@ func (c *Client) Loop() {
 			}
 		} else {
 			// Run event handlers
+			for _, handler := range c.Handlers {
+				handler(&Event{
+					Type: resp.Type,
+					ID:   resp.ID,
+					Name: resp.Name,
+				})
+			}
 		}
 	}
 }
@@ -124,6 +132,32 @@ func (c *Client) Request(method, path string, headers map[string]string, body in
 	}
 
 	return d, req.ID, nil
+}
+
+type Event struct {
+	Type string `json:"event"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (c *Client) Subscribe(token string, callback func(ev *Event)) error {
+	c.Handlers = append(c.Handlers, callback)
+
+	if token != "" {
+		data, err := Encode(&Request{
+			Type:  "subscribe",
+			Token: token,
+		})
+		if err != nil {
+			return err
+		}
+
+		if err := c.SockJS.WriteMessage(data); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *Client) CreateToken(req *routes.TokensCreateRequest) (*models.Token, error) {
@@ -206,4 +240,30 @@ func (c *Client) GetKey(id string) (*models.Key, error) {
 	}
 
 	return resp.Key, nil
+}
+
+func (c *Client) GetEmail(id string) (*models.Email, error) {
+	data, id, err := c.Request("GET", "/email/"+id, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.SockJS.WriteMessage(data); err != nil {
+		return nil, err
+	}
+
+	rcv, err := c.Receive(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *routes.EmailsGetResponse
+	if err := json.Unmarshal([]byte(rcv.Body), &resp); err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, errors.New(resp.Message)
+	}
+
+	return resp.Email, nil
 }
