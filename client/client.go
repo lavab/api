@@ -243,7 +243,7 @@ func (c *Client) GetKey(id string) (*models.Key, error) {
 }
 
 func (c *Client) GetEmail(id string) (*models.Email, error) {
-	data, id, err := c.Request("GET", "/email/"+id, nil, nil)
+	data, id, err := c.Request("GET", "/emails/"+id, nil, nil)
 	if err != nil {
 		return nil, err
 	}
