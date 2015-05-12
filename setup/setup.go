@@ -15,7 +15,7 @@ import (
 	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 	"github.com/johntdyer/slackrus"
-	"github.com/pzduniak/glogrus"
+	//"github.com/pzduniak/glogrus"
 	"github.com/segmentio/go-loggly"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
@@ -460,7 +460,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		})
 	})
 	mux.Use(middleware.RequestID)
-	mux.Use(glogrus.NewGlogrus(log, "api"))
+	//mux.Use(glogrus.NewGlogrus(log, "api"))
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.AutomaticOptions)
 

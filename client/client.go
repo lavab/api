@@ -50,11 +50,15 @@ func New(address string, timeout time.Duration) (*Client, error) {
 
 func (c *Client) Loop() {
 	for {
+		log.Print("STARTING THE LOOP")
+
 		x := []string{}
 		if err := c.SockJS.ReadMessage(&x); err != nil {
 			log.Print(err)
 			break
 		}
+
+		log.Print("GOT THE MESSAGE")
 
 		var resp *Response
 		if err := json.Unmarshal([]byte(x[0]), &resp); err != nil {
@@ -62,22 +66,28 @@ func (c *Client) Loop() {
 			continue
 		}
 
+		log.Printf("%+v", resp)
+
 		if resp.Type == "response" {
 			c.RLock()
 			d, ok := c.Incoming[resp.ID]
 			c.RUnlock()
 
-			if ok {
-				d <- resp
-			}
+			go func(resp *Response) {
+				if ok {
+					d <- resp
+				}
+			}(resp)
 		} else {
 			// Run event handlers
 			for _, handler := range c.Handlers {
-				handler(&Event{
-					Type: resp.Type,
-					ID:   resp.ID,
-					Name: resp.Name,
-				})
+				go func(resp *Response) {
+					handler(&Event{
+						Type: resp.Type,
+						ID:   resp.ID,
+						Name: resp.Name,
+					})
+				}(resp)
 			}
 		}
 	}
