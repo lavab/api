@@ -76,8 +76,8 @@ func LabelsList(c web.C, w http.ResponseWriter, req *http.Request) {
 				return r.Not(thread.Field("is_read")).And(
 					r.Not(thread.Field("labels").Contains(spamTrash[0].ID).Or(thread.Field("labels").Contains(spamTrash[1].ID))),
 				)
-			}),
-		}).Count()
+			}).Count(),
+		})
 	}).Run(env.Rethink)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
