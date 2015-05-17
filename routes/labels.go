@@ -30,6 +30,10 @@ func LabelsList(c web.C, w http.ResponseWriter, req *http.Request) {
 		"Trash",
 		session.Owner,
 		true,
+	}, []interface{}{
+		"Sent",
+		session.Owner,
+		true,
 	}).Run(env.Rethink)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
@@ -43,8 +47,8 @@ func LabelsList(c web.C, w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer cursor.Close()
-	var spamTrash []*models.Label
-	if err := cursor.All(&spamTrash); err != nil {
+	var spamTrashSent []*models.Label
+	if err := cursor.All(&spamTrashSent); err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
 		}).Error("Unable to unmarshal account's specified labels")
@@ -56,11 +60,11 @@ func LabelsList(c web.C, w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if len(spamTrash) != 2 {
+	if len(spamTrashSent) != 3 {
 		env.Log.WithFields(logrus.Fields{
-			"count":   len(spamTrash),
+			"count":   len(spamTrashSent),
 			"account": session.Owner,
-		}).Error("Invalid count of Trash and Spam labels")
+		}).Error("Invalid count of Trash, Sent and Spam labels")
 
 		utils.JSONResponse(w, 500, &LabelsListResponse{
 			Success: false,
@@ -74,7 +78,13 @@ func LabelsList(c web.C, w http.ResponseWriter, req *http.Request) {
 			"total_threads_count": env.Threads.GetTable().GetAllByIndex("labels", label.Field("id")).Count(),
 			"unread_threads_count": env.Threads.GetTable().GetAllByIndex("labels", label.Field("id")).Filter(func(thread r.Term) r.Term {
 				return r.Not(thread.Field("is_read")).And(
-					r.Not(thread.Field("labels").Contains(spamTrash[0].ID).Or(thread.Field("labels").Contains(spamTrash[1].ID))),
+					r.Not(
+						thread.Field("labels").Contains(spamTrashSent[0].ID).Or(
+							thread.Field("labels").Contains(spamTrashSent[1].ID).Or(
+								thread.Field("labels").Contains(spamTrashSent[2].ID),
+							),
+						),
+					),
 				)
 			}).Count(),
 		})
