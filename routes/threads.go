@@ -180,7 +180,7 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 type ThreadsUpdateRequest struct {
 	Labels   []string `json:"labels"`
 	IsRead   *bool    `json:"is_read"`
-	LastRead string   `json:"last_read"`
+	LastRead *string  `json:"last_read"`
 }
 
 type ThreadsUpdateResponse struct {
@@ -227,12 +227,12 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.Labels != nil && !reflect.DeepEqual(thread.Labels, input.Labels) {
+	if input.Labels != nil && !reflect.DeepEqual(thread.Labels, input.Labels) {
 		thread.Labels = input.Labels
 	}
 
-	if thread.LastRead != input.LastRead {
-		thread.LastRead = input.LastRead
+	if input.LastRead != nil && *input.LastRead != thread.LastRead {
+		thread.LastRead = *input.LastRead
 	}
 
 	if input.IsRead != nil && *input.IsRead != thread.IsRead {
