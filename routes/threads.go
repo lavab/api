@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
@@ -240,7 +239,8 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		thread.IsRead = *input.IsRead
 	}
 
-	thread.DateModified = time.Now()
+	// Disabled for now, as we're using DateModified for sorting by the date of the last email
+	// thread.DateModified = time.Now()
 
 	err = env.Threads.UpdateID(c.URLParams["id"], thread)
 	if err != nil {
