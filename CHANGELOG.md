@@ -22,6 +22,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    resulted in invalid ordering of the emails in the web client.
    Emails in "spam" being shown as unread on the sidebar (new label
    fetching query).
+ - Incorrect difference checker in thread.update.
 
 ## [2.0.1] - 2015-04-15
 ### Added
