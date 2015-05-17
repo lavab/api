@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
+	r "github.com/dancannon/gorethink"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
 	"github.com/lavab/api/utils"
@@ -18,57 +19,89 @@ type LabelsListResponse struct {
 }
 
 // LabelsList fetches all labels
-func LabelsList(c web.C, w http.ResponseWriter, r *http.Request) {
+func LabelsList(c web.C, w http.ResponseWriter, req *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
-	labels, err := env.Labels.GetOwnedBy(session.Owner)
+	cursor, err := env.Labels.GetTable().GetAllByIndex("nameOwnerBuiltin", []interface{}{
+		"Spam",
+		session.Owner,
+		true,
+	}, []interface{}{
+		"Trash",
+		session.Owner,
+		true,
+	}).Run(env.Rethink)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
-		}).Error("Unable to fetch labels")
+		}).Error("Unable to get account's specified labels")
 
 		utils.JSONResponse(w, 500, &LabelsListResponse{
 			Success: false,
-			Message: "Internal error (code LA/LI/01)",
+			Message: err.Error(),
+		})
+		return
+	}
+	defer cursor.Close()
+	var spamTrash []*models.Label
+	if err := cursor.All(&spamTrash); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Unable to unmarshal account's specified labels")
+
+		utils.JSONResponse(w, 500, &LabelsListResponse{
+			Success: false,
+			Message: err.Error(),
 		})
 		return
 	}
 
-	for _, label := range labels {
-		if label.Builtin && label.Name != "Inbox" {
-			continue
-		}
+	if len(spamTrash) != 2 {
+		env.Log.WithFields(logrus.Fields{
+			"count":   len(spamTrash),
+			"account": session.Owner,
+		}).Error("Invalid count of Trash and Spam labels")
 
-		totalCount, err := env.Threads.CountByLabel(label.ID)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"label": label.ID,
-			}).Error("Unable to fetch total threads count")
+		utils.JSONResponse(w, 500, &LabelsListResponse{
+			Success: false,
+			Message: "Misconfigured account",
+		})
+		return
+	}
 
-			utils.JSONResponse(w, 500, &LabelsListResponse{
-				Success: false,
-				Message: "Internal error (code LA/LI/02)",
-			})
-			return
-		}
+	cursor, err = env.Labels.GetTable().GetAllByIndex("owner", session.Owner).Map(func(label r.Term) r.Term {
+		return label.Merge(map[string]interface{}{
+			"total_threads_count": env.Threads.GetTable().GetAllByIndex("labels", label.Field("id")).Count(),
+			"unread_threads_count": env.Threads.GetTable().GetAllByIndex("labels", label.Field("id")).Filter(func(thread r.Term) r.Term {
+				return r.Not(thread.Field("is_read")).And(
+					r.Not(thread.Field("labels").Contains(spamTrash[0].ID).Or(thread.Field("labels").Contains(spamTrash[1].ID))),
+				)
+			}),
+		}).Count()
+	}).Run(env.Rethink)
+	if err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Unable to get account's all labels")
 
-		unreadCount, err := env.Threads.CountByLabelUnread(label.ID)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"label": label.ID,
-			}).Error("Unable to fetch unread threads count")
+		utils.JSONResponse(w, 500, &LabelsListResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+	defer cursor.Close()
+	var labels []*models.Label
+	if err := cursor.All(&labels); err != nil {
+		env.Log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Error("Unable to unmarshal account's labels")
 
-			utils.JSONResponse(w, 500, &LabelsListResponse{
-				Success: false,
-				Message: "Internal error (code LA/LI/03)",
-			})
-			return
-		}
-
-		label.TotalThreadsCount = totalCount
-		label.UnreadThreadsCount = unreadCount
+		utils.JSONResponse(w, 500, &LabelsListResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
 	}
 
 	utils.JSONResponse(w, 200, &LabelsListResponse{
@@ -89,10 +122,10 @@ type LabelsCreateResponse struct {
 }
 
 // LabelsCreate does *something* - TODO
-func LabelsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
+func LabelsCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input LabelsCreateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -158,7 +191,7 @@ type LabelsGetResponse struct {
 }
 
 // LabelsGet does *something* - TODO
-func LabelsGet(c web.C, w http.ResponseWriter, r *http.Request) {
+func LabelsGet(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the label from the database
 	label, err := env.Labels.GetLabel(c.URLParams["id"])
 	if err != nil {
@@ -231,10 +264,10 @@ type LabelsUpdateResponse struct {
 }
 
 // LabelsUpdate does *something* - TODO
-func LabelsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+func LabelsUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input LabelsUpdateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -302,7 +335,7 @@ type LabelsDeleteResponse struct {
 }
 
 // LabelsDelete does *something* - TODO
-func LabelsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+func LabelsDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the label from the database
 	label, err := env.Labels.GetLabel(c.URLParams["id"])
 	if err != nil {
