@@ -323,7 +323,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Our token is fine, next part: password.
 
 		// Ensure that user has chosen a secure password (check against 10k most used)
-		if !utils.IsPasswordSecure(input.Password) {
+		if env.PasswordBF.TestString(input.Password) {
 			utils.JSONResponse(w, 403, &AccountsCreateResponse{
 				Success: false,
 				Message: "Weak password",
@@ -601,7 +601,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if input.NewPassword != "" && !utils.IsPasswordSecure(input.NewPassword) {
+	if input.NewPassword != "" && env.PasswordBF.TestString(input.NewPassword) {
 		utils.JSONResponse(w, 400, &AccountsUpdateResponse{
 			Success: false,
 			Message: "Weak new password",

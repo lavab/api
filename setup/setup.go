@@ -17,6 +17,7 @@ import (
 	"github.com/johntdyer/slackrus"
 	//"github.com/pzduniak/glogrus"
 	"github.com/segmentio/go-loggly"
+	"github.com/willf/bloom"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
@@ -90,6 +91,22 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 	// Pass it to the environment package
 	env.Log = log
+
+	// Load the bloom filter
+	bf := bloom.NewWithEstimates(flags.BloomCount, 0.001)
+	bff, err := os.Open(flags.BloomFilter)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to open the bloom filter file")
+	}
+	defer bff.Close()
+	if _, err := bf.ReadFrom(bff); err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to read from the bloom filter file")
+	}
+	env.PasswordBF = bf
 
 	// Initialize the cache
 	redis, err := cache.NewRedisCache(&cache.RedisCacheOpts{

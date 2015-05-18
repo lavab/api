@@ -31,4 +31,7 @@ type Flags struct {
 	SlackChannel  string
 	SlackIcon     string
 	SlackUsername string
+
+	BloomFilter string
+	BloomCount  uint
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
+	"github.com/willf/bloom"
 
 	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
@@ -43,4 +44,6 @@ var (
 	Factors map[string]factor.Factor
 	// Producer is the nsq producer used to send messages to other components of the system
 	Producer *nsq.Producer
+	// PasswordBF is the bloom filter used for leaked password matching
+	PasswordBF *bloom.BloomFilter
 )

@@ -86,6 +86,9 @@ var (
 	slackChannel  = flag.String("slack_channel", "#notif-api-logs", "channel to which Slack bot will send messages")
 	slackIcon     = flag.String("slack_icon", ":ghost:", "emoji icon of the Slack bot")
 	slackUsername = flag.String("slack_username", "API", "username of the Slack bot")
+	// Password bloom filter path
+	bloomFilter = flag.String("bloom_filter", "bloom.db", "Bloom filter containing passwords")
+	bloomCount  = flag.Uint("bloom_count", 14522336, "Estimated count of passwords in the bloom filter")
 )
 
 func main() {
@@ -123,6 +126,9 @@ func main() {
 		SlackChannel:  *slackChannel,
 		SlackIcon:     *slackIcon,
 		SlackUsername: *slackUsername,
+
+		BloomFilter: *bloomFilter,
+		BloomCount:  *bloomCount,
 	}
 
 	// Generate a mux
