@@ -1,5 +1,43 @@
 ## go-nsq Change Log
 
+### 1.0.4 - 2015-04-07
+
+**Upgrading from 1.0.3**: There are no backward incompatible changes.
+
+ * #133 - fix `ErrNotConnected` race during `Producer` connection (thanks @jeddenlea)
+ * #132 - fix `RDY` redistribution after backoff with no connections
+ * #128 - fix backoff stall when using `RequeueWithoutBackoff`
+ * #127 - fix handling of connection closing when resuming after backoff (thanks @jnewmano)
+ * #126 - allow `BackoffStrategy` to be set via flag (thanks @twmb)
+ * #125 - add pluggable consumer `BackoffStrategy`; add full-jitter strategy (thanks @hden)
+ * #124 - add `DialTimeout` and `LocalAddr` config (thanks @yashkin)
+ * #119 - add `Producer.Ping()` method (thanks @zulily)
+ * #122 - refactor log level string handling
+ * #120 - fix `Message` data races on `responded`
+ * #114 - fix lookupd jitter having no effect (thanks @judwhite)
+
+### 1.0.3 - 2015-02-07
+
+**Upgrading from 1.0.2**: There are no backward incompatible changes.
+
+ * #104 - fix reconnect address bug (thanks @ryanslade)
+ * #106 - fix backoff reconnect deadlock (thanks @ryanslade)
+ * #107 - fix out-of-bounds error when removing nsqlookupd addresses (thanks @andreas)
+ * #108 - fix potential logger race conditions (thanks @judwhite)
+ * #111 - fix resolved address error in reconnect loop (thanks @twmb)
+
+### 1.0.2 - 2015-01-21
+
+**Upgrading from 1.0.1**: There are no backward incompatible changes.
+
+ * #102 - TLS min/max config defaults (thanks @twmb)
+ * #99 - fix `Consumer.Stop()` race and `Producer.Stop()` deadlock (thanks @tylertreat)
+ * #92 - expose `Message.NSQDAddress`
+ * #95 - cleanup panic during `Consumer.Stop()` if handlers are deadlocked
+ * #98 - add `tls-min-version` option (thanks @twmb)
+ * #93 - expose a way to get `Consumer` runtime stats (thanks @dcarney)
+ * #94 - allow `#ephemeral` topic names (thanks @jamesgroat)
+
 ### 1.0.1 - 2014-11-09
 
 **Upgrading from 1.0.0**: There are no backward incompatible changes functionally, however this

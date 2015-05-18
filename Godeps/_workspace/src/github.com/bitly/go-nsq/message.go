@@ -23,6 +23,8 @@ type Message struct {
 	Timestamp int64
 	Attempts  uint16
 
+	NSQDAddress string
+
 	Delegate MessageDelegate
 
 	autoResponseDisabled int32
@@ -63,11 +65,10 @@ func (m *Message) HasResponded() bool {
 // Finish sends a FIN command to the nsqd which
 // sent this message
 func (m *Message) Finish() {
-	if m.HasResponded() {
+	if !atomic.CompareAndSwapInt32(&m.responded, 0, 1) {
 		return
 	}
 	m.Delegate.OnFinish(m)
-	atomic.StoreInt32(&m.responded, 1)
 }
 
 // Touch sends a TOUCH command to the nsqd which
@@ -99,11 +100,10 @@ func (m *Message) RequeueWithoutBackoff(delay time.Duration) {
 }
 
 func (m *Message) doRequeue(delay time.Duration, backoff bool) {
-	if m.HasResponded() {
+	if !atomic.CompareAndSwapInt32(&m.responded, 0, 1) {
 		return
 	}
 	m.Delegate.OnRequeue(m, delay, backoff)
-	atomic.StoreInt32(&m.responded, 1)
 }
 
 // WriteTo implements the WriterTo interface and serializes

@@ -66,6 +66,14 @@ type ConsumerStats struct {
 
 var instCount int64
 
+type backoffSignal int
+
+const (
+	backoffFlag backoffSignal = iota
+	continueFlag
+	resumeFlag
+)
+
 // Consumer is a high-level type to consume from NSQ.
 //
 // A Consumer instance is supplied a Handler that will be executed
@@ -82,12 +90,14 @@ type Consumer struct {
 	messagesRequeued uint64
 	totalRdyCount    int64
 	backoffDuration  int64
+	backoffCounter   int32
 	maxInFlight      int32
 
 	mtx sync.RWMutex
 
-	logger logger
-	logLvl LogLevel
+	logger   logger
+	logLvl   LogLevel
+	logGuard sync.RWMutex
 
 	behaviorDelegate interface{}
 
@@ -100,8 +110,7 @@ type Consumer struct {
 
 	needRDYRedistributed int32
 
-	backoffMtx     sync.RWMutex
-	backoffCounter int32
+	backoffMtx sync.RWMutex
 
 	incomingMessages chan *Message
 
@@ -123,6 +132,7 @@ type Consumer struct {
 	stopFlag        int32
 	connectedFlag   int32
 	stopHandler     sync.Once
+	exitHandler     sync.Once
 
 	// read from this channel to block until consumer is cleanly stopped
 	StopChan chan int
@@ -205,8 +215,18 @@ func (r *Consumer) conns() []*Conn {
 //    Output(calldepth int, s string)
 //
 func (r *Consumer) SetLogger(l logger, lvl LogLevel) {
+	r.logGuard.Lock()
+	defer r.logGuard.Unlock()
+
 	r.logger = l
 	r.logLvl = lvl
+}
+
+func (r *Consumer) getLogger() (logger, LogLevel) {
+	r.logGuard.RLock()
+	defer r.logGuard.RUnlock()
+
+	return r.logger, r.logLvl
 }
 
 // SetBehaviorDelegate takes a type implementing one or more
@@ -351,13 +371,15 @@ func (r *Consumer) lookupdLoop() {
 	// when restarted at the same time, dont all connect at once.
 	jitter := time.Duration(int64(r.rng.Float64() *
 		r.config.LookupdPollJitter * float64(r.config.LookupdPollInterval)))
-	ticker := time.NewTicker(r.config.LookupdPollInterval)
+	var ticker *time.Ticker
 
 	select {
 	case <-time.After(jitter):
 	case <-r.exitChan:
 		goto exit
 	}
+
+	ticker = time.NewTicker(r.config.LookupdPollInterval)
 
 	for {
 		select {
@@ -371,7 +393,9 @@ func (r *Consumer) lookupdLoop() {
 	}
 
 exit:
-	ticker.Stop()
+	if ticker != nil {
+		ticker.Stop()
+	}
 	r.log(LogLevelInfo, "exiting lookupdLoop")
 	r.wg.Done()
 }
@@ -380,6 +404,9 @@ exit:
 // keeping track of which one was last used
 func (r *Consumer) nextLookupdEndpoint() string {
 	r.mtx.RLock()
+	if r.lookupdQueryIndex >= len(r.lookupdHTTPAddrs) {
+		r.lookupdQueryIndex = 0
+	}
 	addr := r.lookupdHTTPAddrs[r.lookupdQueryIndex]
 	num := len(r.lookupdHTTPAddrs)
 	r.mtx.RUnlock()
@@ -481,8 +508,10 @@ func (r *Consumer) ConnectToNSQD(addr string) error {
 
 	atomic.StoreInt32(&r.connectedFlag, 1)
 
+	logger, logLvl := r.getLogger()
+
 	conn := NewConn(addr, &r.config, &consumerConnDelegate{r})
-	conn.SetLogger(r.logger, r.logLvl,
+	conn.SetLogger(logger, logLvl,
 		fmt.Sprintf("%3d [%s/%s] (%%s)", r.id, r.topic, r.channel))
 
 	r.mtx.Lock()
@@ -492,10 +521,10 @@ func (r *Consumer) ConnectToNSQD(addr string) error {
 		r.mtx.Unlock()
 		return ErrAlreadyConnected
 	}
-	if !pendingOk {
-		r.pendingConnections[addr] = conn
+	r.pendingConnections[addr] = conn
+	if idx := indexOf(addr, r.nsqdTCPAddrs); idx == -1 {
+		r.nsqdTCPAddrs = append(r.nsqdTCPAddrs, addr)
 	}
-	r.nsqdTCPAddrs = append(r.nsqdTCPAddrs, addr)
 	r.mtx.Unlock()
 
 	r.log(LogLevelInfo, "(%s) connecting to nsqd", addr)
@@ -613,85 +642,15 @@ func (r *Consumer) onConnMessageRequeued(c *Conn, msg *Message) {
 }
 
 func (r *Consumer) onConnBackoff(c *Conn) {
-	r.startStopContinueBackoff(c, false)
+	r.startStopContinueBackoff(c, backoffFlag)
+}
+
+func (r *Consumer) onConnContinue(c *Conn) {
+	r.startStopContinueBackoff(c, continueFlag)
 }
 
 func (r *Consumer) onConnResume(c *Conn) {
-	r.startStopContinueBackoff(c, true)
-}
-
-func (r *Consumer) startStopContinueBackoff(conn *Conn, success bool) {
-	// prevent many async failures/successes from immediately resulting in
-	// max backoff/normal rate (by ensuring that we dont continually incr/decr
-	// the counter during a backoff period)
-	if r.inBackoffBlock() {
-		return
-	}
-
-	// update backoff state
-	r.backoffMtx.Lock()
-	backoffUpdated := false
-	if success {
-		if r.backoffCounter > 0 {
-			r.backoffCounter--
-			backoffUpdated = true
-		}
-	} else {
-		maxBackoffCount := int32(math.Max(1, math.Ceil(
-			math.Log2(r.config.MaxBackoffDuration.Seconds()))))
-		if r.backoffCounter < maxBackoffCount {
-			r.backoffCounter++
-			backoffUpdated = true
-		}
-	}
-	r.backoffMtx.Unlock()
-
-	if r.backoffCounter == 0 && backoffUpdated {
-		// exit backoff
-		count := r.perConnMaxInFlight()
-		r.log(LogLevelWarning, "exiting backoff, returning all to RDY %d", count)
-		for _, c := range r.conns() {
-			r.updateRDY(c, count)
-		}
-	} else if r.backoffCounter > 0 {
-		// start or continue backoff
-		backoffDuration := r.backoffDurationForCount(r.backoffCounter)
-		atomic.StoreInt64(&r.backoffDuration, backoffDuration.Nanoseconds())
-		time.AfterFunc(backoffDuration, func() {
-			var choice *Conn
-
-			atomic.StoreInt64(&r.backoffDuration, 0)
-
-			// pick a random connection to test the waters
-			var i int
-			conns := r.conns()
-			if len(conns) == 0 {
-				return
-			}
-			idx := r.rng.Intn(len(conns))
-			for _, c := range conns {
-				if i == idx {
-					choice = c
-					break
-				}
-				i++
-			}
-
-			r.log(LogLevelWarning,
-				"(%s) backoff timeout expired, sending RDY 1",
-				choice.String())
-			// while in backoff only ever let 1 message at a time through
-			r.updateRDY(choice, 1)
-		})
-
-		r.log(LogLevelWarning, "backing off for %.04f seconds (backoff level %d), setting all to RDY 0",
-			backoffDuration.Seconds(), r.backoffCounter)
-
-		// send RDY 0 immediately (to *all* connections)
-		for _, c := range r.conns() {
-			r.updateRDY(c, 0)
-		}
-	}
+	r.startStopContinueBackoff(c, resumeFlag)
 }
 
 func (r *Consumer) onConnResponse(c *Conn, data []byte) {
@@ -769,8 +728,8 @@ func (r *Consumer) onConnClose(c *Conn) {
 		// try to reconnect after a bit
 		go func(addr string) {
 			for {
-				r.log(LogLevelInfo, "(%s) re-connecting in 15 seconds...", addr)
-				time.Sleep(15 * time.Second)
+				r.log(LogLevelInfo, "(%s) re-connecting in %.04f seconds...", addr, r.config.LookupdPollInterval)
+				time.Sleep(r.config.LookupdPollInterval)
 				if atomic.LoadInt32(&r.stopFlag) == 1 {
 					break
 				}
@@ -788,32 +747,114 @@ func (r *Consumer) onConnClose(c *Conn) {
 				}
 				break
 			}
-		}(c.RemoteAddr().String())
+		}(c.String())
 	}
 }
 
-func (r *Consumer) backoffDurationForCount(count int32) time.Duration {
-	backoffDuration := r.config.BackoffMultiplier *
-		time.Duration(math.Pow(2, float64(count)))
-	if backoffDuration > r.config.MaxBackoffDuration {
-		backoffDuration = r.config.MaxBackoffDuration
+func (r *Consumer) startStopContinueBackoff(conn *Conn, signal backoffSignal) {
+	// prevent many async failures/successes from immediately resulting in
+	// max backoff/normal rate (by ensuring that we dont continually incr/decr
+	// the counter during a backoff period)
+	r.backoffMtx.Lock()
+	if r.inBackoffTimeout() {
+		r.backoffMtx.Unlock()
+		return
 	}
-	return backoffDuration
+	defer r.backoffMtx.Unlock()
+
+	// update backoff state
+	backoffUpdated := false
+	backoffCounter := atomic.LoadInt32(&r.backoffCounter)
+	switch signal {
+	case resumeFlag:
+		if backoffCounter > 0 {
+			backoffCounter--
+			backoffUpdated = true
+		}
+	case backoffFlag:
+		nextBackoff := r.config.BackoffStrategy.Calculate(int(backoffCounter) + 1)
+		if nextBackoff <= r.config.MaxBackoffDuration {
+			backoffCounter++
+			backoffUpdated = true
+		}
+	}
+	atomic.StoreInt32(&r.backoffCounter, backoffCounter)
+
+	if r.backoffCounter == 0 && backoffUpdated {
+		// exit backoff
+		count := r.perConnMaxInFlight()
+		r.log(LogLevelWarning, "exiting backoff, returning all to RDY %d", count)
+		for _, c := range r.conns() {
+			r.updateRDY(c, count)
+		}
+	} else if r.backoffCounter > 0 {
+		// start or continue backoff
+		backoffDuration := r.config.BackoffStrategy.Calculate(int(backoffCounter))
+
+		r.log(LogLevelWarning, "backing off for %.04f seconds (backoff level %d), setting all to RDY 0",
+			backoffDuration.Seconds(), backoffCounter)
+
+		// send RDY 0 immediately (to *all* connections)
+		for _, c := range r.conns() {
+			r.updateRDY(c, 0)
+		}
+
+		r.backoff(backoffDuration)
+	}
+}
+
+func (r *Consumer) backoff(d time.Duration) {
+	atomic.StoreInt64(&r.backoffDuration, d.Nanoseconds())
+	time.AfterFunc(d, r.resume)
+}
+
+func (r *Consumer) resume() {
+	if atomic.LoadInt32(&r.stopFlag) == 1 {
+		atomic.StoreInt64(&r.backoffDuration, 0)
+		return
+	}
+
+	// pick a random connection to test the waters
+	conns := r.conns()
+	if len(conns) == 0 {
+		r.log(LogLevelWarning, "no connection available to resume")
+		r.log(LogLevelWarning, "backing off for %.04f seconds", 1)
+		r.backoff(time.Second)
+		return
+	}
+	idx := r.rng.Intn(len(conns))
+	choice := conns[idx]
+
+	r.log(LogLevelWarning,
+		"(%s) backoff timeout expired, sending RDY 1",
+		choice.String())
+
+	// while in backoff only ever let 1 message at a time through
+	err := r.updateRDY(choice, 1)
+	if err != nil {
+		r.log(LogLevelWarning, "(%s) error resuming RDY 1 - %s", choice.String(), err)
+		r.log(LogLevelWarning, "backing off for %.04f seconds", 1)
+		r.backoff(time.Second)
+		return
+	}
+
+	atomic.StoreInt64(&r.backoffDuration, 0)
 }
 
 func (r *Consumer) inBackoff() bool {
-	r.backoffMtx.RLock()
-	backoffCounter := r.backoffCounter
-	r.backoffMtx.RUnlock()
-	return backoffCounter > 0
+	return atomic.LoadInt32(&r.backoffCounter) > 0
 }
 
-func (r *Consumer) inBackoffBlock() bool {
+func (r *Consumer) inBackoffTimeout() bool {
 	return atomic.LoadInt64(&r.backoffDuration) > 0
 }
 
 func (r *Consumer) maybeUpdateRDY(conn *Conn) {
-	if r.inBackoff() || r.inBackoffBlock() {
+	inBackoff := r.inBackoff()
+	inBackoffTimeout := r.inBackoffTimeout()
+	if inBackoff || inBackoffTimeout {
+		r.log(LogLevelDebug, "(%s) skip sending RDY inBackoff:%v || inBackoffTimeout:%v",
+			conn, inBackoff, inBackoffTimeout)
 		return
 	}
 
@@ -833,7 +874,7 @@ func (r *Consumer) maybeUpdateRDY(conn *Conn) {
 }
 
 func (r *Consumer) rdyLoop() {
-	redistributeTicker := time.NewTicker(5 * time.Second)
+	redistributeTicker := time.NewTicker(r.config.RDYRedistributeInterval)
 
 	for {
 		select {
@@ -852,7 +893,7 @@ exit:
 
 func (r *Consumer) updateRDY(c *Conn, count int64) error {
 	if c.IsClosing() {
-		return nil
+		return ErrClosing
 	}
 
 	// never exceed the nsqd's configured max RDY count
@@ -910,20 +951,26 @@ func (r *Consumer) sendRDY(c *Conn, count int64) error {
 }
 
 func (r *Consumer) redistributeRDY() {
-	if r.inBackoffBlock() {
+	if r.inBackoffTimeout() {
 		return
 	}
 
-	numConns := int32(len(r.conns()))
+	// if an external heuristic set needRDYRedistributed we want to wait
+	// until we can actually redistribute to proceed
+	conns := r.conns()
+	if len(conns) == 0 {
+		return
+	}
+
 	maxInFlight := r.getMaxInFlight()
-	if numConns > maxInFlight {
+	if len(conns) > int(maxInFlight) {
 		r.log(LogLevelDebug, "redistributing RDY state (%d conns > %d max_in_flight)",
-			numConns, maxInFlight)
+			len(conns), maxInFlight)
 		atomic.StoreInt32(&r.needRDYRedistributed, 1)
 	}
 
-	if r.inBackoff() && numConns > 1 {
-		r.log(LogLevelDebug, "redistributing RDY state (in backoff and %d conns > 1)", numConns)
+	if r.inBackoff() && len(conns) > 1 {
+		r.log(LogLevelDebug, "redistributing RDY state (in backoff and %d conns > 1)", len(conns))
 		atomic.StoreInt32(&r.needRDYRedistributed, 1)
 	}
 
@@ -931,7 +978,6 @@ func (r *Consumer) redistributeRDY() {
 		return
 	}
 
-	conns := r.conns()
 	possibleConns := make([]*Conn, 0, len(conns))
 	for _, c := range conns {
 		lastMsgDuration := time.Now().Sub(c.LastMessageTime())
@@ -982,7 +1028,12 @@ func (r *Consumer) Stop() {
 		}
 
 		time.AfterFunc(time.Second*30, func() {
-			r.stopHandlers()
+			// if we've waited this long handlers are blocked on processing messages
+			// so we can't just stopHandlers (if any adtl. messages were pending processing
+			// we would cause a panic on channel close)
+			//
+			// instead, we just bypass handler closing and skip to the final exit
+			r.exit()
 		})
 	}
 }
@@ -1074,21 +1125,25 @@ func (r *Consumer) shouldFailMessage(message *Message, handler interface{}) bool
 }
 
 func (r *Consumer) exit() {
-	close(r.exitChan)
-	r.wg.Wait()
-	close(r.StopChan)
+	r.exitHandler.Do(func() {
+		close(r.exitChan)
+		r.wg.Wait()
+		close(r.StopChan)
+	})
 }
 
 func (r *Consumer) log(lvl LogLevel, line string, args ...interface{}) {
-	if r.logger == nil {
+	logger, logLvl := r.getLogger()
+
+	if logger == nil {
 		return
 	}
 
-	if r.logLvl > lvl {
+	if logLvl > lvl {
 		return
 	}
 
-	r.logger.Output(2, fmt.Sprintf("%-4s %3d [%s/%s] %s",
-		logPrefix(lvl), r.id, r.topic, r.channel,
+	logger.Output(2, fmt.Sprintf("%-4s %3d [%s/%s] %s",
+		lvl, r.id, r.topic, r.channel,
 		fmt.Sprintf(line, args...)))
 }

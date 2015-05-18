@@ -1,11 +1,17 @@
 package nsq
 
 import (
+	"bytes"
 	"errors"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
+	"runtime"
 	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -35,16 +41,22 @@ func (h *ConsumerHandler) HandleMessage(message *Message) error {
 }
 
 func TestProducerConnection(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stdout)
-
 	config := NewConfig()
+	laddr := "127.0.0.2"
+
+	config.LocalAddr, _ = net.ResolveTCPAddr("tcp", laddr+":0")
+
 	w, _ := NewProducer("127.0.0.1:4150", config)
 	w.SetLogger(nullLogger, LogLevelInfo)
 
 	err := w.Publish("write_test", []byte("test"))
 	if err != nil {
-		t.Fatalf("should lazily connect")
+		t.Fatalf("should lazily connect - %s", err)
+	}
+
+	conn := w.conn.(*Conn)
+	if !strings.HasPrefix(conn.conn.LocalAddr().String(), laddr) {
+		t.Fatal("producer connection should be bound to specified address:", conn.conn.LocalAddr())
 	}
 
 	w.Stop()
@@ -55,10 +67,29 @@ func TestProducerConnection(t *testing.T) {
 	}
 }
 
-func TestProducerPublish(t *testing.T) {
+func TestProducerPing(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 	defer log.SetOutput(os.Stdout)
 
+	config := NewConfig()
+	w, _ := NewProducer("127.0.0.1:4150", config)
+	w.SetLogger(nullLogger, LogLevelInfo)
+
+	err := w.Ping()
+
+	if err != nil {
+		t.Fatalf("should connect on ping")
+	}
+
+	w.Stop()
+
+	err = w.Ping()
+	if err != ErrStopped {
+		t.Fatalf("should not be able to ping after Stop()")
+	}
+}
+
+func TestProducerPublish(t *testing.T) {
 	topicName := "publish" + strconv.Itoa(int(time.Now().Unix()))
 	msgCount := 10
 
@@ -83,9 +114,6 @@ func TestProducerPublish(t *testing.T) {
 }
 
 func TestProducerMultiPublish(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stdout)
-
 	topicName := "multi_publish" + strconv.Itoa(int(time.Now().Unix()))
 	msgCount := 10
 
@@ -113,9 +141,6 @@ func TestProducerMultiPublish(t *testing.T) {
 }
 
 func TestProducerPublishAsync(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stdout)
-
 	topicName := "async_publish" + strconv.Itoa(int(time.Now().Unix()))
 	msgCount := 10
 
@@ -151,9 +176,6 @@ func TestProducerPublishAsync(t *testing.T) {
 }
 
 func TestProducerMultiPublishAsync(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stdout)
-
 	topicName := "multi_publish" + strconv.Itoa(int(time.Now().Unix()))
 	msgCount := 10
 
@@ -193,9 +215,6 @@ func TestProducerMultiPublishAsync(t *testing.T) {
 }
 
 func TestProducerHeartbeat(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stdout)
-
 	topicName := "heartbeat" + strconv.Itoa(int(time.Now().Unix()))
 
 	config := NewConfig()
@@ -268,4 +287,86 @@ func readMessages(topicName string, t *testing.T, msgCount int) {
 	if h.messagesFailed != 1 {
 		t.Fatal("failed message not done")
 	}
+}
+
+type mockProducerConn struct {
+	delegate ConnDelegate
+	closeCh  chan struct{}
+	pubCh    chan struct{}
+}
+
+func newMockProducerConn(delegate ConnDelegate) producerConn {
+	m := &mockProducerConn{
+		delegate: delegate,
+		closeCh:  make(chan struct{}),
+		pubCh:    make(chan struct{}, 4),
+	}
+	go m.router()
+	return m
+}
+
+func (m *mockProducerConn) String() string {
+	return "127.0.0.1:0"
+}
+
+func (m *mockProducerConn) SetLogger(logger logger, level LogLevel, prefix string) {}
+
+func (m *mockProducerConn) Connect() (*IdentifyResponse, error) {
+	return &IdentifyResponse{}, nil
+}
+
+func (m *mockProducerConn) Close() error {
+	close(m.closeCh)
+	return nil
+}
+
+func (m *mockProducerConn) WriteCommand(cmd *Command) error {
+	if bytes.Equal(cmd.Name, []byte("PUB")) {
+		m.pubCh <- struct{}{}
+	}
+	return nil
+}
+
+func (m *mockProducerConn) router() {
+	for {
+		select {
+		case <-m.closeCh:
+			goto exit
+		case <-m.pubCh:
+			m.delegate.OnResponse(nil, framedResponse(FrameTypeResponse, []byte("OK")))
+		}
+	}
+exit:
+}
+
+func BenchmarkProducer(b *testing.B) {
+	b.StopTimer()
+	body := make([]byte, 512)
+
+	config := NewConfig()
+	p, _ := NewProducer("127.0.0.1:0", config)
+
+	p.conn = newMockProducerConn(&producerConnDelegate{p})
+	atomic.StoreInt32(&p.state, StateConnected)
+	p.closeChan = make(chan int)
+	go p.router()
+
+	startCh := make(chan struct{})
+	var wg sync.WaitGroup
+	parallel := runtime.GOMAXPROCS(0)
+
+	for j := 0; j < parallel; j++ {
+		wg.Add(1)
+		go func() {
+			<-startCh
+			for i := 0; i < b.N/parallel; i++ {
+				p.Publish("test", body)
+			}
+			wg.Done()
+		}()
+	}
+
+	b.StartTimer()
+	close(startCh)
+	wg.Wait()
 }

@@ -65,15 +65,13 @@ type Conn struct {
 
 	delegate ConnDelegate
 
-	logger logger
-	logLvl LogLevel
-	logFmt string
+	logger   logger
+	logLvl   LogLevel
+	logFmt   string
+	logGuard sync.RWMutex
 
 	r io.Reader
 	w io.Writer
-
-	backoffCounter int32
-	rdyRetryTimer  *time.Timer
 
 	cmdChan         chan *Command
 	msgResponseChan chan *msgResponse
@@ -121,6 +119,9 @@ func NewConn(addr string, config *Config, delegate ConnDelegate) *Conn {
 //    Output(calldepth int, s string)
 //
 func (c *Conn) SetLogger(l logger, lvl LogLevel, format string) {
+	c.logGuard.Lock()
+	defer c.logGuard.Unlock()
+
 	c.logger = l
 	c.logLvl = lvl
 	c.logFmt = format
@@ -129,10 +130,22 @@ func (c *Conn) SetLogger(l logger, lvl LogLevel, format string) {
 	}
 }
 
+func (c *Conn) getLogger() (logger, LogLevel, string) {
+	c.logGuard.RLock()
+	defer c.logGuard.RUnlock()
+
+	return c.logger, c.logLvl, c.logFmt
+}
+
 // Connect dials and bootstraps the nsqd connection
 // (including IDENTIFY) and returns the IdentifyResponse
 func (c *Conn) Connect() (*IdentifyResponse, error) {
-	conn, err := net.DialTimeout("tcp", c.addr, time.Second)
+	dialer := &net.Dialer{
+		LocalAddr: c.config.LocalAddr,
+		Timeout:   c.config.DialTimeout,
+	}
+
+	conn, err := dialer.Dial("tcp", c.addr)
 	if err != nil {
 		return nil, err
 	}
@@ -496,6 +509,7 @@ func (c *Conn) readLoop() {
 				goto exit
 			}
 			msg.Delegate = delegate
+			msg.NSQDAddress = c.String()
 
 			atomic.AddInt64(&c.rdyCount, -1)
 			atomic.AddInt64(&c.messagesInFlight, 1)
@@ -549,14 +563,14 @@ func (c *Conn) writeLoop() {
 			if resp.success {
 				c.log(LogLevelDebug, "FIN %s", resp.msg.ID)
 				c.delegate.OnMessageFinished(c, resp.msg)
-				if resp.backoff {
-					c.delegate.OnResume(c)
-				}
+				c.delegate.OnResume(c)
 			} else {
 				c.log(LogLevelDebug, "REQ %s", resp.msg.ID)
 				c.delegate.OnMessageRequeued(c, resp.msg)
 				if resp.backoff {
 					c.delegate.OnBackoff(c)
+				} else {
+					c.delegate.OnContinue(c)
 				}
 			}
 
@@ -669,7 +683,7 @@ func (c *Conn) waitForCleanup() {
 }
 
 func (c *Conn) onMessageFinish(m *Message) {
-	c.msgResponseChan <- &msgResponse{m, Finish(m.ID), true, true}
+	c.msgResponseChan <- &msgResponse{msg: m, cmd: Finish(m.ID), success: true}
 }
 
 func (c *Conn) onMessageRequeue(m *Message, delay time.Duration, backoff bool) {
@@ -681,7 +695,7 @@ func (c *Conn) onMessageRequeue(m *Message, delay time.Duration, backoff bool) {
 			delay = c.config.MaxRequeueDelay
 		}
 	}
-	c.msgResponseChan <- &msgResponse{m, Requeue(m.ID, delay), false, backoff}
+	c.msgResponseChan <- &msgResponse{msg: m, cmd: Requeue(m.ID, delay), success: false, backoff: backoff}
 }
 
 func (c *Conn) onMessageTouch(m *Message) {
@@ -692,15 +706,17 @@ func (c *Conn) onMessageTouch(m *Message) {
 }
 
 func (c *Conn) log(lvl LogLevel, line string, args ...interface{}) {
-	if c.logger == nil {
+	logger, logLvl, logFmt := c.getLogger()
+
+	if logger == nil {
 		return
 	}
 
-	if c.logLvl > lvl {
+	if logLvl > lvl {
 		return
 	}
 
-	c.logger.Output(2, fmt.Sprintf("%-4s %s %s", logPrefix(lvl),
-		fmt.Sprintf(c.logFmt, c.String()),
+	logger.Output(2, fmt.Sprintf("%-4s %s %s", lvl,
+		fmt.Sprintf(logFmt, c.String()),
 		fmt.Sprintf(line, args...)))
 }

@@ -1,3 +1,10 @@
+// Written in 2011-2014 by Dmitry Chestnykh
+//
+// The author(s) have dedicated all copyright and related and
+// neighboring rights to this software to the public domain
+// worldwide. Distributed without any warranty.
+// http://creativecommons.org/publicdomain/zero/1.0/
+
 package uniuri
 
 import "testing"
@@ -5,7 +12,7 @@ import "testing"
 func validateChars(t *testing.T, u string, chars []byte) {
 	for _, c := range u {
 		var present bool
-		for _, a := range StdChars {
+		for _, a := range chars {
 			if rune(a) == c {
 				present = true
 			}
@@ -27,14 +34,23 @@ func TestNew(t *testing.T) {
 
 	// Generate 1000 uniuris and check that they are unique
 	uris := make([]string, 1000)
-	for i, _ := range uris {
+	for i := range uris {
 		uris[i] = New()
 	}
 	for i, u := range uris {
 		for j, u2 := range uris {
 			if i != j && u == u2 {
-				t.Fatalf("not unique: %d:%q and %d:%q", i, j, u, u2)
+				t.Fatalf("not unique: %d:%q and %d:%q", i, u, j, u2)
 			}
+		}
+	}
+}
+
+func TestNewLen(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		u := NewLen(i)
+		if len(u) != i {
+			t.Fatalf("request length %d, got %d", i, len(u))
 		}
 	}
 }

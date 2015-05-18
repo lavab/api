@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+type producerConn interface {
+	String() string
+	SetLogger(logger, LogLevel, string)
+	Connect() (*IdentifyResponse, error)
+	Close() error
+	WriteCommand(*Command) error
+}
+
 // Producer is a high-level type to publish to NSQ.
 //
 // A Producer instance is 1:1 with a destination `nsqd`
@@ -17,11 +25,12 @@ import (
 type Producer struct {
 	id     int64
 	addr   string
-	conn   *Conn
+	conn   producerConn
 	config Config
 
-	logger logger
-	logLvl LogLevel
+	logger   logger
+	logLvl   LogLevel
+	logGuard sync.RWMutex
 
 	responseChan chan []byte
 	errorChan    chan []byte
@@ -78,9 +87,25 @@ func NewProducer(addr string, config *Config) (*Producer, error) {
 		exitChan:        make(chan int),
 		responseChan:    make(chan []byte),
 		errorChan:       make(chan []byte),
-		closeChan:       make(chan int),
 	}
 	return p, nil
+}
+
+// Ping causes the Producer to connect to it's configured nsqd (if not already
+// connected) and send a `Nop` command, returning any error that might occur.
+//
+// This method can be used to verify that a newly-created Producer instance is
+// configured correctly, rather than relying on the lazy "connect on Publish"
+// behavior of a Producer.
+func (w *Producer) Ping() error {
+	if atomic.LoadInt32(&w.state) != StateConnected {
+		err := w.connect()
+		if err != nil {
+			return err
+		}
+	}
+
+	return w.conn.WriteCommand(Nop())
 }
 
 // SetLogger assigns the logger to use as well as a level
@@ -91,8 +116,18 @@ func NewProducer(addr string, config *Config) (*Producer, error) {
 //    Output(calldepth int, s string)
 //
 func (w *Producer) SetLogger(l logger, lvl LogLevel) {
+	w.logGuard.Lock()
+	defer w.logGuard.Unlock()
+
 	w.logger = l
 	w.logLvl = lvl
+}
+
+func (w *Producer) getLogger() (logger, LogLevel) {
+	w.logGuard.RLock()
+	defer w.logGuard.RUnlock()
+
+	return w.logger, w.logLvl
 }
 
 // String returns the address of the Producer
@@ -145,13 +180,13 @@ func (w *Producer) MultiPublishAsync(topic string, body [][]byte, doneChan chan 
 }
 
 // Publish synchronously publishes a message body to the specified topic, returning
-// the an error if publish failed
+// an error if publish failed
 func (w *Producer) Publish(topic string, body []byte) error {
 	return w.sendCommand(Publish(topic, body))
 }
 
 // MultiPublish synchronously publishes a slice of message bodies to the specified topic, returning
-// the an error if publish failed
+// an error if publish failed
 func (w *Producer) MultiPublish(topic string, body [][]byte) error {
 	cmd, err := MultiPublish(topic, body)
 	if err != nil {
@@ -208,22 +243,29 @@ func (w *Producer) connect() error {
 		return ErrStopped
 	}
 
-	if !atomic.CompareAndSwapInt32(&w.state, StateInit, StateConnected) {
+	switch state := atomic.LoadInt32(&w.state); state {
+	case StateInit:
+	case StateConnected:
+		return nil
+	default:
 		return ErrNotConnected
 	}
 
 	w.log(LogLevelInfo, "(%s) connecting to nsqd", w.addr)
 
+	logger, logLvl := w.getLogger()
+
 	w.conn = NewConn(w.addr, &w.config, &producerConnDelegate{w})
-	w.conn.SetLogger(w.logger, w.logLvl, fmt.Sprintf("%3d (%%s)", w.id))
+	w.conn.SetLogger(logger, logLvl, fmt.Sprintf("%3d (%%s)", w.id))
+
 	_, err := w.conn.Connect()
 	if err != nil {
 		w.conn.Close()
 		w.log(LogLevelError, "(%s) error connecting to nsqd - %s", w.addr, err)
-		atomic.StoreInt32(&w.state, StateInit)
 		return err
 	}
-
+	atomic.StoreInt32(&w.state, StateConnected)
+	w.closeChan = make(chan int)
 	w.wg.Add(1)
 	go w.router()
 
@@ -302,25 +344,30 @@ func (w *Producer) transactionCleanup() {
 			}
 			// give the runtime a chance to schedule other racing goroutines
 			time.Sleep(5 * time.Millisecond)
-			continue
 		}
 	}
 }
 
 func (w *Producer) log(lvl LogLevel, line string, args ...interface{}) {
-	if w.logger == nil {
+	logger, logLvl := w.getLogger()
+
+	if logger == nil {
 		return
 	}
 
-	if w.logLvl > lvl {
+	if logLvl > lvl {
 		return
 	}
 
-	w.logger.Output(2, fmt.Sprintf("%-4s %3d %s", logPrefix(lvl), w.id, fmt.Sprintf(line, args...)))
+	logger.Output(2, fmt.Sprintf("%-4s %3d %s", lvl, w.id, fmt.Sprintf(line, args...)))
 }
 
 func (w *Producer) onConnResponse(c *Conn, data []byte) { w.responseChan <- data }
 func (w *Producer) onConnError(c *Conn, data []byte)    { w.errorChan <- data }
 func (w *Producer) onConnHeartbeat(c *Conn)             {}
 func (w *Producer) onConnIOError(c *Conn, err error)    { w.close() }
-func (w *Producer) onConnClose(c *Conn)                 { w.closeChan <- 1 }
+func (w *Producer) onConnClose(c *Conn) {
+	w.guard.Lock()
+	defer w.guard.Unlock()
+	close(w.closeChan)
+}
