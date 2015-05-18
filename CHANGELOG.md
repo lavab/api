@@ -15,6 +15,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - Moved from traditional `go get`-based flow to dependency vendoring
    using [godep](https://github.com/tools/godep).
  - Disabled most of the log output to make it easier to analyze.
+ - Matching for 10k most used passwords replaced with a bloom filter
+   containing 17.5m leaked passwords from various hacks.
 
 ### Fixed
  - Cursor leakage all over the `db` package.
