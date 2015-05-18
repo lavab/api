@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased][unreleased]
+
+## [2.0.2] - 2015-05-19
 ### Added
  - Added a check whether an address mapping is used in the username
    reservation.
@@ -42,5 +44,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
  - Initial release of Lavaboom API 2.0
 
-[unreleased]: https://github.com/lavab/api/compare/2.0.1...HEAD
+[unreleased]: https://github.com/lavab/api/compare/2.0.2...HEAD
+[2.0.2]: https://github.com/lavab/api/compare/2.0.2...2.0.1
 [2.0.1]: https://github.com/lavab/api/compare/2.0.1...0.2.0
