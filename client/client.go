@@ -22,6 +22,8 @@ type Client struct {
 	Incoming map[string]chan *Response
 	Handlers []func(ev *Event)
 	Timeout  time.Duration
+
+	subscription string
 }
 
 func New(address string, timeout time.Duration) (*Client, error) {
@@ -49,25 +51,28 @@ func New(address string, timeout time.Duration) (*Client, error) {
 }
 
 func (c *Client) Loop() {
-	for {
-		log.Print("STARTING THE LOOP")
+	message := make(chan *Response)
 
-		x := []string{}
-		if err := c.SockJS.ReadMessage(&x); err != nil {
-			log.Print(err)
-			break
+	go func() {
+		for {
+			x := []string{}
+			if err := c.SockJS.ReadMessage(&x); err != nil {
+				log.Print(err)
+				continue
+			}
+
+			var resp *Response
+			if err := json.Unmarshal([]byte(x[0]), &resp); err != nil {
+				log.Print(err)
+				continue
+			}
+
+			message <- resp
 		}
+	}()
 
-		log.Print("GOT THE MESSAGE")
-
-		var resp *Response
-		if err := json.Unmarshal([]byte(x[0]), &resp); err != nil {
-			log.Print(err)
-			continue
-		}
-
-		log.Printf("%+v", resp)
-
+	select {
+	case resp := <-message:
 		if resp.Type == "response" {
 			c.RLock()
 			d, ok := c.Incoming[resp.ID]
@@ -89,6 +94,20 @@ func (c *Client) Loop() {
 					})
 				}(resp)
 			}
+		}
+	case <-c.SockJS.Reconnected:
+		data, err := Encode(&Request{
+			Type:  "subscribe",
+			Token: c.subscription,
+		})
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		if err := c.SockJS.WriteMessage(data); err != nil {
+			log.Print(err)
+			return
 		}
 	}
 }
@@ -165,6 +184,8 @@ func (c *Client) Subscribe(token string, callback func(ev *Event)) error {
 		if err := c.SockJS.WriteMessage(data); err != nil {
 			return err
 		}
+
+		c.subscription = token
 	}
 
 	return nil
