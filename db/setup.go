@@ -119,6 +119,12 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).TableCreate("webhooks").Exec(ss)
 		r.Db(d).Table("webhooks").IndexCreate("target").Exec(ss)
 		r.Db(d).Table("webhooks").IndexCreate("type").Exec(ss)
+		r.Db(d).Table("webhooks").IndexCreateFunc("targetType", func(row r.Term) interface{} {
+			return []interface{}{
+				row.Field("target"),
+				row.Field("owner"),
+			}
+		}).Exec(ss)
 	}
 
 	return ss.Close()
