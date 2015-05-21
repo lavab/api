@@ -115,6 +115,10 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("tokens").IndexCreate("date_modified").Exec(ss)
 		r.Db(d).Table("tokens").IndexCreate("type").Exec(ss)
 		r.Db(d).Table("tokens").IndexCreate("expiry_date").Exec(ss)
+
+		r.Db(d).TableCreate("webhooks").Exec(ss)
+		r.Db(d).Table("webhooks").IndexCreate("target").Exec(ss)
+		r.Db(d).Table("webhooks").IndexCreate("type").Exec(ss)
 	}
 
 	return ss.Close()
