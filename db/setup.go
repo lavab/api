@@ -122,7 +122,7 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("webhooks").IndexCreateFunc("targetType", func(row r.Term) interface{} {
 			return []interface{}{
 				row.Field("target"),
-				row.Field("owner"),
+				row.Field("type"),
 			}
 		}).Exec(ss)
 	}
