@@ -72,6 +72,7 @@ func Setup(opts r.ConnectOpts) error {
 		r.Db(d).Table("files").IndexCreate("name").Exec(ss)
 		r.Db(d).Table("files").IndexCreate("date_created").Exec(ss)
 		r.Db(d).Table("files").IndexCreate("date_modified").Exec(ss)
+		r.Db(d).Table("files").IndexCreate("tags", r.IndexCreateOpts{Multi: true}).Exec(ss)
 
 		r.Db(d).TableCreate("keys").Exec(ss)
 		r.Db(d).Table("keys").IndexCreate("owner").Exec(ss)
