@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
+	r "github.com/dancannon/gorethink"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -17,7 +18,7 @@ type FilesListResponse struct {
 	Files   *[]*models.File `json:"files,omitempty"`
 }
 
-func FilesList(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	query := r.URL.Query()
@@ -67,10 +68,10 @@ type FilesCreateResponse struct {
 }
 
 // FilesCreate creates a new file
-func FilesCreate(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input FilesCreateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -136,7 +137,7 @@ type FilesGetResponse struct {
 }
 
 // FilesGet gets the requested file from the database
-func FilesGet(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesGet(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
@@ -184,10 +185,10 @@ type FilesUpdateResponse struct {
 }
 
 // FilesUpdate updates an existing file in the database
-func FilesUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input FilesUpdateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -275,7 +276,7 @@ type FilesDeleteResponse struct {
 }
 
 // FilesDelete removes a file from the database
-func FilesDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
