@@ -27,6 +27,7 @@ import (
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/factor"
 	"github.com/lavab/api/routes"
+	"github.com/lavab/api/utils"
 )
 
 // sessions contains all "subscribing" WebSockets sessions
@@ -549,6 +550,11 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Post("/keys", routes.KeysCreate)
 	mux.Get("/keys/:id", routes.KeysGet)
 	auth.Post("/keys/:id/vote", routes.KeysVote)
+
+	// Headers proxy
+	mux.Get("/headers", func(w http.ResponseWriter, r *http.Request) {
+		utils.JSONResponse(w, 200, r.Header)
+	})
 
 	mux.Handle("/ws/*", sockjs.NewHandler("/ws", sockjs.DefaultOptions, func(session sockjs.Session) {
 		var subscribed string

@@ -89,7 +89,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		input.Username = utils.NormalizeUsername(input.Username)
 
 		// Validate the username
-		if len(input.Username) < 3 || utils.RemoveDots(input.Username) < 3 || len(input.Username) > 32 {
+		if len(input.Username) < 3 || len(utils.RemoveDots(input.Username)) < 3 || len(input.Username) > 32 {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
 				Success: false,
 				Message: "Invalid username - it has to be at least 3 and at max 32 characters long",
