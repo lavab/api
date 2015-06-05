@@ -93,6 +93,10 @@
 			"Rev": "535138d7bcd717d6531c701ef5933d98b1866257"
 		},
 		{
+			"ImportPath": "github.com/getsentry/raven-go",
+			"Rev": "c8f8fb7c415203f52ca882e2661d21bc6dcb54d7"
+		},
+		{
 			"ImportPath": "github.com/gokyle/hotp",
 			"Rev": "cab5c36e945092b6fb703b6c785bb06fd0537a0d"
 		},
@@ -158,18 +162,15 @@
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/cast5",
-			"Comment": "null-233",
-			"Rev": "8fec09c61d5d66f460d227fd1df3473d7e015bc6"
+			"Rev": "c10c31b5e94b6f7a0283272dc2bb27163dcea24b"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/openpgp",
-			"Comment": "null-233",
-			"Rev": "8fec09c61d5d66f460d227fd1df3473d7e015bc6"
+			"Rev": "c10c31b5e94b6f7a0283272dc2bb27163dcea24b"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/ripemd160",
-			"Comment": "null-233",
-			"Rev": "8fec09c61d5d66f460d227fd1df3473d7e015bc6"
+			"Rev": "c10c31b5e94b6f7a0283272dc2bb27163dcea24b"
 		},
 		{
 			"ImportPath": "gopkg.in/igm/sockjs-go.v2/sockjs",
