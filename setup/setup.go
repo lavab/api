@@ -2,6 +2,8 @@ package setup
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +18,7 @@ import (
 	"github.com/dancannon/gorethink"
 	"github.com/johntdyer/slackrus"
 	//"github.com/pzduniak/glogrus"
+	"github.com/getsentry/raven-go"
 	"github.com/segmentio/go-loggly"
 	"github.com/willf/bloom"
 	"github.com/zenazn/goji/web"
@@ -89,6 +92,23 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			Username:       flags.SlackUsername,
 		})
 	}
+
+	// Connect to raven
+	var rc *raven.Client
+	if flags.RavenDSN != "" {
+		h, err := os.Hostname()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		rc, err = raven.NewClient(flags.RavenDSN, map[string]string{
+			"hostname": h,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	env.Raven = rc
 
 	// Pass it to the environment package
 	env.Log = log
@@ -274,6 +294,30 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	//defer deliveryConsumer.Stop()
 
 	deliveryConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		// Raven recoverer
+		defer func() {
+			rec := recover()
+			if rec == nil {
+				return
+			}
+
+			msg := &raven.Message{
+				Message: string(m.Body),
+				Params:  []interface{}{"delivery"},
+			}
+
+			var packet *raven.Packet
+			switch rval := recover().(type) {
+			case error:
+				packet = raven.NewPacket(rval.Error(), msg, raven.NewException(rval, raven.NewStacktrace(2, 3, nil)))
+			default:
+				str := fmt.Sprintf("%+v", rval)
+				packet = raven.NewPacket(str, msg, raven.NewException(errors.New(str), raven.NewStacktrace(2, 3, nil)))
+			}
+
+			rc.Capture(packet, nil)
+		}()
+
 		var msg *struct {
 			ID    string `json:"id"`
 			Owner string `json:"owner"`
@@ -351,6 +395,30 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	//defer receiptConsumer.Stop()
 
 	receiptConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		// Raven recoverer
+		defer func() {
+			rec := recover()
+			if rec == nil {
+				return
+			}
+
+			msg := &raven.Message{
+				Message: string(m.Body),
+				Params:  []interface{}{"receipt"},
+			}
+
+			var packet *raven.Packet
+			switch rval := recover().(type) {
+			case error:
+				packet = raven.NewPacket(rval.Error(), msg, raven.NewException(rval, raven.NewStacktrace(2, 3, nil)))
+			default:
+				str := fmt.Sprintf("%+v", rval)
+				packet = raven.NewPacket(str, msg, raven.NewException(errors.New(str), raven.NewStacktrace(2, 3, nil)))
+			}
+
+			rc.Capture(packet, nil)
+		}()
+
 		var msg *struct {
 			ID    string `json:"id"`
 			Owner string `json:"owner"`

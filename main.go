@@ -89,6 +89,8 @@ var (
 	// Password bloom filter path
 	bloomFilter = flag.String("bloom_filter", "bloom.db", "Bloom filter containing passwords")
 	bloomCount  = flag.Uint("bloom_count", 14522336, "Estimated count of passwords in the bloom filter")
+	// raven dsn
+	ravenDSN = flag.String("raven_dsn", "", "DSN of the Raven connection")
 )
 
 func main() {
@@ -129,6 +131,8 @@ func main() {
 
 		BloomFilter: *bloomFilter,
 		BloomCount:  *bloomCount,
+
+		RavenDSN: *ravenDSN,
 	}
 
 	// Generate a mux

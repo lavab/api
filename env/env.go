@@ -4,6 +4,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
+	"github.com/getsentry/raven-go"
 	"github.com/willf/bloom"
 
 	"github.com/lavab/api/cache"
@@ -46,4 +47,6 @@ var (
 	Producer *nsq.Producer
 	// PasswordBF is the bloom filter used for leaked password matching
 	PasswordBF *bloom.BloomFilter
+	// Raven is the raven client used for reporting panics to Sentry
+	Raven *raven.Client
 )

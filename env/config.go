@@ -34,4 +34,6 @@ type Flags struct {
 
 	BloomFilter string
 	BloomCount  uint
+
+	RavenDSN string
 }
