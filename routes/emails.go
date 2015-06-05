@@ -3,8 +3,8 @@ package routes
 import (
 	//"bytes"
 	//"io"
-	//"crypto/sha256"
-	//"encoding/hex"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/mail"
 	"regexp"
@@ -389,10 +389,14 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		input.Thread = thread.ID
 	}
 
+	// Calculate the message ID
+	idHash := sha256.Sum256([]byte(resource.ID))
+	messageID := hex.EncodeToString(idHash[:]) + "@" + env.Config.EmailDomain
+
 	// Create a new email struct
 	email := &models.Email{
 		Resource:  resource,
-		MessageID: resource.ID + "@lavaboom.com",
+		MessageID: messageID,
 
 		Kind:   input.Kind,
 		Thread: input.Thread,
