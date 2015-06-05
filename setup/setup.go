@@ -547,7 +547,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	})
 	mux.Use(middleware.RequestID)
 	//mux.Use(glogrus.NewGlogrus(log, "api"))
-	mux.Use(middleware.Recoverer)
+	mux.Use(recoverer)
 	mux.Use(middleware.AutomaticOptions)
 
 	// Set up an auth'd mux
