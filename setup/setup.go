@@ -19,7 +19,6 @@ import (
 	"github.com/johntdyer/slackrus"
 	//"github.com/pzduniak/glogrus"
 	"github.com/getsentry/raven-go"
-	"github.com/segmentio/go-loggly"
 	"github.com/willf/bloom"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
@@ -59,13 +58,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		log.Formatter = &logrus.JSONFormatter{}
 	}
 
-	// Install logrus hooks
-	if flags.LogglyToken != "" {
-		log.Hooks.Add(&logglyHook{
-			Loggly: loggly.New(flags.LogglyToken),
-		})
-	}
-
+	// Install Logrus hooks
 	if flags.SlackURL != "" {
 		var level []logrus.Level
 

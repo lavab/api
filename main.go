@@ -72,8 +72,6 @@ var (
 	// YubiCloud params
 	yubiCloudID  = flag.String("yubicloud_id", "", "YubiCloud API id")
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
-	// loggly
-	logglyToken = flag.String("loggly_token", "", "Loggly token")
 	// etcd
 	etcdAddress  = flag.String("etcd_address", "", "etcd peer addresses split by commas")
 	etcdCAFile   = flag.String("etcd_ca_file", "", "etcd path to server cert's ca")
@@ -120,8 +118,6 @@ func main() {
 
 		YubiCloudID:  *yubiCloudID,
 		YubiCloudKey: *yubiCloudKey,
-
-		LogglyToken: *logglyToken,
 
 		SlackURL:      *slackURL,
 		SlackLevels:   *slackLevels,

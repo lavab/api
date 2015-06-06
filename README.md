@@ -66,7 +66,6 @@ Usage of api:
   -etcd_path="settings/": Path of the keys
   -force_colors=false: Force colored prompt?
   -log="text": Log formatter type. Either "json" or "text"
-  -loggly_token="": Loggly token
   -lookupd_address="127.0.0.1:4160": Address of the lookupd server
   -nsqd_address="127.0.0.1:4150": Address of the nsqd server
   -redis_address="127.0.0.1:6379": Address of the redis server

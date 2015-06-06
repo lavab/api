@@ -131,16 +131,6 @@
 			"Rev": "a5260a307b3e7dd583283c1e2717445244d506c7"
 		},
 		{
-			"ImportPath": "github.com/segmentio/go-loggly",
-			"Comment": "v0.4.3-4-ge78f697",
-			"Rev": "e78f6971ebca5835614673e2f5f6a47ca5f13501"
-		},
-		{
-			"ImportPath": "github.com/visionmedia/go-debug",
-			"Comment": "v2.0.0",
-			"Rev": "ff4a55a20a86994118644bbddc6a216da193cc13"
-		},
-		{
 			"ImportPath": "github.com/willf/bitset",
 			"Comment": "v1.0.0-17-g4b22041",
 			"Rev": "4b220417a489359f934045d0509d941a7a2a1038"

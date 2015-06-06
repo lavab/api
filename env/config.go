@@ -24,8 +24,6 @@ type Flags struct {
 	YubiCloudID  string
 	YubiCloudKey string
 
-	LogglyToken string
-
 	SlackURL      string
 	SlackLevels   string
 	SlackChannel  string
