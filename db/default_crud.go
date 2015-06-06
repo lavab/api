@@ -42,7 +42,7 @@ func (d *Default) GetSession() *gorethink.Session {
 
 // Insert inserts a document into the database
 func (d *Default) Insert(data interface{}) error {
-	_, err := d.GetTable().Insert(data).RunWrite(d.session)
+	err := d.GetTable().Insert(data).Exec(d.session)
 	if err != nil {
 		return NewDatabaseError(d, err, "")
 	}
@@ -52,7 +52,7 @@ func (d *Default) Insert(data interface{}) error {
 
 // Update performs an update on an existing resource according to passed data
 func (d *Default) Update(data interface{}) error {
-	_, err := d.GetTable().Update(data).RunWrite(d.session)
+	err := d.GetTable().Update(data).Exec(d.session)
 	if err != nil {
 		return NewDatabaseError(d, err, "")
 	}
@@ -62,7 +62,7 @@ func (d *Default) Update(data interface{}) error {
 
 // UpdateID performs an update on an existing resource with ID that equals the id argument
 func (d *Default) UpdateID(id string, data interface{}) error {
-	_, err := d.GetTable().Get(id).Update(data).RunWrite(d.session)
+	err := d.GetTable().Get(id).Update(data).Exec(d.session)
 	if err != nil {
 		return NewDatabaseError(d, err, "")
 	}
@@ -72,7 +72,7 @@ func (d *Default) UpdateID(id string, data interface{}) error {
 
 // Delete deletes resources that match the passed filter
 func (d *Default) Delete(pred interface{}) error {
-	_, err := d.GetTable().Filter(pred).Delete().RunWrite(d.session)
+	err := d.GetTable().Filter(pred).Delete().Exec(d.session)
 	if err != nil {
 		return NewDatabaseError(d, err, "")
 	}
@@ -82,7 +82,7 @@ func (d *Default) Delete(pred interface{}) error {
 
 // DeleteID deletes a resource with specified ID
 func (d *Default) DeleteID(id string) error {
-	_, err := d.GetTable().Get(id).Delete().RunWrite(d.session)
+	err := d.GetTable().Get(id).Delete().Exec(d.session)
 	if err != nil {
 		return NewDatabaseError(d, err, "")
 	}
@@ -106,6 +106,7 @@ func (d *Default) FindFetchOne(id string, value interface{}) error {
 	if err != nil {
 		return err
 	}
+	defer cursor.Close()
 
 	if err := cursor.One(value); err != nil {
 		return NewDatabaseError(d, err, "")
@@ -135,6 +136,7 @@ func (d *Default) FindByAndCount(key string, value interface{}) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer cursor.Close()
 
 	var count int
 	if err := cursor.One(&count); err != nil {
@@ -150,6 +152,7 @@ func (d *Default) FindByAndFetch(key string, value interface{}, results interfac
 	if err != nil {
 		return err
 	}
+	defer cursor.Close()
 
 	if err := cursor.All(results); err != nil {
 		return NewDatabaseError(d, err, "")
@@ -164,6 +167,7 @@ func (d *Default) FindByAndFetchOne(key string, value interface{}, result interf
 	if err != nil {
 		return err
 	}
+	defer cursor.Close()
 
 	if err := cursor.One(result); err != nil {
 		return NewDatabaseError(d, err, "")
@@ -188,6 +192,7 @@ func (d *Default) WhereAndFetch(filter map[string]interface{}, results interface
 	if err != nil {
 		return err
 	}
+	defer cursor.Close()
 
 	if err := cursor.All(results); err != nil {
 		return NewDatabaseError(d, err, "")
@@ -202,6 +207,7 @@ func (d *Default) WhereAndFetchOne(filter map[string]interface{}, result interfa
 	if err != nil {
 		return err
 	}
+	defer cursor.Close()
 
 	if err := cursor.One(result); err != nil {
 		return NewDatabaseError(d, err, "")
@@ -226,6 +232,7 @@ func (d *Default) FindByIndexFetch(results interface{}, index string, values ...
 	if err != nil {
 		return err
 	}
+	defer cursor.Close()
 
 	//now fetch the item from  database
 	if err := cursor.All(results); err != nil {
@@ -241,6 +248,7 @@ func (d *Default) FindByIndexFetchOne(result interface{}, index string, values .
 	if err != nil {
 		return err
 	}
+	defer cursor.Close()
 
 	if err := cursor.One(result); err != nil {
 		return NewDatabaseError(d, err, "")

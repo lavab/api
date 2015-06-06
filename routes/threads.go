@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
@@ -27,15 +26,15 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	var (
-		query      = r.URL.Query()
-		sortRaw    = query.Get("sort")
-		offsetRaw  = query.Get("offset")
-		limitRaw   = query.Get("limit")
-		countFiles = query.Get("count_files")
-		label      = query.Get("label")
-		sort       []string
-		offset     int
-		limit      int
+		query     = r.URL.Query()
+		sortRaw   = query.Get("sort")
+		offsetRaw = query.Get("offset")
+		limitRaw  = query.Get("limit")
+		labelsRaw = query.Get("label")
+		labels    []string
+		sort      []string
+		offset    int
+		limit     int
 	)
 
 	if offsetRaw != "" {
@@ -76,7 +75,11 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 		sort = strings.Split(sortRaw, ",")
 	}
 
-	threads, err := env.Threads.List(session.Owner, sort, offset, limit, label)
+	if labelsRaw != "" {
+		labels = strings.Split(labelsRaw, ",")
+	}
+
+	threads, err := env.Threads.List(session.Owner, sort, offset, limit, labels)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -103,26 +106,6 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("X-Total-Count", strconv.Itoa(count))
-	}
-
-	if countFiles == "true" || countFiles == "1" {
-		for _, thread := range threads {
-			count, err := env.Files.CountByThread(thread.ID)
-			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"error":  err.Error(),
-					"thread": thread.ID,
-				}).Error("Unable to count files per thread")
-
-				utils.JSONResponse(w, 500, &ThreadsListResponse{
-					Success: false,
-					Message: "Internal error (code TH/LI/03)",
-				})
-				return
-			}
-
-			thread.FilesCount = &count
-		}
 	}
 
 	utils.JSONResponse(w, 200, &ThreadsListResponse{
@@ -187,24 +170,6 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if ok := r.URL.Query().Get("count_files"); ok == "true" || ok == "1" {
-		count, err := env.Files.CountByThread(thread.ID)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"id":    thread.ID,
-			}).Error("Unable to count files linked to a thread")
-
-			utils.JSONResponse(w, 500, &ThreadsGetResponse{
-				Success: false,
-				Message: "Unable to count files",
-			})
-			return
-		}
-
-		thread.FilesCount = &count
-	}
-
 	utils.JSONResponse(w, 200, &ThreadsGetResponse{
 		Success: true,
 		Thread:  thread,
@@ -215,7 +180,7 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 type ThreadsUpdateRequest struct {
 	Labels   []string `json:"labels"`
 	IsRead   *bool    `json:"is_read"`
-	LastRead string   `json:"last_read"`
+	LastRead *string  `json:"last_read"`
 }
 
 type ThreadsUpdateResponse struct {
@@ -262,19 +227,20 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.Labels != nil && !reflect.DeepEqual(thread.Labels, input.Labels) {
+	if input.Labels != nil && !reflect.DeepEqual(thread.Labels, input.Labels) {
 		thread.Labels = input.Labels
 	}
 
-	if thread.LastRead != input.LastRead {
-		thread.LastRead = input.LastRead
+	if input.LastRead != nil && *input.LastRead != thread.LastRead {
+		thread.LastRead = *input.LastRead
 	}
 
 	if input.IsRead != nil && *input.IsRead != thread.IsRead {
 		thread.IsRead = *input.IsRead
 	}
 
-	thread.DateModified = time.Now()
+	// Disabled for now, as we're using DateModified for sorting by the date of the last email
+	// thread.DateModified = time.Now()
 
 	err = env.Threads.UpdateID(c.URLParams["id"], thread)
 	if err != nil {

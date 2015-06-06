@@ -21,6 +21,25 @@ func (f *FilesTable) GetFile(id string) (*models.File, error) {
 	return &result, nil
 }
 
+func (f *FilesTable) GetFiles(ids ...string) ([]*models.File, error) {
+	iids := make([]interface{}, len(ids))
+	for i, v := range ids {
+		iids[i] = v
+	}
+
+	query, err := f.GetTable().GetAll(iids...).Run(f.GetSession())
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*models.File
+	if err := query.All(&result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (f *FilesTable) GetOwnedBy(id string) ([]*models.File, error) {
 	var result []*models.File
 
@@ -64,23 +83,6 @@ func (f *FilesTable) GetEmailFiles(id string) ([]*models.File, error) {
 
 func (f *FilesTable) CountByEmail(id string) (int, error) {
 	query, err := f.GetTable().GetAllByIndex("owner", id).Count().Run(f.GetSession())
-	if err != nil {
-		return 0, err
-	}
-
-	var result int
-	err = query.One(&result)
-	if err != nil {
-		return 0, err
-	}
-
-	return result, nil
-}
-
-func (f *FilesTable) CountByThread(id ...interface{}) (int, error) {
-	query, err := f.GetTable().Filter(func(row gorethink.Term) gorethink.Term {
-		return gorethink.Table("emails").GetAllByIndex("thread", id...).Field("files").Contains(row.Field("id"))
-	}).Count().Run(f.GetSession())
 	if err != nil {
 		return 0, err
 	}

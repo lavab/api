@@ -1,0 +1,170 @@
+{
+	"ImportPath": "github.com/lavab/api",
+	"GoVersion": "go1.4",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go.crypto/pbkdf2",
+			"Comment": "null-212",
+			"Rev": "1064b89a6fb591df0dd65422295b8498916b092f"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/scrypt",
+			"Comment": "null-212",
+			"Rev": "1064b89a6fb591df0dd65422295b8498916b092f"
+		},
+		{
+			"ImportPath": "code.google.com/p/goprotobuf/proto",
+			"Comment": "go.r60-163",
+			"Rev": "9352842ae63ee1d7e74e074ce7bb10370c4b6b9e"
+		},
+		{
+			"ImportPath": "code.google.com/p/rsc/gf256",
+			"Comment": "null-258",
+			"Rev": "2d8aa6027fab93979a3b4ecdbeb1ba430b489318"
+		},
+		{
+			"ImportPath": "code.google.com/p/rsc/qr",
+			"Comment": "null-258",
+			"Rev": "2d8aa6027fab93979a3b4ecdbeb1ba430b489318"
+		},
+		{
+			"ImportPath": "code.google.com/p/snappy-go/snappy",
+			"Comment": "null-20",
+			"Rev": "8850bd446ad6f18a271a08aae26bdf85bdf87c7f"
+		},
+		{
+			"ImportPath": "github.com/GeertJohan/yubigo",
+			"Rev": "b1764f04aa9ba3c98a15084e7e13c1a69753e1da"
+		},
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.6.4",
+			"Rev": "58f778a886b1e483dccc3b61085ccf347bf1a37e"
+		},
+		{
+			"ImportPath": "github.com/ajstarks/svgo",
+			"Comment": "go.weekly.2012-01-27-94-g47ca2bb",
+			"Rev": "47ca2bbf229311c9b8b96a9188ae37790250757b"
+		},
+		{
+			"ImportPath": "github.com/bitly/go-nsq",
+			"Comment": "v1.0.4-2-gd76cbe0",
+			"Rev": "d76cbe0746446bc6ff540042dde4d074a962dfde"
+		},
+		{
+			"ImportPath": "github.com/bitly/go-simplejson",
+			"Comment": "v0.4.3-30-g18db6e6",
+			"Rev": "18db6e68d8fd9cbf2e8ebe4c81a78b96fd9bf05a"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
+			"Comment": "v2.0.4-312-g9a33678",
+			"Rev": "9a33678878e57410a67d07d39fa8502e85797aeb"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/types",
+			"Comment": "v2.0.4-312-g9a33678",
+			"Rev": "9a33678878e57410a67d07d39fa8502e85797aeb"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-etcd/etcd",
+			"Comment": "v0.4.6-10-g2af7a95",
+			"Rev": "2af7a9525b09fb715b215a1fb852dd4814ef52b5"
+		},
+		{
+			"ImportPath": "github.com/cupcake/sigil/gen",
+			"Rev": "6bf9722f2ae82f58a0c7d48daeb40ec844b78eae"
+		},
+		{
+			"ImportPath": "github.com/dancannon/gorethink",
+			"Comment": "v0.6.3-13-g67d2428",
+			"Rev": "67d2428ba6800ad5a3441f8740dbc77070e253b1"
+		},
+		{
+			"ImportPath": "github.com/dchest/uniuri",
+			"Rev": "396b73a566d0993675357e6648bb98587a6162b4"
+		},
+		{
+			"ImportPath": "github.com/garyburd/redigo/internal",
+			"Rev": "535138d7bcd717d6531c701ef5933d98b1866257"
+		},
+		{
+			"ImportPath": "github.com/garyburd/redigo/redis",
+			"Rev": "535138d7bcd717d6531c701ef5933d98b1866257"
+		},
+		{
+			"ImportPath": "github.com/getsentry/raven-go",
+			"Rev": "c8f8fb7c415203f52ca882e2661d21bc6dcb54d7"
+		},
+		{
+			"ImportPath": "github.com/gokyle/hotp",
+			"Rev": "cab5c36e945092b6fb703b6c785bb06fd0537a0d"
+		},
+		{
+			"ImportPath": "github.com/gorilla/schema",
+			"Rev": "c8422571edf3131506bab7df27e18980fe2598d5"
+		},
+		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Rev": "2dbddebb8266b93c5e6b119efb54e89043186f3f"
+		},
+		{
+			"ImportPath": "github.com/gyepisam/mcf",
+			"Comment": "v0.02",
+			"Rev": "805056816f56678a0e70fff55cdc209fb9a21d73"
+		},
+		{
+			"ImportPath": "github.com/johntdyer/slack-go",
+			"Rev": "88736fd63eed11c942b478c3182bdd2f152971e5"
+		},
+		{
+			"ImportPath": "github.com/johntdyer/slackrus",
+			"Rev": "85cb2fcfa59888a7abe9d16e844501aa3782e259"
+		},
+		{
+			"ImportPath": "github.com/lavab/flag",
+			"Rev": "6d5479a9c2f744a1db55e2b5a5f610f50002fdad"
+		},
+		{
+			"ImportPath": "github.com/mreiferson/go-snappystream",
+			"Comment": "v0.2.2-8-ga5260a3",
+			"Rev": "a5260a307b3e7dd583283c1e2717445244d506c7"
+		},
+		{
+			"ImportPath": "github.com/willf/bitset",
+			"Comment": "v1.0.0-17-g4b22041",
+			"Rev": "4b220417a489359f934045d0509d941a7a2a1038"
+		},
+		{
+			"ImportPath": "github.com/willf/bloom",
+			"Comment": "v1.0.0-38-g270f902",
+			"Rev": "270f902f15edc2c6ae171c30f1de3ce3ae59d30c"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/graceful",
+			"Comment": "v0.8.3",
+			"Rev": "dcb9598cbbcfcc10d2c1ee1e66958e54a2c84b52"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/web",
+			"Comment": "v0.8.3",
+			"Rev": "dcb9598cbbcfcc10d2c1ee1e66958e54a2c84b52"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/cast5",
+			"Rev": "c10c31b5e94b6f7a0283272dc2bb27163dcea24b"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp",
+			"Rev": "c10c31b5e94b6f7a0283272dc2bb27163dcea24b"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ripemd160",
+			"Rev": "c10c31b5e94b6f7a0283272dc2bb27163dcea24b"
+		},
+		{
+			"ImportPath": "gopkg.in/igm/sockjs-go.v2/sockjs",
+			"Rev": "9dbc79efa97d9a6c6b4a515893bd02c9242e9225"
+		}
+	]
+}
