@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"sync/atomic"
 
 	"github.com/dancannon/gorethink/encoding"
 	p "github.com/dancannon/gorethink/ql2"
@@ -13,12 +14,17 @@ var (
 	errCursorClosed = errors.New("connection closed, cannot read cursor")
 )
 
-func newCursor(conn *Connection, token int64, term *Term, opts map[string]interface{}) *Cursor {
+func newCursor(conn *Connection, cursorType string, token int64, term *Term, opts map[string]interface{}) *Cursor {
+	if cursorType == "" {
+		cursorType = "Cursor"
+	}
+
 	cursor := &Cursor{
-		conn:  conn,
-		token: token,
-		term:  term,
-		opts:  opts,
+		conn:       conn,
+		token:      token,
+		cursorType: cursorType,
+		term:       term,
+		opts:       opts,
 	}
 
 	return cursor
@@ -40,18 +46,17 @@ func newCursor(conn *Connection, token int64, term *Term, opts map[string]interf
 //     err = cursor.Err() // get any error encountered during iteration
 //     ...
 type Cursor struct {
-	pc          *poolConn
 	releaseConn func(error)
 
-	conn  *Connection
-	token int64
-	query Query
-	term  *Term
-	opts  map[string]interface{}
+	conn       *Connection
+	token      int64
+	cursorType string
+	term       *Term
+	opts       map[string]interface{}
 
 	lastErr   error
 	fetching  bool
-	closed    bool
+	closed    int32
 	finished  bool
 	isAtom    bool
 	buffer    queue
@@ -62,6 +67,11 @@ type Cursor struct {
 // Profile returns the information returned from the query profiler.
 func (c *Cursor) Profile() interface{} {
 	return c.profile
+}
+
+// Type returns the cursor type (by default "Cursor")
+func (c *Cursor) Type() string {
+	return c.cursorType
 }
 
 // Err returns nil if no errors happened during iteration, or the actual
@@ -75,7 +85,7 @@ func (c *Cursor) Err() error {
 func (c *Cursor) Close() error {
 	var err error
 
-	if c.closed {
+	if c.closed != 0 || !atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		return nil
 	}
 
@@ -88,7 +98,7 @@ func (c *Cursor) Close() error {
 	}
 
 	// Stop any unfinished queries
-	if !c.closed && !c.finished {
+	if c.closed == 0 && !c.finished {
 		q := Query{
 			Type:  p.Query_STOP,
 			Token: c.token,
@@ -97,9 +107,10 @@ func (c *Cursor) Close() error {
 		_, _, err = conn.Query(q)
 	}
 
-	c.releaseConn(err)
+	if c.releaseConn != nil {
+		c.releaseConn(err)
+	}
 
-	c.closed = true
 	c.conn = nil
 	c.buffer.elems = nil
 	c.responses.elems = nil
@@ -120,7 +131,7 @@ func (c *Cursor) Close() error {
 // Also note that you are able to reuse the same variable multiple times as
 // `Next` zeroes the value before scanning in the result.
 func (c *Cursor) Next(dest interface{}) bool {
-	if c.closed {
+	if c.closed != 0 {
 		return false
 	}
 
@@ -130,19 +141,21 @@ func (c *Cursor) Next(dest interface{}) bool {
 		return false
 	}
 
+	if !hasMore {
+		c.Close()
+	}
+
 	return hasMore
 }
 
 func (c *Cursor) loadNext(dest interface{}) (bool, error) {
 	for c.lastErr == nil {
 		// Check if response is closed/finished
-		if c.buffer.Len() == 0 && c.responses.Len() == 0 && c.closed {
-
+		if c.buffer.Len() == 0 && c.responses.Len() == 0 && c.closed != 0 {
 			return false, errCursorClosed
 		}
 
 		if c.buffer.Len() == 0 && c.responses.Len() == 0 && !c.finished {
-
 			err := c.fetchMore()
 			if err != nil {
 				return false, err
@@ -150,7 +163,6 @@ func (c *Cursor) loadNext(dest interface{}) (bool, error) {
 		}
 
 		if c.buffer.Len() == 0 && c.responses.Len() == 0 && c.finished {
-
 			return false, nil
 		}
 
@@ -250,6 +262,7 @@ func (c *Cursor) All(result interface{}) error {
 // `One` zeroes the value before scanning in the result.
 func (c *Cursor) One(result interface{}) error {
 	if c.IsNil() {
+		c.Close()
 		return ErrEmptyResult
 	}
 
@@ -269,6 +282,43 @@ func (c *Cursor) One(result interface{}) error {
 	}
 
 	return nil
+}
+
+// Listen listens for rows from the database and sends the result onto the given
+// channel. The type that the row is scanned into is determined by the element
+// type of the channel.
+//
+// Also note that this function returns immediately.
+//
+//     cursor, err := r.Expr([]int{1,2,3}).Run(session)
+//     if err != nil {
+//         panic(err)
+//     }
+//
+//     ch := make(chan int)
+//     cursor.Listen(ch)
+//     <- ch // 1
+//     <- ch // 2
+//     <- ch // 3
+func (c *Cursor) Listen(channel interface{}) {
+	go func() {
+		channelv := reflect.ValueOf(channel)
+		if channelv.Kind() != reflect.Chan {
+			panic("input argument must be a channel")
+		}
+		elemt := channelv.Type().Elem()
+		for {
+			elemp := reflect.New(elemt)
+			if !c.Next(elemp.Interface()) {
+				break
+			}
+
+			channelv.Send(elemp.Elem())
+		}
+
+		c.Close()
+		channelv.Close()
+	}()
 }
 
 // IsNil tests if the current row is nil.
@@ -309,7 +359,7 @@ func (c *Cursor) fetchMore() error {
 	if !c.fetching {
 		c.fetching = true
 
-		if c.closed {
+		if c.closed != 0 {
 			return errCursorClosed
 		}
 
@@ -345,9 +395,7 @@ func (c *Cursor) extend(response *Response) {
 		c.responses.Push(response)
 	}
 
-	c.finished = response.Type != p.Response_SUCCESS_PARTIAL &&
-		response.Type != p.Response_SUCCESS_FEED &&
-		response.Type != p.Response_SUCCESS_ATOM_FEED
+	c.finished = response.Type != p.Response_SUCCESS_PARTIAL
 	c.fetching = false
 	c.isAtom = response.Type == p.Response_SUCCESS_ATOM
 
@@ -362,6 +410,10 @@ type queue struct {
 }
 
 func (q *queue) Len() int {
+	if len(q.elems) == 0 {
+		return 0
+	}
+
 	return q.nelems
 }
 func (q *queue) Push(elem interface{}) {
