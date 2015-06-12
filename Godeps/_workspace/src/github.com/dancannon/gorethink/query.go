@@ -8,6 +8,11 @@ import (
 	p "github.com/dancannon/gorethink/ql2"
 )
 
+// A Query represents a query ready to be sent to the database, A Query differs
+// from a Term as it contains both a query type and token. These values are used
+// by the database to determine if the query is continuing a previous request
+// and also allows the driver to identify the response as they can come out of
+// order.
 type Query struct {
 	Type  p.Query_QueryType
 	Token int64
@@ -30,6 +35,13 @@ func (q *Query) build() []interface{} {
 
 type termsList []Term
 type termsObj map[string]Term
+
+// A Term represents a query that is being built. Terms consist of a an array of
+// "sub-terms" and a term type. When a Term is a sub-term the first element of
+// the terms data is its parent Term.
+//
+// When built the term becomes a JSON array, for more information on the format
+// see http://rethinkdb.com/docs/writing-drivers/.
 type Term struct {
 	name     string
 	rootTerm bool
@@ -124,36 +136,44 @@ func (t Term) String() string {
 	return fmt.Sprintf("%s.%s(%s)", t.args[0].String(), t.name, strings.Join(allArgsToStringSlice(t.args[1:], t.optArgs), ", "))
 }
 
+// OptArgs is an interface used to represent a terms optional arguments. All
+// optional argument types have a toMap function, the returned map can be encoded
+// and sent as part of the query.
 type OptArgs interface {
 	toMap() map[string]interface{}
 }
 
+// WriteResponse is a helper type used when dealing with the response of a
+// write query. It is also returned by the RunWrite function.
 type WriteResponse struct {
-	Errors        int            `gorethink:"errors"`
-	Inserted      int            `gorethink:"inserted"`
-	Updated       int            `gorethink:"updadte"`
-	Unchanged     int            `gorethink:"unchanged"`
-	Replaced      int            `gorethink:"replaced"`
-	Renamed       int            `gorethink:"renamed"`
-	Skipped       int            `gorethink:"skipped"`
-	Deleted       int            `gorethink:"deleted"`
-	Created       int            `gorethink:"created"`
-	DBsCreated    int            `gorethink:"dbs_created"`
-	TablesCreated int            `gorethink:"tables_created"`
-	Dropped       int            `gorethink:"dropped"`
-	DBsDropped    int            `gorethink:"dbs_dropped"`
-	TablesDropped int            `gorethink:"tables_dropped"`
-	GeneratedKeys []string       `gorethink:"generated_keys"`
-	FirstError    string         `gorethink:"first_error"` // populated if Errors > 0
-	ConfigChanges []WriteChanges `gorethink:"config_changes"`
-	Changes       []WriteChanges
+	Errors        int              `gorethink:"errors"`
+	Inserted      int              `gorethink:"inserted"`
+	Updated       int              `gorethink:"updated"`
+	Unchanged     int              `gorethink:"unchanged"`
+	Replaced      int              `gorethink:"replaced"`
+	Renamed       int              `gorethink:"renamed"`
+	Skipped       int              `gorethink:"skipped"`
+	Deleted       int              `gorethink:"deleted"`
+	Created       int              `gorethink:"created"`
+	DBsCreated    int              `gorethink:"dbs_created"`
+	TablesCreated int              `gorethink:"tables_created"`
+	Dropped       int              `gorethink:"dropped"`
+	DBsDropped    int              `gorethink:"dbs_dropped"`
+	TablesDropped int              `gorethink:"tables_dropped"`
+	GeneratedKeys []string         `gorethink:"generated_keys"`
+	FirstError    string           `gorethink:"first_error"` // populated if Errors > 0
+	ConfigChanges []ChangeResponse `gorethink:"config_changes"`
+	Changes       []ChangeResponse
 }
 
-type WriteChanges struct {
+// ChangeResponse is a helper type used when dealing with changefeeds. The type
+// contains both the value before the query and the new value.
+type ChangeResponse struct {
 	NewValue interface{} `gorethink:"new_val"`
 	OldValue interface{} `gorethink:"old_val"`
 }
 
+// RunOpts contains the optional arguments for the Run function.
 type RunOpts struct {
 	Db             interface{} `gorethink:"db,omitempty"`
 	Profile        interface{} `gorethink:"profile,omitempty"`
@@ -192,27 +212,42 @@ func (t Term) Run(s *Session, optArgs ...RunOpts) (*Cursor, error) {
 		opts = optArgs[0].toMap()
 	}
 
-	q := newStartQuery(s, t, opts)
-
-	return s.pool.Query(q)
+	return s.Query(s.newQuery(t, opts))
 }
 
 // RunWrite runs a query using the given connection but unlike Run automatically
-// scans the result into a variable of type WriteResponse. This function should be used
-// if you are running a write query (such as Insert,  Update, TableCreate, etc...)
+// scans the result into a variable of type WriteResponss. This function should be used
+// if you are running a write query (such as Insert,  Update, TableCreate, etc...).
+//
+// If an error occurs when running the write query the first error is returned.
 //
 //	res, err := r.Db("database").Table("table").Insert(doc).RunWrite(sess)
 func (t Term) RunWrite(s *Session, optArgs ...RunOpts) (WriteResponse, error) {
 	var response WriteResponse
+
 	res, err := t.Run(s, optArgs...)
-	if err == nil {
-		err = res.One(&response)
+	if err != nil {
+		return response, err
 	}
-	return response, err
+
+	if err = res.One(&response); err != nil {
+		return response, err
+	}
+
+	if err = res.Close(); err != nil {
+		return response, err
+	}
+
+	if response.Errors > 0 {
+		return response, fmt.Errorf(response.FirstError)
+	}
+
+	return response, nil
 }
 
-// ExecOpts inherits its options from RunOpts, the only difference is the
-// addition of the NoReply field.
+// ExecOpts contains the optional arguments for the Exec function and  inherits
+// its options from RunOpts, the only difference is the addition of the NoReply
+// field.
 //
 // When NoReply is true it causes the driver not to wait to receive the result
 // and return immediately.
@@ -242,7 +277,7 @@ func (o *ExecOpts) toMap() map[string]interface{} {
 // Exec runs the query but does not return the result. Exec will still wait for
 // the response to be received unless the NoReply field is true.
 //
-//	res, err := r.Db("database").Table("table").Insert(doc).Exec(sess, r.ExecOpts{
+//	err := r.Db("database").Table("table").Insert(doc).Exec(sess, r.ExecOpts{
 //		NoReply: true,
 //	})
 func (t Term) Exec(s *Session, optArgs ...ExecOpts) error {
@@ -251,24 +286,5 @@ func (t Term) Exec(s *Session, optArgs ...ExecOpts) error {
 		opts = optArgs[0].toMap()
 	}
 
-	q := newStartQuery(s, t, opts)
-
-	return s.pool.Exec(q)
-}
-
-func newStartQuery(s *Session, t Term, opts map[string]interface{}) Query {
-	queryOpts := map[string]interface{}{}
-	for k, v := range opts {
-		queryOpts[k] = Expr(v).build()
-	}
-	if s.opts.Database != "" {
-		queryOpts["db"] = Db(s.opts.Database).build()
-	}
-
-	// Construct query
-	return Query{
-		Type: p.Query_START,
-		Term: &t,
-		Opts: queryOpts,
-	}
+	return s.Exec(s.newQuery(t, opts))
 }

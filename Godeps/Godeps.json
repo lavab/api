@@ -13,11 +13,6 @@
 			"Rev": "1064b89a6fb591df0dd65422295b8498916b092f"
 		},
 		{
-			"ImportPath": "code.google.com/p/goprotobuf/proto",
-			"Comment": "go.r60-163",
-			"Rev": "9352842ae63ee1d7e74e074ce7bb10370c4b6b9e"
-		},
-		{
 			"ImportPath": "code.google.com/p/rsc/gf256",
 			"Comment": "null-258",
 			"Rev": "2d8aa6027fab93979a3b4ecdbeb1ba430b489318"
@@ -38,8 +33,8 @@
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.6.4",
-			"Rev": "58f778a886b1e483dccc3b61085ccf347bf1a37e"
+			"Comment": "v0.8.2-10-g21d4508",
+			"Rev": "21d4508646ae56d79244bd9046c1df63a5fa8c37"
 		},
 		{
 			"ImportPath": "github.com/ajstarks/svgo",
@@ -55,6 +50,10 @@
 			"ImportPath": "github.com/bitly/go-simplejson",
 			"Comment": "v0.4.3-30-g18db6e6",
 			"Rev": "18db6e68d8fd9cbf2e8ebe4c81a78b96fd9bf05a"
+		},
+		{
+			"ImportPath": "github.com/cenkalti/backoff",
+			"Rev": "6c45d6bc1e78d94431dff8fc28a99f20bafa355a"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
@@ -77,8 +76,8 @@
 		},
 		{
 			"ImportPath": "github.com/dancannon/gorethink",
-			"Comment": "v0.6.3-13-g67d2428",
-			"Rev": "67d2428ba6800ad5a3441f8740dbc77070e253b1"
+			"Comment": "v1.0.0-rc.1",
+			"Rev": "d5ad40cd265611fbde3058eb4790221a1109466f"
 		},
 		{
 			"ImportPath": "github.com/dchest/uniuri",
@@ -99,6 +98,10 @@
 		{
 			"ImportPath": "github.com/gokyle/hotp",
 			"Rev": "cab5c36e945092b6fb703b6c785bb06fd0537a0d"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "34a5f244f1c01cdfee8e60324258cfbb97a42aec"
 		},
 		{
 			"ImportPath": "github.com/gorilla/schema",

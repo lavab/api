@@ -4,6 +4,13 @@ import (
 	p "github.com/dancannon/gorethink/ql2"
 )
 
+var (
+	// MinVal represents the smallest possible value RethinkDB can store
+	MinVal = constructRootTerm("MinVal", p.Term_MINVAL, []interface{}{}, map[string]interface{}{})
+	// MaxVal represents the smallest possible value RethinkDB can store
+	MaxVal = constructRootTerm("MaxVal", p.Term_MAXVAL, []interface{}{}, map[string]interface{}{})
+)
+
 // Add sums two numbers or concatenates two arrays.
 func (t Term) Add(args ...interface{}) Term {
 	return constructMethodTerm(t, "Add", p.Term_ADD, args, map[string]interface{}{})
@@ -29,6 +36,7 @@ func (t Term) Mul(args ...interface{}) Term {
 	return constructMethodTerm(t, "Mul", p.Term_MUL, args, map[string]interface{}{})
 }
 
+// Mul multiplies two numbers.
 func Mul(args ...interface{}) Term {
 	return constructRootTerm("Mul", p.Term_MUL, args, map[string]interface{}{})
 }
@@ -55,22 +63,22 @@ func Mod(args ...interface{}) Term {
 
 // And performs a logical and on two values.
 func (t Term) And(args ...interface{}) Term {
-	return constructMethodTerm(t, "And", p.Term_ALL, args, map[string]interface{}{})
+	return constructMethodTerm(t, "And", p.Term_AND, args, map[string]interface{}{})
 }
 
 // And performs a logical and on two values.
 func And(args ...interface{}) Term {
-	return constructRootTerm("And", p.Term_ALL, args, map[string]interface{}{})
+	return constructRootTerm("And", p.Term_AND, args, map[string]interface{}{})
 }
 
 // Or performs a logical or on two values.
 func (t Term) Or(args ...interface{}) Term {
-	return constructMethodTerm(t, "Or", p.Term_ANY, args, map[string]interface{}{})
+	return constructMethodTerm(t, "Or", p.Term_OR, args, map[string]interface{}{})
 }
 
 // Or performs a logical or on two values.
 func Or(args ...interface{}) Term {
-	return constructRootTerm("Or", p.Term_ANY, args, map[string]interface{}{})
+	return constructRootTerm("Or", p.Term_OR, args, map[string]interface{}{})
 }
 
 // Eq returns true if two values are equal.
@@ -143,6 +151,7 @@ func Not(args ...interface{}) Term {
 	return constructRootTerm("Not", p.Term_NOT, args, map[string]interface{}{})
 }
 
+// RandomOpts contains the optional arguments for the Random term.
 type RandomOpts struct {
 	Float interface{} `gorethink:"float,omitempty"`
 }
@@ -151,8 +160,8 @@ func (o *RandomOpts) toMap() map[string]interface{} {
 	return optArgsToMap(o)
 }
 
-// Generate a random number between the given bounds. If no arguments are
-// given, the result will be a floating-point number in the range [0,1).
+// Random generates a random number between the given bounds. If no arguments
+// are given, the result will be a floating-point number in the range [0,1).
 //
 // When passing a single argument, r.random(x), the result will be in the
 // range [0,x), and when passing two arguments, r.random(x,y), the range is

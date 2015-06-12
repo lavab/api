@@ -131,7 +131,7 @@ func (t *ThreadsTable) List(
 
 	// Add manifests
 	term = term.Map(func(thread gorethink.Term) gorethink.Term {
-		return thread.Merge(gorethink.Db(t.GetDBName()).Table("emails").Between([]interface{}{
+		return thread.Merge(gorethink.DB(t.GetDBName()).Table("emails").Between([]interface{}{
 			thread.Field("id"),
 			time.Date(1990, time.January, 1, 23, 0, 0, 0, time.UTC),
 		}, []interface{}{

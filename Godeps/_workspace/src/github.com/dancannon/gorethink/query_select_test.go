@@ -11,37 +11,39 @@ import (
 
 func (s *RethinkSuite) TestSelectGet(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table1").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table1").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table1").Insert(objList).Exec(sess)
+	DB("test").Table("Table1").Insert(objList).Exec(session)
 
 	// Test query
 	var response interface{}
-	query := Db("test").Table("Table1").Get(6)
-	res, err := query.Run(sess)
+	query := DB("test").Table("Table1").Get(6)
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.One(&response)
 
 	c.Assert(err, test.IsNil)
 	c.Assert(response, jsonEquals, map[string]interface{}{"id": 6, "g1": 1, "g2": 1, "num": 15})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectGetAll(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table1").Exec(sess)
-	Db("test").Table("Table1").IndexCreate("num").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table1").Exec(session)
+	DB("test").Table("Table1").IndexCreate("num").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table1").Insert(objList).Exec(sess)
+	DB("test").Table("Table1").Insert(objList).Exec(session)
 
 	// Test query
 	var response []interface{}
-	query := Db("test").Table("Table1").GetAll(6).OrderBy("id")
-	res, err := query.Run(sess)
+	query := DB("test").Table("Table1").GetAll(6).OrderBy("id")
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.All(&response)
@@ -50,21 +52,23 @@ func (s *RethinkSuite) TestSelectGetAll(c *test.C) {
 	c.Assert(response, jsonEquals, []interface{}{
 		map[string]interface{}{"num": 15, "id": 6, "g2": 1, "g1": 1},
 	})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectGetAllMultiple(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table1").Exec(sess)
-	Db("test").Table("Table1").IndexCreate("num").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table1").Exec(session)
+	DB("test").Table("Table1").IndexCreate("num").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table1").Insert(objList).Exec(sess)
+	DB("test").Table("Table1").Insert(objList).Exec(session)
 
 	// Test query
 	var response []interface{}
-	query := Db("test").Table("Table1").GetAll(1, 2, 3).OrderBy("id")
-	res, err := query.Run(sess)
+	query := DB("test").Table("Table1").GetAll(1, 2, 3).OrderBy("id")
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.All(&response)
@@ -75,88 +79,96 @@ func (s *RethinkSuite) TestSelectGetAllMultiple(c *test.C) {
 		map[string]interface{}{"num": 5, "id": 2, "g2": 2, "g1": 2},
 		map[string]interface{}{"num": 10, "id": 3, "g2": 2, "g1": 3},
 	})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectGetAllByIndex(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table1").Exec(sess)
-	Db("test").Table("Table1").IndexCreate("num").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table1").Exec(session)
+	DB("test").Table("Table1").IndexCreate("num").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table1").Insert(objList).Exec(sess)
+	DB("test").Table("Table1").Insert(objList).Exec(session)
 
 	// Test query
 	var response interface{}
-	query := Db("test").Table("Table1").GetAllByIndex("num", 15).OrderBy("id")
-	res, err := query.Run(sess)
+	query := DB("test").Table("Table1").GetAllByIndex("num", 15).OrderBy("id")
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.One(&response)
 
 	c.Assert(err, test.IsNil)
 	c.Assert(response, jsonEquals, map[string]interface{}{"id": 6, "g1": 1, "g2": 1, "num": 15})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectGetAllMultipleByIndex(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table2").Exec(sess)
-	Db("test").Table("Table2").IndexCreate("num").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table2").Exec(session)
+	DB("test").Table("Table2").IndexCreate("num").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table2").Insert(objList).Exec(sess)
+	DB("test").Table("Table2").Insert(objList).Exec(session)
 
 	// Test query
 	var response interface{}
-	query := Db("test").Table("Table2").GetAllByIndex("num", 15).OrderBy("id")
-	res, err := query.Run(sess)
+	query := DB("test").Table("Table2").GetAllByIndex("num", 15).OrderBy("id")
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.One(&response)
 
 	c.Assert(err, test.IsNil)
 	c.Assert(response, jsonEquals, map[string]interface{}{"id": 6, "g1": 1, "g2": 1, "num": 15})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectGetAllCompoundIndex(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableDrop("TableCompound").Exec(sess)
-	Db("test").TableCreate("TableCompound").Exec(sess)
-	write, err := Db("test").Table("TableCompound").IndexCreateFunc("full_name", func(row Term) interface{} {
+	DBCreate("test").Exec(session)
+	DB("test").TableDrop("TableCompound").Exec(session)
+	DB("test").TableCreate("TableCompound").Exec(session)
+	write, err := DB("test").Table("TableCompound").IndexCreateFunc("full_name", func(row Term) interface{} {
 		return []interface{}{row.Field("first_name"), row.Field("last_name")}
-	}).RunWrite(sess)
+	}).RunWrite(session)
 	c.Assert(err, test.IsNil)
 	c.Assert(write.Created, test.Equals, 1)
 
 	// Insert rows
-	Db("test").Table("TableCompound").Insert(nameList).Exec(sess)
+	DB("test").Table("TableCompound").Insert(nameList).Exec(session)
 
 	// Test query
 	var response interface{}
-	query := Db("test").Table("TableCompound").GetAllByIndex("full_name", []interface{}{"John", "Smith"})
-	res, err := query.Run(sess)
+	query := DB("test").Table("TableCompound").GetAllByIndex("full_name", []interface{}{"John", "Smith"})
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.One(&response)
 
 	c.Assert(err, test.IsNil)
 	c.Assert(response, jsonEquals, map[string]interface{}{"id": 1, "first_name": "John", "last_name": "Smith", "gender": "M"})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectBetween(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table1").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table1").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table1").Insert(objList).Exec(sess)
+	DB("test").Table("Table1").Insert(objList).Exec(session)
 
 	// Test query
 	var response []interface{}
-	query := Db("test").Table("Table1").Between(1, 3).OrderBy("id")
-	res, err := query.Run(sess)
+	query := DB("test").Table("Table1").Between(1, 3).OrderBy("id")
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.All(&response)
@@ -166,23 +178,25 @@ func (s *RethinkSuite) TestSelectBetween(c *test.C) {
 		map[string]interface{}{"num": 0, "id": 1, "g2": 1, "g1": 1},
 		map[string]interface{}{"num": 5, "id": 2, "g2": 2, "g1": 2},
 	})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectBetweenWithIndex(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table2").Exec(sess)
-	Db("test").Table("Table2").IndexCreate("num").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table2").Exec(session)
+	DB("test").Table("Table2").IndexCreate("num").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table2").Insert(objList).Exec(sess)
+	DB("test").Table("Table2").Insert(objList).Exec(session)
 
 	// Test query
 	var response []interface{}
-	query := Db("test").Table("Table2").Between(10, 50, BetweenOpts{
+	query := DB("test").Table("Table2").Between(10, 50, BetweenOpts{
 		Index: "num",
 	}).OrderBy("id")
-	res, err := query.Run(sess)
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.All(&response)
@@ -193,24 +207,26 @@ func (s *RethinkSuite) TestSelectBetweenWithIndex(c *test.C) {
 		map[string]interface{}{"num": 15, "id": 6, "g2": 1, "g1": 1},
 		map[string]interface{}{"num": 25, "id": 9, "g2": 3, "g1": 2},
 	})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectBetweenWithOptions(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table2").Exec(sess)
-	Db("test").Table("Table2").IndexCreate("num").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table2").Exec(session)
+	DB("test").Table("Table2").IndexCreate("num").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table2").Insert(objList).Exec(sess)
+	DB("test").Table("Table2").Insert(objList).Exec(session)
 
 	// Test query
 	var response []interface{}
-	query := Db("test").Table("Table2").Between(10, 50, BetweenOpts{
+	query := DB("test").Table("Table2").Between(10, 50, BetweenOpts{
 		Index:      "num",
 		RightBound: "closed",
 	}).OrderBy("id")
-	res, err := query.Run(sess)
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.All(&response)
@@ -222,20 +238,22 @@ func (s *RethinkSuite) TestSelectBetweenWithOptions(c *test.C) {
 		map[string]interface{}{"num": 50, "id": 8, "g2": 2, "g1": 4},
 		map[string]interface{}{"num": 25, "id": 9, "g2": 3, "g1": 2},
 	})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectFilterImplicit(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table1").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table1").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table1").Insert(objList).Exec(sess)
+	DB("test").Table("Table1").Insert(objList).Exec(session)
 
 	// Test query
 	var response []interface{}
-	query := Db("test").Table("Table1").Filter(Row.Field("num").Ge(50)).OrderBy("id")
-	res, err := query.Run(sess)
+	query := DB("test").Table("Table1").Filter(Row.Field("num").Ge(50)).OrderBy("id")
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.All(&response)
@@ -245,22 +263,24 @@ func (s *RethinkSuite) TestSelectFilterImplicit(c *test.C) {
 		map[string]interface{}{"num": 100, "id": 5, "g2": 3, "g1": 2},
 		map[string]interface{}{"num": 50, "id": 8, "g2": 2, "g1": 4},
 	})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectFilterFunc(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").Exec(sess)
-	Db("test").TableCreate("Table1").Exec(sess)
+	DBCreate("test").Exec(session)
+	DB("test").TableCreate("Table1").Exec(session)
 
 	// Insert rows
-	Db("test").Table("Table1").Insert(objList).Exec(sess)
+	DB("test").Table("Table1").Insert(objList).Exec(session)
 
 	// Test query
 	var response []interface{}
-	query := Db("test").Table("Table1").Filter(func(row Term) Term {
+	query := DB("test").Table("Table1").Filter(func(row Term) Term {
 		return row.Field("num").Ge(50)
 	}).OrderBy("id")
-	res, err := query.Run(sess)
+	res, err := query.Run(session)
 	c.Assert(err, test.IsNil)
 
 	err = res.All(&response)
@@ -270,13 +290,15 @@ func (s *RethinkSuite) TestSelectFilterFunc(c *test.C) {
 		map[string]interface{}{"num": 100, "id": 5, "g2": 3, "g1": 2},
 		map[string]interface{}{"num": 50, "id": 8, "g2": 2, "g1": 4},
 	})
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestSelectManyRows(c *test.C) {
 	// Ensure table + database exist
-	DbCreate("test").RunWrite(sess)
-	Db("test").TableCreate("TestMany").RunWrite(sess)
-	Db("test").Table("TestMany").Delete().RunWrite(sess)
+	DBCreate("test").RunWrite(session)
+	DB("test").TableCreate("TestMany").RunWrite(session)
+	DB("test").Table("TestMany").Delete().RunWrite(session)
 
 	// Insert rows
 	for i := 0; i < 100; i++ {
@@ -289,11 +311,11 @@ func (s *RethinkSuite) TestSelectManyRows(c *test.C) {
 			})
 		}
 
-		Db("test").Table("TestMany").Insert(data).Run(sess)
+		DB("test").Table("TestMany").Insert(data).RunWrite(session)
 	}
 
 	// Test query
-	res, err := Db("test").Table("TestMany").Run(sess, RunOpts{
+	res, err := DB("test").Table("TestMany").Run(session, RunOpts{
 		MaxBatchRows: 1,
 	})
 	c.Assert(err, test.IsNil)
@@ -306,6 +328,8 @@ func (s *RethinkSuite) TestSelectManyRows(c *test.C) {
 
 	c.Assert(res.Err(), test.IsNil)
 	c.Assert(n, test.Equals, 10000)
+
+	res.Close()
 }
 
 func (s *RethinkSuite) TestConcurrentSelectManyWorkers(c *test.C) {
@@ -317,28 +341,27 @@ func (s *RethinkSuite) TestConcurrentSelectManyWorkers(c *test.C) {
 	sess, _ := Connect(ConnectOpts{
 		Address: url,
 		AuthKey: authKey,
-
 		MaxOpen: 200,
 		MaxIdle: 200,
 	})
 
 	// Ensure table + database exist
-	DbCreate("test").RunWrite(sess)
-	Db("test").TableDrop("TestConcurrent").RunWrite(sess)
-	Db("test").TableCreate("TestConcurrent").RunWrite(sess)
-	Db("test").TableDrop("TestConcurrent2").RunWrite(sess)
-	Db("test").TableCreate("TestConcurrent2").RunWrite(sess)
+	DBCreate("test").RunWrite(sess)
+	DB("test").TableDrop("TestConcurrent").RunWrite(sess)
+	DB("test").TableCreate("TestConcurrent").RunWrite(sess)
+	DB("test").TableDrop("TestConcurrent2").RunWrite(sess)
+	DB("test").TableCreate("TestConcurrent2").RunWrite(sess)
 
 	// Insert rows
 	for j := 0; j < 200; j++ {
-		Db("test").Table("TestConcurrent").Insert(map[string]interface{}{
+		DB("test").Table("TestConcurrent").Insert(map[string]interface{}{
 			"id": j,
 			"i":  j,
-		}).Run(sess)
-		Db("test").Table("TestConcurrent2").Insert(map[string]interface{}{
+		}).Exec(sess)
+		DB("test").Table("TestConcurrent2").Insert(map[string]interface{}{
 			"j": j,
 			"k": j * 2,
-		}).Run(sess)
+		}).Exec(sess)
 	}
 
 	// Test queries concurrently
@@ -351,7 +374,7 @@ func (s *RethinkSuite) TestConcurrentSelectManyWorkers(c *test.C) {
 	for i := 0; i < numWorkers; i++ {
 		go func() {
 			for _ = range queryChan {
-				res, err := Db("test").Table("TestConcurrent2").EqJoin("j", Db("test").Table("TestConcurrent")).Zip().Run(sess)
+				res, err := DB("test").Table("TestConcurrent2").EqJoin("j", DB("test").Table("TestConcurrent")).Zip().Run(sess)
 				if err != nil {
 					doneChan <- err
 					return
@@ -373,7 +396,7 @@ func (s *RethinkSuite) TestConcurrentSelectManyWorkers(c *test.C) {
 					return
 				}
 
-				res, err = Db("test").Table("TestConcurrent").Get(response[rand.Intn(len(response))]["id"]).Run(sess)
+				res, err = DB("test").Table("TestConcurrent").Get(response[rand.Intn(len(response))]["id"]).Run(sess)
 				if err != nil {
 					doneChan <- err
 					return
@@ -419,15 +442,15 @@ func (s *RethinkSuite) TestConcurrentSelectManyRows(c *test.C) {
 	}
 
 	// Ensure table + database exist
-	DbCreate("test").RunWrite(sess)
-	Db("test").TableCreate("TestMany").RunWrite(sess)
-	Db("test").Table("TestMany").Delete().RunWrite(sess)
+	DBCreate("test").RunWrite(session)
+	DB("test").TableCreate("TestMany").RunWrite(session)
+	DB("test").Table("TestMany").Delete().RunWrite(session)
 
 	// Insert rows
 	for i := 0; i < 100; i++ {
-		Db("test").Table("TestMany").Insert(map[string]interface{}{
+		DB("test").Table("TestMany").Insert(map[string]interface{}{
 			"i": i,
-		}).Run(sess)
+		}).Exec(session)
 	}
 
 	// Test queries concurrently
@@ -436,7 +459,7 @@ func (s *RethinkSuite) TestConcurrentSelectManyRows(c *test.C) {
 
 	for i := 0; i < attempts; i++ {
 		go func(i int, c chan error) {
-			res, err := Db("test").Table("TestMany").Run(sess)
+			res, err := DB("test").Table("TestMany").Run(session)
 			if err != nil {
 				c <- err
 				return
@@ -453,6 +476,8 @@ func (s *RethinkSuite) TestConcurrentSelectManyRows(c *test.C) {
 				c <- fmt.Errorf("expected response length 100, received %d", len(response))
 				return
 			}
+
+			res.Close()
 
 			c <- nil
 		}(i, waitChannel)

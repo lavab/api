@@ -2,6 +2,93 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## v1.0.0-RC.1 - 2015-06-07
+In an attempt to make this library more "idiomatic" some functions have been renamed, for the full list of changes see below.
+
+### Added
+ - Added more documentation.
+ - Added `Shards`, `Replicas` and `PrimaryReplicaTag` optional arguments in `TableCreateOpts`.
+ - Added `MultiGroup` and `MultiGroupByIndex` which are equivalent to the running `group` with the `multi` optional argument set to true.
+
+### Changed 
+ - Renamed `Db` to `DB`.
+ - Renamed `DbCreate` to `DBCreate`.
+ - Renamed `DbDrop` to `DBDrop`.
+ - Renamed `RqlConnectionError` to `RQLConnectionError`.
+ - Renamed `RqlDriverError` to `RQLDriverError`.
+ - Renamed `RqlClientError` to `RQLClientError`.
+ - Renamed `RqlRuntimeError` to `RQLRuntimeError`.
+ - Renamed `RqlCompileError` to `RQLCompileError`.
+ - Renamed `Js` to `JS`.
+ - Renamed `Json` to `JSON`.
+ - Renamed `Http` to `HTTP`.
+ - Renamed `GeoJson` to `GeoJSON`.
+ - Renamed `ToGeoJson` to `ToGeoJSON`.
+ - Renamed `WriteChanges` to `ChangeResponse`, this is now a general type and can be used when dealing with changefeeds.
+ - Removed depth limit when encoding values using `Expr`
+
+### Fixed
+ - Fixed issue causing inconsistent results when unmarshaling query response into structs (#192)
+ - Fixed issue causing errors when closing a changefeed cursor (#191)
+ - Fixed issue causing nodes to remain unhealthy when host discovery is disabled (#195)
+
+### Removed
+ - Removed `CacheSize` and `DataCenter` optional arguments in `TableCreateOpts`.
+ - Removed `CacheSize` optional argument from `InsertOpts`
+
+## v0.7.2 - 2015-05-05
+### Added
+ - Added support for connecting to a server using TLS (#179)
+
+### Fixed
+ - Fixed issue causing driver to fail to connect to servers with the HTTP admin interface disabled (#181)
+ - Fixed errors in documentation (#182, #184)
+ - Fixed RunWrite not closing the cursor (#185)
+
+## v0.7.1 - 2015-04-19
+### Changed
+- Improved logging of connection errors.
+
+### Fixed
+- Fixed bug causing empty times to be inserted into the DB even when the omitempty tag was set.
+- Fixed node status refresh loop leaking goroutines.
+
+## v0.7.0 - 2015-03-30
+
+This release includes support for RethinkDB 2.0 and connecting to clusters. To connect to a cluster you should use the new `Addresses` field in `ConnectOpts`, for example:
+
+```go
+session, err := r.Connect(r.ConnectOpts{
+    Addresses: []string{"localhost:28015", "localhost:28016"},
+})
+if err != nil {
+    log.Fatalln(err.Error())
+}
+```
+
+Also added was the ability to read from a cursor using a channel, this is especially useful when using changefeeds. For more information see this [gist](https://gist.github.com/dancannon/2865686d163ed78bbc3c)
+
+```go
+cursor, err := r.Table("items").Changes()
+ch := make(chan map[string]interface{})
+cursor.Listen(ch)
+```
+
+For more details checkout the [README](https://github.com/dancannon/gorethink/blob/master/README.md) and [godoc](https://godoc.org/github.com/dancannon/gorethink). As always if you have any further questions send me a message on [Gitter](https://gitter.im/dancannon/gorethink).
+
+- Added the ability to connect to multiple nodes, queries are then distributed between these nodes. If a node stops responding then queries stop being sent to this node.
+- Added the `DiscoverHosts` optional argument to `ConnectOpts`, when this value is `true` the driver will listen for new nodes added to the cluster.
+- Added the `Addresses` optional argument to `ConnectOpts`, this allows the driver to connect to multiple nodes in a cluster.
+- Added the `IncludeStates` optional argument to `Changes`.
+- Added `MinVal` and `MaxVal` which represent the smallest and largest possible values.
+- Added the `Listen` cursor helper function which publishes database results to a channel.
+- Added support for optional  arguments for the `Wait` function.
+- Added the `Type` function to the `Cursor`, by default this value will be "Cursor" unless using a changefeed.
+- Changed the `IndexesOf` function to `OffsetsOf` .
+- Changed driver to use the v0.4 protocol (used to use v0.3).
+- Fixed geometry tests not properly checking the expected results.
+- Fixed bug causing nil pointer panics when using an `Unmarshaler`
+- Fixed dropped millisecond precision if given value is too old
 
 ## v0.6.3 - 2015-03-04
 ### Added
@@ -80,7 +167,7 @@ Internal Changes
 
 - Updated the driver to support RethinkDB v1.14 (#116)
 - Added the Binary data type
-- Added the Binary command which takes a `[]byte`, `io.Reader` or `bytes.Buffer{}` as an argument.
+- Added the Binary command which takes a `[]byte` or `bytes.Buffer{}` as an argument.
 - Added the `BinaryFormat` optional argument to `RunOpts` 
 - Added the `GroupFormat` optional argument to `RunOpts` 
 - Added the `ArrayLimit` optional argument to `RunOpts` 
