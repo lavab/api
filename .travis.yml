@@ -21,4 +21,4 @@ script:
   - godep go test -cpu=2 -covermode=atomic ./...
 
 after_success:
-  - ./run 'if ["$TRAVIS_PULL_REQUEST" = "false"]; then docker build -t lavab/api:$TRAVIS_BRANCH && docker push lavab/api; fi'
+  - ./run 'if [\'$TRAVIS_PULL_REQUEST\' = \'false\']; then docker build -t lavab/api:$TRAVIS_BRANCH && docker push lavab/api; fi'
