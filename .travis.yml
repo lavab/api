@@ -17,7 +17,7 @@ script:
   - godep go test -cpu=2 -covermode=atomic ./...
 after_success:
   - ./run 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker login --username="$DOCKER_USER"
-    --password="$DOCKER_PASS" docker build -t lavab/api:$TRAVIS_BRANCH . && docker push
+    --password="$DOCKER_PASS" && docker build -t lavab/api:$TRAVIS_BRANCH . && docker push
     lavab/api; fi'
 env:
   global:
