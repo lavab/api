@@ -1,0 +1,24 @@
+language: go
+
+go:
+  - 1.4
+
+before_install:
+  - go get -v golang.org/x/tools/cmd/vet
+  - go get -v golang.org/x/tools/cmd/cover
+  - go get -v github.com/golang/lint/golint
+  - go get -v github.com/tools/godep
+
+install:
+  - curl -sLo - http://j.mp/install-travis-docker | sh -xe
+  - go install -race -v std
+  - godep go install -race -v ./...
+
+script:
+  - godep go vet ./...
+  - $HOME/gopath/bin/golint .
+  - godep go test -cpu=2 -race -v ./...
+  - godep go test -cpu=2 -covermode=atomic ./...
+
+after_success:
+  - ./run 'if ["$TRAVIS_PULL_REQUEST" = "false"]; then docker build -t lavab/api:$TRAVIS_BRANCH && docker push lavab/api; fi'
