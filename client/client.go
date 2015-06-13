@@ -78,21 +78,21 @@ func (c *Client) Loop() {
 			d, ok := c.Incoming[resp.ID]
 			c.RUnlock()
 
-			go func(resp *Response) {
+			go func() {
 				if ok {
 					d <- resp
 				}
-			}(resp)
+			}()
 		} else {
 			// Run event handlers
 			for _, handler := range c.Handlers {
-				go func(resp *Response) {
+				go func(handler func(ev *Event)) {
 					handler(&Event{
 						Type: resp.Type,
 						ID:   resp.ID,
 						Name: resp.Name,
 					})
-				}(resp)
+				}(handler)
 			}
 		}
 	case <-c.SockJS.Reconnected:
@@ -123,8 +123,6 @@ func (c *Client) Receive(id string) (*Response, error) {
 	case data := <-c.Incoming[id]:
 		return data, nil
 	}
-
-	return nil, errors.New("This shouldn't happen!")
 }
 
 func (c *Client) Request(method, path string, headers map[string]string, body interface{}) ([]string, string, error) {
