@@ -1,9 +1,12 @@
 package routes
 
 import (
+	"encoding/base64"
 	"net/http"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
+	r "github.com/dancannon/gorethink"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -17,60 +20,83 @@ type FilesListResponse struct {
 	Files   *[]*models.File `json:"files,omitempty"`
 }
 
-func FilesList(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
-	query := r.URL.Query()
-	email := query.Get("email")
-	name := query.Get("name")
+	var (
+		query  = req.URL.Query()
+		sTags  = query.Get("sTags")
+		result []*models.File
+	)
 
-	if email == "" || name == "" {
-		utils.JSONResponse(w, 400, &FilesListResponse{
-			Success: false,
-			Message: "No email or name in get params",
-		})
-		return
-	}
-
-	files, err := env.Files.GetInEmail(session.Owner, email, name)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to fetch files")
-
-		utils.JSONResponse(w, 500, &FilesListResponse{
-			Success: false,
-			Message: "Internal error (code FI/LI/01)",
-		})
-		return
+	if sTags == "" {
+		cursor, err := r.Table("files").GetAllByIndex("owner", session.Owner).Run(env.Rethink)
+		if err != nil {
+			utils.JSONResponse(w, 500, &FilesListResponse{
+				Success: false,
+				Message: "Internal error (code FI/LI/01)",
+			})
+			return
+		}
+		defer cursor.Close()
+		if err := cursor.All(&result); err != nil {
+			utils.JSONResponse(w, 500, &FilesListResponse{
+				Success: false,
+				Message: "Internal error (code FI/LI/02)",
+			})
+			return
+		}
+	} else {
+		tags := strings.Split(sTags, ",")
+		ids := []interface{}{}
+		for _, tag := range tags {
+			ids = append(ids, []interface{}{
+				session.Owner,
+				tag,
+			})
+		}
+		cursor, err := r.Table("files").GetAllByIndex("ownerTags", ids...).Run(env.Rethink)
+		if err != nil {
+			utils.JSONResponse(w, 500, &FilesListResponse{
+				Success: false,
+				Message: "Internal error (code FI/LI/03)",
+			})
+			return
+		}
+		defer cursor.Close()
+		if err := cursor.All(&result); err != nil {
+			utils.JSONResponse(w, 500, &FilesListResponse{
+				Success: false,
+				Message: "Internal error (code FI/LI/04)",
+			})
+			return
+		}
 	}
 
 	utils.JSONResponse(w, 200, &FilesListResponse{
 		Success: true,
-		Files:   &files,
+		Files:   &result,
 	})
 }
 
 type FilesCreateRequest struct {
-	Data            string   `json:"data" schema:"data"`
-	Name            string   `json:"name" schema:"name"`
-	Encoding        string   `json:"encoding" schema:"encoding"`
-	VersionMajor    int      `json:"version_major" schema:"version_major"`
-	VersionMinor    int      `json:"version_minor" schema:"version_minor"`
-	PGPFingerprints []string `json:"pgp_fingerprints" schema:"pgp_fingerprints"`
+	Name string      `json:"name" schema:"name"`
+	Meta interface{} `json:"meta" schema:"meta"`
+	Body string      `json:"body" schema:"body"`
+	Tags []string    `json:"tags" schema:"tags"`
 }
 
 type FilesCreateResponse struct {
-	Success bool         `json:"success"`
-	Message string       `json:"message"`
-	File    *models.File `json:"file,omitempty"`
+	Success bool    `json:"success"`
+	Message string  `json:"message"`
+	ID      *string `json:"file,omitempty"`
 }
 
 // FilesCreate creates a new file
-func FilesCreate(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input FilesCreateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -86,26 +112,22 @@ func FilesCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the current session from the middleware
 	session := c.Env["token"].(*models.Token)
 
-	// Ensure that the input data isn't empty
-	if input.Data == "" || input.Name == "" || input.Encoding == "" {
+	// Decode the body
+	body, err := base64.StdEncoding.DecodeString(input.Body)
+	if err != nil {
 		utils.JSONResponse(w, 400, &FilesCreateResponse{
 			Success: false,
-			Message: "Invalid request",
+			Message: "Invalid input format, " + err.Error(),
 		})
 		return
 	}
 
 	// Create a new file struct
 	file := &models.File{
-		Encrypted: models.Encrypted{
-			Encoding:        input.Encoding,
-			Data:            input.Data,
-			Schema:          "file",
-			VersionMajor:    input.VersionMajor,
-			VersionMinor:    input.VersionMinor,
-			PGPFingerprints: input.PGPFingerprints,
-		},
 		Resource: models.MakeResource(session.Owner, input.Name),
+		Meta:     input.Meta,
+		Body:     body,
+		Tags:     input.Tags,
 	}
 
 	// Insert the file into the database
@@ -124,7 +146,7 @@ func FilesCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 201, &FilesCreateResponse{
 		Success: true,
 		Message: "A new file was successfully created",
-		File:    file,
+		ID:      &file.ID,
 	})
 }
 
@@ -136,7 +158,7 @@ type FilesGetResponse struct {
 }
 
 // FilesGet gets the requested file from the database
-func FilesGet(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesGet(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
@@ -168,12 +190,10 @@ func FilesGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // FilesUpdateRequest is the payload passed to PUT /files/:id
 type FilesUpdateRequest struct {
-	Data            string   `json:"data" schema:"data"`
-	Name            string   `json:"name" schema:"name"`
-	Encoding        string   `json:"encoding" schema:"encoding"`
-	VersionMajor    *int     `json:"version_major" schema:"version_major"`
-	VersionMinor    *int     `json:"version_minor" schema:"version_minor"`
-	PGPFingerprints []string `json:"pgp_fingerprints" schema:"pgp_fingerprints"`
+	Name *string     `json:"name" schema:"name"`
+	Meta interface{} `json:"meta" schema:"meta"`
+	Body []byte      `json:"body" schema:"body"`
+	Tags []string    `json:"tags" schema:"tags"`
 }
 
 // FilesUpdateResponse contains the result of the FilesUpdate request.
@@ -184,10 +204,10 @@ type FilesUpdateResponse struct {
 }
 
 // FilesUpdate updates an existing file in the database
-func FilesUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input FilesUpdateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
 		env.Log.WithFields(logrus.Fields{
 			"error": err.Error(),
@@ -222,28 +242,20 @@ func FilesUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if input.Data != "" {
-		file.Data = input.Data
+	if input.Name != nil {
+		file.Name = *input.Name
 	}
 
-	if input.Name != "" {
-		file.Name = input.Name
+	if input.Meta != nil {
+		file.Meta = input.Meta
 	}
 
-	if input.Encoding != "" {
-		file.Encoding = input.Encoding
+	if input.Body != nil {
+		file.Body = input.Body
 	}
 
-	if input.VersionMajor != nil {
-		file.VersionMajor = *input.VersionMajor
-	}
-
-	if input.VersionMinor != nil {
-		file.VersionMinor = *input.VersionMinor
-	}
-
-	if input.PGPFingerprints != nil {
-		file.PGPFingerprints = input.PGPFingerprints
+	if input.Tags != nil {
+		file.Tags = input.Tags
 	}
 
 	// Perform the update
@@ -275,7 +287,7 @@ type FilesDeleteResponse struct {
 }
 
 // FilesDelete removes a file from the database
-func FilesDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {

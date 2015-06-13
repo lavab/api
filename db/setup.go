@@ -72,7 +72,15 @@ func Setup(opts r.ConnectOpts) error {
 		r.DB(d).Table("files").IndexCreate("name").Exec(ss)
 		r.DB(d).Table("files").IndexCreate("date_created").Exec(ss)
 		r.DB(d).Table("files").IndexCreate("date_modified").Exec(ss)
-
+		r.DB(d).Table("files").IndexCreate("tags", r.IndexCreateOpts{Multi: true}).Exec(ss)
+		r.DB(d).Table("files").IndexCreateFunc("ownerTags", func(row r.Term) r.Term {
+			return row.Field("tags").Map(func(tag r.Term) []interface{} {
+				return []interface{}{
+					row.Field("owner"),
+					tag,
+				}
+			})
+		}, r.IndexCreateOpts{Multi: true})
 		r.DB(d).TableCreate("keys").Exec(ss)
 		r.DB(d).Table("keys").IndexCreate("owner").Exec(ss)
 		r.DB(d).Table("keys").IndexCreate("date_created").Exec(ss)
