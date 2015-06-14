@@ -393,6 +393,12 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	idHash := sha256.Sum256([]byte(resource.ID))
 	messageID := hex.EncodeToString(idHash[:]) + "@" + env.Config.EmailDomain
 
+	// Determine if email is secure
+	secure := true
+	if input.Kind == "raw" {
+		secure = false
+	}
+
 	// Create a new email struct
 	email := &models.Email{
 		Resource:  resource,
@@ -415,6 +421,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		ReplyTo:     input.ReplyTo,
 
 		Status: "queued",
+		Secure: secure,
 	}
 
 	// Insert the email into the database

@@ -41,4 +41,6 @@ type Email struct {
 
 	// received or (queued|processed)
 	Status string `json:"status" gorethink:"status"`
+
+	Secure bool `json:"secure" gorethink:"secure"`
 }
