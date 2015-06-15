@@ -25,7 +25,7 @@ func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	var (
 		query  = req.URL.Query()
-		sTags  = query.Get("sTags")
+		sTags  = query.Get("tags")
 		result []*models.File
 	)
 
