@@ -4,7 +4,19 @@ package models
 type File struct {
 	Resource
 
-	Meta interface{} `json:"meta" gorethink:"meta"`
-	Body []byte      `json:"body" gorethink:"body"`
-	Tags []string    `json:"tags" gorethink:"tags"`
+	Meta FileMeta `json:"meta" gorethink:"meta"`
+	Body []byte   `json:"body" gorethink:"body"`
+	Tags []string `json:"tags" gorethink:"tags"`
+}
+
+type FileMeta map[string]interface{}
+
+func (f FileMeta) ContentType() string {
+	if a, ok := f["content_type"]; ok {
+		if b, ok := a.(string); ok {
+			return b
+		}
+	}
+
+	return ""
 }

@@ -80,10 +80,10 @@ func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 }
 
 type FilesCreateRequest struct {
-	Name string      `json:"name" schema:"name"`
-	Meta interface{} `json:"meta" schema:"meta"`
-	Body string      `json:"body" schema:"body"`
-	Tags []string    `json:"tags" schema:"tags"`
+	Name string                 `json:"name" schema:"name"`
+	Meta map[string]interface{} `json:"meta" schema:"meta"`
+	Body string                 `json:"body" schema:"body"`
+	Tags []string               `json:"tags" schema:"tags"`
 }
 
 type FilesCreateResponse struct {
@@ -190,10 +190,10 @@ func FilesGet(c web.C, w http.ResponseWriter, req *http.Request) {
 
 // FilesUpdateRequest is the payload passed to PUT /files/:id
 type FilesUpdateRequest struct {
-	Name *string     `json:"name" schema:"name"`
-	Meta interface{} `json:"meta" schema:"meta"`
-	Body []byte      `json:"body" schema:"body"`
-	Tags []string    `json:"tags" schema:"tags"`
+	Name *string                `json:"name" schema:"name"`
+	Meta map[string]interface{} `json:"meta" schema:"meta"`
+	Body []byte                 `json:"body" schema:"body"`
+	Tags []string               `json:"tags" schema:"tags"`
 }
 
 // FilesUpdateResponse contains the result of the FilesUpdate request.
