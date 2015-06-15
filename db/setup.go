@@ -115,6 +115,12 @@ func Setup(opts r.ConnectOpts) error {
 				row.Field("owner"),
 			}
 		}).Exec(ss)
+		r.DB(d).Table("threads").IndexCreateFunc("threadAndDate", func(row r.Term) interface{} {
+			return []interface{}{
+				row.Field("thread"),
+				row.Field("date_created"),
+			}
+		}).Exec(ss)
 
 		r.DB(d).TableCreate("tokens").Exec(ss)
 		r.DB(d).Table("tokens").IndexCreate("name").Exec(ss)
