@@ -66,6 +66,12 @@ func Setup(opts r.ConnectOpts) error {
 				row.Field("status"),
 			}
 		}).Exec(ss)
+		r.DB(d).Table("emails").IndexCreateFunc("threadAndDate", func(row r.Term) interface{} {
+			return []interface{}{
+				row.Field("thread"),
+				row.Field("date_created"),
+			}
+		}).Exec(ss)
 
 		r.DB(d).TableCreate("files").Exec(ss)
 		r.DB(d).Table("files").IndexCreate("owner").Exec(ss)
@@ -113,12 +119,6 @@ func Setup(opts r.ConnectOpts) error {
 			return []interface{}{
 				row.Field("subject_hash"),
 				row.Field("owner"),
-			}
-		}).Exec(ss)
-		r.DB(d).Table("threads").IndexCreateFunc("threadAndDate", func(row r.Term) interface{} {
-			return []interface{}{
-				row.Field("thread"),
-				row.Field("date_created"),
 			}
 		}).Exec(ss)
 
