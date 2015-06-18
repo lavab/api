@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"encoding/base64"
 	"net/http"
 	"strings"
 
@@ -111,16 +110,6 @@ func FilesCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Fetch the current session from the middleware
 	session := c.Env["token"].(*models.Token)
-
-	// Decode the body
-	body, err := base64.StdEncoding.DecodeString(input.Body)
-	if err != nil {
-		utils.JSONResponse(w, 400, &FilesCreateResponse{
-			Success: false,
-			Message: "Invalid input format, " + err.Error(),
-		})
-		return
-	}
 
 	// Create a new file struct
 	file := &models.File{
