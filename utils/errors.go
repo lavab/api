@@ -200,22 +200,34 @@ const (
 
 const (
 	FilesListUnknown = 15000 + iota
+	FilesListUnableToGet
 )
 
 const (
 	FilesCreateUnknown = 15100 + iota
+	FilesCreateInvalidInput
+	FilesCreateUnableToInsert
 )
 
 const (
 	FilesGetUnknown = 15200 + iota
+	FilesGetUnableToGet
+	FilesGetNotOwned
 )
 
 const (
 	FilesUpdateUnknown = 15300 + iota
+	FilesUpdateInvalidInput
+	FilesUpdateUnableToGet
+	FilesUpdateNotOwned
+	FilesUpdateUnableToUpdate
 )
 
 const (
 	FilesDeleteUnknown = 15400 + iota
+	FilesDeleteUnableToGet
+	FilesDeleteNotOwned
+	FilesDeleteUnableToDelete
 )
 
 const (

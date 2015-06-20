@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 	_ "golang.org/x/crypto/ripemd160"
 
@@ -246,7 +245,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 			if address.Owner != account.ID {
 				utils.JSONResponse(w, 403, utils.NewError(
-					utils.EmailsCreateUnableToParseAddress, "You're not the owner of that address.", false,
+					utils.EmailsCreateInvalidFromAddress, "You're not the owner of that address.", false,
 				))
 				return
 			}

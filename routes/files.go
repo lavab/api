@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	r "github.com/dancannon/gorethink"
 	"github.com/zenazn/goji/web"
 
@@ -23,28 +22,16 @@ func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
 	var (
-		query  = req.URL.Query()
-		sTags  = query.Get("tags")
-		result []*models.File
+		query         = req.URL.Query()
+		sTags         = query.Get("tags")
+		excludeBodies = query.Get("exclude_bodies")
+		result        []*models.File
 	)
 
+	q := r.Table("files")
+
 	if sTags == "" {
-		cursor, err := r.Table("files").GetAllByIndex("owner", session.Owner).Run(env.Rethink)
-		if err != nil {
-			utils.JSONResponse(w, 500, &FilesListResponse{
-				Success: false,
-				Message: "Internal error (code FI/LI/01)",
-			})
-			return
-		}
-		defer cursor.Close()
-		if err := cursor.All(&result); err != nil {
-			utils.JSONResponse(w, 500, &FilesListResponse{
-				Success: false,
-				Message: "Internal error (code FI/LI/02)",
-			})
-			return
-		}
+		q = q.GetAllByIndex("owner", session.Owner)
 	} else {
 		tags := strings.Split(sTags, ",")
 		ids := []interface{}{}
@@ -54,22 +41,27 @@ func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 				tag,
 			})
 		}
-		cursor, err := r.Table("files").GetAllByIndex("ownerTags", ids...).Run(env.Rethink)
-		if err != nil {
-			utils.JSONResponse(w, 500, &FilesListResponse{
-				Success: false,
-				Message: "Internal error (code FI/LI/03)",
-			})
-			return
-		}
-		defer cursor.Close()
-		if err := cursor.All(&result); err != nil {
-			utils.JSONResponse(w, 500, &FilesListResponse{
-				Success: false,
-				Message: "Internal error (code FI/LI/04)",
-			})
-			return
-		}
+
+		q = q.GetAllByIndex("ownerTags", ids...)
+	}
+
+	if excludeBodies == "true" {
+		q = q.Without("body")
+	}
+
+	cursor, err := q.Run(env.Rethink)
+	if err != nil {
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesListUnableToGet, err, false,
+		))
+		return
+	}
+	defer cursor.Close()
+	if err := cursor.All(&result); err != nil {
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesListUnableToGet, err, false,
+		))
+		return
 	}
 
 	utils.JSONResponse(w, 200, &FilesListResponse{
@@ -97,14 +89,9 @@ func FilesCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 	var input FilesCreateRequest
 	err := utils.ParseRequest(req, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &FilesCreateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.FilesCreateInvalidInput, err, false,
+		))
 		return
 	}
 
@@ -121,14 +108,9 @@ func FilesCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Insert the file into the database
 	if err := env.Files.Insert(file); err != nil {
-		utils.JSONResponse(w, 500, &FilesCreateResponse{
-			Success: false,
-			Message: "internal server error - FI/CR/01",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not insert a file into the database")
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesCreateUnableToInsert, err, true,
+		))
 		return
 	}
 
@@ -151,10 +133,9 @@ func FilesGet(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &FilesGetResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesGetUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -163,10 +144,9 @@ func FilesGet(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Check for ownership
 	if file.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &FilesGetResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesGetNotOwned, "You're not the owner of this file", false,
+		))
 		return
 	}
 
@@ -198,24 +178,18 @@ func FilesUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	var input FilesUpdateRequest
 	err := utils.ParseRequest(req, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &FilesUpdateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.FilesUpdateInvalidInput, err, false,
+		))
 		return
 	}
 
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &FilesUpdateResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.FilesUpdateUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -224,10 +198,9 @@ func FilesUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Check for ownership
 	if file.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &FilesUpdateResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesUpdateNotOwned, "You're not the owner of this file", false,
+		))
 		return
 	}
 
@@ -250,15 +223,9 @@ func FilesUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Perform the update
 	err = env.Files.UpdateID(c.URLParams["id"], file)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to update a file")
-
-		utils.JSONResponse(w, 500, &FilesUpdateResponse{
-			Success: false,
-			Message: "Internal error (code FI/UP/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesUpdateUnableToUpdate, err, true,
+		))
 		return
 	}
 
@@ -280,10 +247,9 @@ func FilesDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &FilesDeleteResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesDeleteUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -292,25 +258,18 @@ func FilesDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Check for ownership
 	if file.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &FilesDeleteResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesDeleteNotOwned, "You're not the owner of this file", false,
+		))
 		return
 	}
 
 	// Perform the deletion
 	err = env.Files.DeleteID(c.URLParams["id"])
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to delete a file")
-
-		utils.JSONResponse(w, 500, &FilesDeleteResponse{
-			Success: false,
-			Message: "Internal error (code FI/DE/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesDeleteUnableToDelete, err, true,
+		))
 		return
 	}
 
