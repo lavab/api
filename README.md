@@ -80,8 +80,6 @@ Usage of api:
   -slack_level="warning": minimal level required to have messages sent to slack
   -slack_url="": URL of the Slack Incoming webhook
   -slack_username="API": username of the Slack bot
-  -yubicloud_id="": YubiCloud API id
-  -yubicloud_key="": YubiCloud API key
 
 ```
 

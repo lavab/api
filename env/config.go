@@ -21,9 +21,6 @@ type Flags struct {
 	LookupdAddress string
 	NSQdAddress    string
 
-	YubiCloudID  string
-	YubiCloudKey string
-
 	SlackURL      string
 	SlackLevels   string
 	SlackChannel  string

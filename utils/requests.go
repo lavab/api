@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/getsentry/raven-go"
 	"github.com/gorilla/schema"
 
 	"github.com/lavab/api/env"
@@ -26,6 +27,28 @@ func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	// Get rid of the invalid status codes
 	if status < 100 || status > 599 {
 		status = 200
+	}
+
+	// Check if the data is an error
+	if err, ok := data.(*Error); ok {
+		if err.Severe {
+			packet := raven.NewPacket(
+				err.String(),
+				raven.NewException(errors.New(err.String()), raven.NewStacktrace(1, 3, nil)),
+			)
+			eid, _ := env.Raven.Capture(packet, nil)
+
+			env.Log.WithFields(logrus.Fields{
+				"location": err.Location,
+				"code":     err.Code,
+				"event_id": eid,
+			}).Error(err.Error)
+		} else {
+			env.Log.WithFields(logrus.Fields{
+				"location": err.Location,
+				"code":     err.Code,
+			}).Error(err.Error)
+		}
 	}
 
 	// Try to marshal the input

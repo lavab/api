@@ -9,7 +9,6 @@ import (
 
 	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
-	"github.com/lavab/api/factor"
 )
 
 var (
@@ -41,8 +40,6 @@ var (
 	Files *db.FilesTable
 	// Threads is the global instance of ThreadsTable
 	Threads *db.ThreadsTable
-	// Factors contains all currently registered factors
-	Factors map[string]factor.Factor
 	// Producer is the nsq producer used to send messages to other components of the system
 	Producer *nsq.Producer
 	// PasswordBF is the bloom filter used for leaked password matching
