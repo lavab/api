@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -23,43 +22,35 @@ func AuthMiddleware(c *web.C, h http.Handler) http.Handler {
 		// Read the Authorization header
 		header := r.Header.Get("Authorization")
 		if header == "" {
-			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
-				Success: false,
-				Message: "Missing auth token",
-			})
+			utils.JSONResponse(w, 401, utils.NewError(
+				utils.MiddlewareMissingToken, "Missing auth token", false,
+			))
 			return
 		}
 
 		// Split it into two parts
 		headerParts := strings.Split(header, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
-				Success: false,
-				Message: "Invalid authorization header",
-			})
+			utils.JSONResponse(w, 401, utils.NewError(
+				utils.MiddlewareInvalidFormat, "Invalid authorization header's format", false,
+			))
 			return
 		}
 
 		// Get the token from the database
 		token, err := env.Tokens.GetToken(headerParts[1])
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Cannot retrieve session from the database")
-
-			utils.JSONResponse(w, 401, &AuthMiddlewareResponse{
-				Success: false,
-				Message: "Invalid authorization token",
-			})
+			utils.JSONResponse(w, 401, utils.NewError(
+				utils.MiddlewareInvalidToken, err, false,
+			))
 			return
 		}
 
 		// Check if it's expired
 		if token.Expired() {
-			utils.JSONResponse(w, 419, &AuthMiddlewareResponse{
-				Success: false,
-				Message: "Authorization token has expired",
-			})
+			utils.JSONResponse(w, 401, utils.NewError(
+				utils.MiddlewareExpiredToken, "Your authentication token has expired", false,
+			))
 			env.Tokens.DeleteID(token.ID)
 			return
 		}

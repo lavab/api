@@ -295,6 +295,10 @@ const (
 
 const (
 	MiddlewareUnknown = 18000 + iota
+	MiddlewareMissingToken
+	MiddlewareInvalidFormat
+	MiddlewareInvalidToken
+	MiddlewareExpiredToken
 )
 
 const (
