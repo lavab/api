@@ -303,18 +303,34 @@ const (
 
 const (
 	ThreadsListUnknown = 19000 + iota
+	ThreadsListInvalidOffset
+	ThreadsListInvalidLimit
+	ThreadsListUnableToGet
+	ThreadsListUnableToCount
 )
 
 const (
 	ThreadsGetUnknown = 19100 + iota
+	ThreadsGetUnableToGet
+	ThreadsGetNotOwned
+	ThreadsGetUnableToFetchManifest
+	ThreadsGetUnableToFetchEmails
 )
 
 const (
 	ThreadsUpdateUnknown = 19200 + iota
+	ThreadsUpdateInvalidInput
+	ThreadsUpdateUnableToGet
+	ThreadsUpdateNotOwned
+	ThreadsUpdateUnableToUpdate
 )
 
 const (
 	ThreadsDeleteUnknown = 19300 + iota
+	ThreadsDeleteUnableToGet
+	ThreadsDeleteNotOwned
+	ThreadsDeleteUnableToDeleteThread
+	ThreadsDeleteUnableToDeleteEmails
 )
 
 const (
