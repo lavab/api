@@ -163,18 +163,39 @@ const (
 
 const (
 	EmailsListUnknown = 14000 + iota
+	EmailsListInvalidOffset
+	EmailsListInvalidLimit
+	EmailsListUnableToGet
+	EmailsListUnableToCount
 )
 
 const (
 	EmailsCreateUnknown = 14100 + iota
+	EmailsCreateInvalidInput
+	EmailsCreateUnableToFetchFiles
+	EmailsCreateFileNotOwned
+	EmailsCreateUnableToFetchAccount
+	EmailsCreateUnableToFetchLabel
+	EmailsCreateInvalidFromAddress
+	EmailsCreateUnableToFetchThread
+	EmailsCreateThreadNotOwned
+	EmailsCreateUnableToUpdateThread
+	EmailsCreateUnableToInsertThread
+	EmailsCreateUnableToInsertEmail
+	EmailsCreateUnableToQueue
 )
 
 const (
 	EmailsGetUnknown = 14200 + iota
+	EmailsGetUnableToGet
+	EmailsGetNotOwned
 )
 
 const (
 	EmailsDeleteUnknown = 14300 + iota
+	EmailsDeleteUnableToGet
+	EmailsDeleteNotOwned
+	EmailsDeleteUnableToDelete
 )
 
 const (

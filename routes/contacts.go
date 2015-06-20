@@ -254,8 +254,8 @@ func ContactsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Perform the deletion
 	err = env.Contacts.DeleteID(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, utils.NewError(
-			utils.ContactsDeleteUnableToDelete, "You're not the owner of this contact", true,
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.ContactsDeleteUnableToDelete, err, true,
 		))
 		return
 	}

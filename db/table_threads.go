@@ -140,7 +140,9 @@ func (t *ThreadsTable) List(
 		}, gorethink.BetweenOpts{
 			Index: "threadAndDate",
 		}).OrderBy(gorethink.OrderByOpts{Index: "threadAndDate"}).
-			Nth(0).Pluck("manifest"))
+			Nth(0).Default(map[string]interface{}{
+			"interface": nil,
+		}).Pluck("manifest"))
 	})
 
 	// Run the query
