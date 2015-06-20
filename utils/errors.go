@@ -9,19 +9,29 @@ import (
 )
 
 type Error struct {
-	Success  bool        `json:"success"`
-	Code     int         `json:"code,omitempty"`
-	Location string      `json:"location,omitempty"`
-	Error    interface{} `json:"error"`
-	Severe   bool        `json:"-"`
+	Success  bool   `json:"success"`
+	Code     int    `json:"code,omitempty"`
+	Location string `json:"location,omitempty"`
+	Error    string `json:"error"`
+	Severe   bool   `json:"-"`
 }
 
 func NewError(code int, input interface{}, severe bool) *Error {
 	_, file, line, _ := runtime.Caller(1)
 
+	var err string
+	switch v := input.(type) {
+	case error:
+		err = v.Error()
+	case string:
+		err = v
+	default:
+		err = fmt.Sprintf("%+v", v)
+	}
+
 	return &Error{
 		Code:     code,
-		Error:    input,
+		Error:    err,
 		Location: filepath.Base(file) + ":" + strconv.Itoa(line),
 		Severe:   severe,
 	}
@@ -41,14 +51,7 @@ func (e *Error) String() string {
 		buf.WriteString(": ")
 	}
 
-	switch v := e.Error.(type) {
-	case error:
-		buf.WriteString(v.Error())
-	case string:
-		buf.WriteString(v)
-	default:
-		buf.WriteString(fmt.Sprintf("%+v", v))
-	}
+	buf.WriteString(e.Error)
 
 	return buf.String()
 }
