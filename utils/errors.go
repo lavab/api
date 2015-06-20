@@ -160,3 +160,107 @@ const (
 	ContactsDeleteNotOwned
 	ContactsDeleteUnableToDelete
 )
+
+const (
+	EmailsListUnknown = 14000 + iota
+)
+
+const (
+	EmailsCreateUnknown = 14100 + iota
+)
+
+const (
+	EmailsGetUnknown = 14200 + iota
+)
+
+const (
+	EmailsDeleteUnknown = 14300 + iota
+)
+
+const (
+	FilesListUnknown = 15000 + iota
+)
+
+const (
+	FilesCreateUnknown = 15100 + iota
+)
+
+const (
+	FilesGetUnknown = 15200 + iota
+)
+
+const (
+	FilesUpdateUnknown = 15300 + iota
+)
+
+const (
+	FilesDeleteUnknown = 15400 + iota
+)
+
+const (
+	KeysListUnknown = 16000 + iota
+)
+
+const (
+	KeysCreateUnknown = 16100 + iota
+)
+
+const (
+	KeysGetUnknown = 16200 + iota
+)
+
+const (
+	KeysVoteUnknown = 16300 + iota
+)
+
+const (
+	LabelsListUnknown = 17000 + iota
+)
+
+const (
+	LabelsCreateUnknown = 17100 + iota
+)
+
+const (
+	LabelsGetUnknown = 17200 + iota
+)
+
+const (
+	LabelsUpdateUnknown = 17300 + iota
+)
+
+const (
+	LabelsDeleteUnknown = 17400 + iota
+)
+
+const (
+	MiddlewareUnknown = 18000 + iota
+)
+
+const (
+	ThreadsListUnknown = 19000 + iota
+)
+
+const (
+	ThreadsGetUnknown = 19100 + iota
+)
+
+const (
+	ThreadsUpdateUnknown = 19200 + iota
+)
+
+const (
+	ThreadsDeleteUnknown = 19300 + iota
+)
+
+const (
+	TokensGetUnknown = 20000 + iota
+)
+
+const (
+	TokensCreateUnknown = 20100 + iota
+)
+
+const (
+	TokensDeleteUnknown = 20200 + iota
+)
