@@ -260,22 +260,37 @@ const (
 
 const (
 	LabelsListUnknown = 17000 + iota
+	LabelsListUnableToFetchBuiltinLabels
+	LabelsListInvalidBuiltinLabels
+	LabelsListUnableToFetchAllLabels
 )
 
 const (
 	LabelsCreateUnknown = 17100 + iota
+	LabelsCreateInvalidInput
+	LabelsCreateAlreadyExists
+	LabelsCreateUnableToInsert
 )
 
 const (
 	LabelsGetUnknown = 17200 + iota
+	LabelsGetUnableToGet
+	LabelsGetNotOwned
 )
 
 const (
 	LabelsUpdateUnknown = 17300 + iota
+	LabelsUpdateInvalidInput
+	LabelsUpdateUnableToGet
+	LabelsUpdateNotOwned
+	LabelsUpdateUnableToUpdate
 )
 
 const (
 	LabelsDeleteUnknown = 17400 + iota
+	LabelsDeleteUnableToGet
+	LabelsDeleteNotOwned
+	LabelsDeleteUnableToDelete
 )
 
 const (
