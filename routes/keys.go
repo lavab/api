@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
@@ -28,10 +27,9 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 	// Get the username from the GET query
 	user := r.URL.Query().Get("user")
 	if user == "" {
-		utils.JSONResponse(w, 409, &KeysListResponse{
-			Success: false,
-			Message: "Invalid username",
-		})
+		utils.JSONResponse(w, 409, utils.NewError(
+			utils.KeysListInvalidUsername, "Invalid username", false,
+		))
 		return
 	}
 
@@ -39,20 +37,18 @@ func KeysList(w http.ResponseWriter, r *http.Request) {
 
 	address, err := env.Addresses.GetAddress(user)
 	if err != nil {
-		utils.JSONResponse(w, 409, &KeysListResponse{
-			Success: false,
-			Message: "Invalid address",
-		})
+		utils.JSONResponse(w, 409, utils.NewError(
+			utils.KeysListUnableToFetchAddress, err, false,
+		))
 		return
 	}
 
 	// Find all keys owner by user
 	keys, err := env.Keys.FindByOwner(address.Owner)
 	if err != nil {
-		utils.JSONResponse(w, 500, &KeysListResponse{
-			Success: false,
-			Message: "Internal server error (KE//LI/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.KeysListUnableToFetchKeys, err, true,
+		))
 		return
 	}
 
@@ -81,14 +77,9 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	var input KeysCreateRequest
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 409, &KeysCreateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 409, utils.NewError(
+			utils.KeysCreateInvalidInput, err, false,
+		))
 		return
 	}
 
@@ -98,45 +89,27 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Parse the armored key
 	entityList, err := openpgp.ReadArmoredKeyRing(strings.NewReader(input.Key))
 	if err != nil {
-		utils.JSONResponse(w, 409, &KeysCreateResponse{
-			Success: false,
-			Message: "Invalid key format",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"list":  entityList,
-		}).Warn("Cannot parse an armored key")
+		utils.JSONResponse(w, 409, utils.NewError(
+			utils.KeysCreateInvalidFormat, err, false,
+		))
 		return
 	}
 
 	// Parse using armor pkg
 	block, err := armor.Decode(strings.NewReader(input.Key))
 	if err != nil {
-		utils.JSONResponse(w, 409, &KeysCreateResponse{
-			Success: false,
-			Message: "Invalid key format",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"list":  entityList,
-		}).Warn("Cannot parse an armored key #2")
+		utils.JSONResponse(w, 409, utils.NewError(
+			utils.KeysCreateInvalidFormat, err, false,
+		))
 		return
 	}
 
 	// Get the account from db
 	account, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		utils.JSONResponse(w, 500, &KeysCreateResponse{
-			Success: false,
-			Message: "Internal server error - KE/CR/01",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    session.Owner,
-		}).Error("Cannot fetch user from database")
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.KeysCreateUnableToFetchAccount, err, true,
+		))
 		return
 	}
 
@@ -174,14 +147,9 @@ func KeysCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Try to insert it into the database
 	if err := env.Keys.Insert(key); err != nil {
-		utils.JSONResponse(w, 500, &KeysCreateResponse{
-			Success: false,
-			Message: "Internal server error - KE/CR/02",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not insert a key to the database")
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.KeysCreateUnableToInsert, err, true,
+		))
 		return
 	}
 
@@ -221,30 +189,18 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		// Resolve address
 		address, err := env.Addresses.GetAddress(username)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"name":  username,
-			}).Warn("Unable to fetch the requested address from the database")
-
-			utils.JSONResponse(w, 404, &KeysGetResponse{
-				Success: false,
-				Message: "No such address",
-			})
+			utils.JSONResponse(w, 404, utils.NewError(
+				utils.KeysGetUnableToFetchAddress, err, false,
+			))
 			return
 		}
 
 		// Get its owner
 		account, err := env.Accounts.GetAccount(address.Owner)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"name":  username,
-			}).Warn("Unable to fetch the requested account from the database")
-
-			utils.JSONResponse(w, 404, &KeysGetResponse{
-				Success: false,
-				Message: "No such account",
-			})
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.KeysGetUnableToFetchAccount, err, true,
+			))
 			return
 		}
 
@@ -253,14 +209,9 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 			// Fetch the requested key from the database
 			key2, err := env.Keys.FindByFingerprint(account.PublicKey)
 			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"error": err.Error(),
-				}).Warn("Unable to fetch the requested key from the database")
-
-				utils.JSONResponse(w, 500, &KeysGetResponse{
-					Success: false,
-					Message: "Invalid user public key ID",
-				})
+				utils.JSONResponse(w, 500, utils.NewError(
+					utils.KeysGetUnableToFetchKeyByFingerprint, err, true,
+				))
 				return
 			}
 
@@ -268,23 +219,16 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		} else {
 			keys, err := env.Keys.FindByOwner(account.ID)
 			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"error": err.Error(),
-					"owner": account.ID,
-				}).Warn("Unable to fetch user's keys from the database")
-
-				utils.JSONResponse(w, 500, &KeysGetResponse{
-					Success: false,
-					Message: "Cannot find keys assigned to the account",
-				})
+				utils.JSONResponse(w, 500, utils.NewError(
+					utils.KeysGetUnableToFetchKeysByOwner, err, true,
+				))
 				return
 			}
 
 			if len(keys) == 0 {
-				utils.JSONResponse(w, 500, &KeysGetResponse{
-					Success: false,
-					Message: "Account has no keys assigned to itself",
-				})
+				utils.JSONResponse(w, 404, utils.NewError(
+					utils.KeysGetAccountHasNoKeys, "This account has no keys", false,
+				))
 				return
 			}
 
@@ -295,14 +239,9 @@ func KeysGet(c web.C, w http.ResponseWriter, r *http.Request) {
 		// Fetch the requested key from the database
 		key2, err := env.Keys.FindByFingerprint(id)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Warn("Unable to fetch the requested key from the database")
-
-			utils.JSONResponse(w, 404, &KeysGetResponse{
-				Success: false,
-				Message: "Requested key does not exist on our server",
-			})
+			utils.JSONResponse(w, 404, utils.NewError(
+				utils.KeysGetUnableToFetchKeyByFingerprint, err, false,
+			))
 			return
 		}
 
@@ -324,8 +263,7 @@ type KeysVoteResponse struct {
 
 // KeysVote does *something* - TODO
 func KeysVote(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &KeysVoteResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
-	})
+	utils.JSONResponse(w, 501, utils.NewError(
+		utils.KeysVoteUnknown, "Sorry, not implemented yet", false,
+	))
 }

@@ -232,14 +232,26 @@ const (
 
 const (
 	KeysListUnknown = 16000 + iota
+	KeysListInvalidUsername
+	KeysListUnableToFetchAddress
+	KeysListUnableToFetchKeys
 )
 
 const (
 	KeysCreateUnknown = 16100 + iota
+	KeysCreateInvalidInput
+	KeysCreateInvalidFormat
+	KeysCreateUnableToFetchAccount
+	KeysCreateUnableToInsert
 )
 
 const (
 	KeysGetUnknown = 16200 + iota
+	KeysGetUnableToFetchAddress
+	KeysGetUnableToFetchAccount
+	KeysGetUnableToFetchKeyByFingerprint
+	KeysGetUnableToFetchKeysByOwner
+	KeysGetAccountHasNoKeys
 )
 
 const (
