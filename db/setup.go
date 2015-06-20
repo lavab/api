@@ -86,7 +86,7 @@ func Setup(opts r.ConnectOpts) error {
 					tag,
 				}
 			})
-		}, r.IndexCreateOpts{Multi: true})
+		}, r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.DB(d).TableCreate("keys").Exec(ss)
 		r.DB(d).Table("keys").IndexCreate("owner").Exec(ss)
 		r.DB(d).Table("keys").IndexCreate("date_created").Exec(ss)
