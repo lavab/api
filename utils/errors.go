@@ -313,7 +313,6 @@ const (
 	ThreadsGetUnknown = 19100 + iota
 	ThreadsGetUnableToGet
 	ThreadsGetNotOwned
-	ThreadsGetUnableToFetchManifest
 	ThreadsGetUnableToFetchEmails
 )
 
@@ -335,12 +334,22 @@ const (
 
 const (
 	TokensGetUnknown = 20000 + iota
+	TokensGetUnableToGet
 )
 
 const (
 	TokensCreateUnknown = 20100 + iota
+	TokensCreateInvalidInput
+	TokensCreateInvalidType
+	TokensCreateUnableToGetAccount
+	TokensCreateInvalidStatus
+	TokensCreateInvalidPassword
+	TokensCreateUnableToUpdate
+	TokensCreateUnableToInsert
 )
 
 const (
 	TokensDeleteUnknown = 20200 + iota
+	TokensDeleteUnableToGet
+	TokensDeleteUnableToDelete
 )

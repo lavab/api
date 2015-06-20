@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased][unreleased]
+### Added
+ - New file abstraction that allows storing custom plugins' data on
+   the server.
+ - Raven-based Sentry panic reporting.
+
+### Changed
+ - Replaced awful error messages with a proper error code and message
+   system. Sending actual errors, as the code is opensource anyways.
+
+### Fixed
+ - Fixed `threadAndDate` index creation not being executed.
+
+### Removed
+ - Removed old 2FA support.
+ - Removed tests.
+ - Removed Loggly support.
 
 ## [2.0.2] - 2015-05-19
 ### Added
