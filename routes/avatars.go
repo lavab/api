@@ -45,10 +45,9 @@ func Avatars(c web.C, w http.ResponseWriter, r *http.Request) {
 		var err error
 		width, err = strconv.Atoi(widthString)
 		if err != nil {
-			utils.JSONResponse(w, 400, map[string]interface{}{
-				"succes":  false,
-				"message": "Invalid width",
-			})
+			utils.JSONResponse(w, 400, utils.NewError(
+				utils.AvatarsInvalidWidth, "Invalid width", false,
+			))
 			return
 		}
 	}

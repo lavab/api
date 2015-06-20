@@ -118,3 +118,45 @@ const (
 	AccountsStartOnboardingMisconfigured
 	AccountsStartOnboardingUnableToInit
 )
+
+const (
+	AddressesListUnknown = 11000 + iota
+	AddressesListUnableToGet
+)
+
+const (
+	AvatarsUnknown = 12000 + iota
+	AvatarsInvalidWidth
+)
+
+const (
+	ContactsListUnknown = 13000 + iota
+	ContactsListUnableToGet
+)
+
+const (
+	ContactsCreateUnknown = 13100 + iota
+	ContactsCreateInvalidInput
+	ContactsCreateUnableToInsert
+)
+
+const (
+	ContactsGetUnknown = 13200 + iota
+	ContactsGetUnableToGet
+	ContactsGetNotOwned
+)
+
+const (
+	ContactsUpdateUnknown = 13300 + iota
+	ContactsUpdateInvalidInput
+	ContactsUpdateUnableToGet
+	ContactsUpdateNotOwned
+	ContactsUpdateUnableToUpdate
+)
+
+const (
+	ContactsDeleteUnknown = 13400 + iota
+	ContactsDeleteUnableToGet
+	ContactsDeleteNotOwned
+	ContactsDeleteUnableToDelete
+)
