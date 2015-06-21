@@ -120,7 +120,7 @@ type EmailsCreateRequest struct {
 	// Temporary partials if you're sending unencrypted
 	Subject     string `json:"subject"`
 	ContentType string `json:"content_type"`
-	ReplyTo     string `json:"reply_to"`
+	InReplyTo   string `json:"in_reply_to"`
 
 	SubjectHash string `json:"subject_hash"`
 }
@@ -306,6 +306,12 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			secure = "none"
 		}
 
+		if input.SubjectHash == "" {
+			// Generate the subject hash
+			shr := sha256.Sum256([]byte(prefixesRegex.ReplaceAllString(input.Subject, "")))
+			input.SubjectHash = hex.EncodeToString(shr[:])
+		}
+
 		thread := &models.Thread{
 			Resource:    models.MakeResource(account.ID, "Encrypted thread"),
 			Emails:      []string{resource.ID},
@@ -356,7 +362,7 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		Files:           input.Files,
 
 		ContentType: input.ContentType,
-		ReplyTo:     input.ReplyTo,
+		InReplyTo:   input.InReplyTo,
 
 		Status: "queued",
 		Secure: secure,
