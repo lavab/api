@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -34,15 +33,9 @@ func TokensGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	} else {
 		token, err = env.Tokens.GetToken(id)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"id":    id,
-			}).Warn("Unable to find the token")
-
-			utils.JSONResponse(w, 404, &TokensGetResponse{
-				Success: false,
-				Message: "Invalid token ID",
-			})
+			utils.JSONResponse(w, 404, utils.NewError(
+				utils.TokensGetUnableToGet, err, false,
+			))
 			return
 		}
 	}
@@ -64,11 +57,9 @@ type TokensCreateRequest struct {
 
 // TokensCreateResponse contains the result of the TokensCreate request.
 type TokensCreateResponse struct {
-	Success         bool          `json:"success"`
-	Message         string        `json:"message,omitempty"`
-	Token           *models.Token `json:"token,omitempty"`
-	FactorType      string        `json:"factor_type,omitempty"`
-	FactorChallenge string        `json:"factor_challenge,omitempty"`
+	Success bool          `json:"success"`
+	Message string        `json:"message,omitempty"`
+	Token   *models.Token `json:"token,omitempty"`
 }
 
 // TokensCreate allows logging in to an account.
@@ -77,23 +68,17 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	var input TokensCreateRequest
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 409, &TokensCreateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.TokensCreateInvalidInput, err, false,
+		))
 		return
 	}
 
 	// We can only create "auth" tokens now
 	if input.Type != "auth" {
-		utils.JSONResponse(w, 409, &TokensCreateResponse{
-			Success: false,
-			Message: "Only auth tokens are implemented",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.TokensCreateInvalidType, "Only auth tokens are implemented", false,
+		))
 		return
 	}
 
@@ -104,29 +89,26 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	// Check if account exists
 	user, err := env.Accounts.FindAccountByName(input.Username)
 	if err != nil {
-		utils.JSONResponse(w, 403, &TokensCreateResponse{
-			Success: false,
-			Message: "Wrong username or password",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.TokensCreateUnableToGetAccount, err, false,
+		))
 		return
 	}
 
 	// "registered" accounts can't log in
 	if user.Status == "registered" {
-		utils.JSONResponse(w, 403, &TokensCreateResponse{
-			Success: false,
-			Message: "Your account is not confirmed",
-		})
+		utils.JSONResponse(w, 403, utils.NewError(
+			utils.TokensCreateInvalidStatus, "Your account is not confirmed", false,
+		))
 		return
 	}
 
 	// Verify the password
 	valid, updated, err := user.VerifyPassword(input.Password)
 	if err != nil || !valid {
-		utils.JSONResponse(w, 403, &TokensCreateResponse{
-			Success: false,
-			Message: "Wrong username or password",
-		})
+		utils.JSONResponse(w, 403, utils.NewError(
+			utils.TokensCreateInvalidPassword, err, false,
+		))
 		return
 	}
 
@@ -135,54 +117,10 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 		user.DateModified = time.Now()
 		err := env.Accounts.UpdateID(user.ID, user)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"user":  user.Name,
-				"error": err.Error(),
-			}).Error("Could not update user")
-
-			// DO NOT RETURN!
-		}
-	}
-
-	// Check for 2nd factor
-	if user.FactorType != "" {
-		factor, ok := env.Factors[user.FactorType]
-		if ok {
-			// Verify the 2FA
-			verified, challenge, err := user.Verify2FA(factor, input.Token)
-			if err != nil {
-				utils.JSONResponse(w, 500, &TokensCreateResponse{
-					Success: false,
-					Message: "Internal 2FA error",
-				})
-
-				env.Log.WithFields(logrus.Fields{
-					"err":    err.Error(),
-					"factor": user.FactorType,
-				}).Warn("2FA authentication error")
-				return
-			}
-
-			// Token was probably empty. Return the challenge.
-			if !verified && challenge != "" {
-				utils.JSONResponse(w, 403, &TokensCreateResponse{
-					Success:         false,
-					Message:         "2FA token was not passed",
-					FactorType:      user.FactorType,
-					FactorChallenge: challenge,
-				})
-				return
-			}
-
-			// Token was incorrect
-			if !verified {
-				utils.JSONResponse(w, 403, &TokensCreateResponse{
-					Success:    false,
-					Message:    "Invalid token passed",
-					FactorType: user.FactorType,
-				})
-				return
-			}
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.TokensCreateUnableToUpdate, err, true,
+			))
+			return
 		}
 	}
 
@@ -197,7 +135,12 @@ func TokensCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert int into the database
-	env.Tokens.Insert(token)
+	if err := env.Tokens.Insert(token); err != nil {
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.TokensCreateUnableToInsert, err, true,
+		))
+		return
+	}
 
 	// Respond with the freshly created token
 	utils.JSONResponse(w, 201, &TokensCreateResponse{
@@ -228,29 +171,18 @@ func TokensDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	} else {
 		token, err = env.Tokens.GetToken(id)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"id":    id,
-			}).Warn("Unable to find the token")
-
-			utils.JSONResponse(w, 404, &TokensDeleteResponse{
-				Success: false,
-				Message: "Invalid token ID",
-			})
+			utils.JSONResponse(w, 404, utils.NewError(
+				utils.TokensDeleteUnableToGet, err, false,
+			))
 			return
 		}
 	}
 
 	// Delete it from the database
 	if err := env.Tokens.DeleteID(token.ID); err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to delete a token")
-
-		utils.JSONResponse(w, 500, &TokensDeleteResponse{
-			Success: false,
-			Message: "Internal server error - TO/DE/02",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.TokensDeleteUnableToDelete, err, true,
+		))
 		return
 	}
 

@@ -27,7 +27,6 @@ import (
 	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
 	"github.com/lavab/api/env"
-	"github.com/lavab/api/factor"
 	"github.com/lavab/api/routes"
 	"github.com/lavab/api/utils"
 )
@@ -138,10 +137,11 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 	// Set up the database
 	rethinkOpts := gorethink.ConnectOpts{
-		Address: flags.RethinkDBAddress,
-		AuthKey: flags.RethinkDBKey,
-		MaxIdle: 10,
-		Timeout: time.Second * 10,
+		Address:  flags.RethinkDBAddress,
+		AuthKey:  flags.RethinkDBKey,
+		Database: flags.RethinkDBDatabase,
+		MaxIdle:  10,
+		Timeout:  time.Second * 10,
 	}
 	err = db.Setup(rethinkOpts)
 	if err != nil {
@@ -161,21 +161,6 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 
 	// Put the RethinkDB session into the environment package
 	env.Rethink = rethinkSession
-
-	// Initialize factors
-	env.Factors = make(map[string]factor.Factor)
-	if flags.YubiCloudID != "" {
-		yubicloud, err := factor.NewYubiCloud(flags.YubiCloudID, flags.YubiCloudKey)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err,
-			}).Fatal("Unable to initiate YubiCloud")
-		}
-		env.Factors[yubicloud.Type()] = yubicloud
-	}
-
-	authenticator := factor.NewAuthenticator(6)
-	env.Factors[authenticator.Type()] = authenticator
 
 	// Initialize the tables
 	env.Tokens = &db.TokensTable{

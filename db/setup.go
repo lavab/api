@@ -66,13 +66,27 @@ func Setup(opts r.ConnectOpts) error {
 				row.Field("status"),
 			}
 		}).Exec(ss)
+		r.DB(d).Table("emails").IndexCreateFunc("threadAndDate", func(row r.Term) interface{} {
+			return []interface{}{
+				row.Field("thread"),
+				row.Field("date_created"),
+			}
+		}).Exec(ss)
 
 		r.DB(d).TableCreate("files").Exec(ss)
 		r.DB(d).Table("files").IndexCreate("owner").Exec(ss)
 		r.DB(d).Table("files").IndexCreate("name").Exec(ss)
 		r.DB(d).Table("files").IndexCreate("date_created").Exec(ss)
 		r.DB(d).Table("files").IndexCreate("date_modified").Exec(ss)
-
+		r.DB(d).Table("files").IndexCreate("tags", r.IndexCreateOpts{Multi: true}).Exec(ss)
+		r.DB(d).Table("files").IndexCreateFunc("ownerTags", func(row r.Term) r.Term {
+			return row.Field("tags").Map(func(tag r.Term) []interface{} {
+				return []interface{}{
+					row.Field("owner"),
+					tag,
+				}
+			})
+		}, r.IndexCreateOpts{Multi: true}).Exec(ss)
 		r.DB(d).TableCreate("keys").Exec(ss)
 		r.DB(d).Table("keys").IndexCreate("owner").Exec(ss)
 		r.DB(d).Table("keys").IndexCreate("date_created").Exec(ss)

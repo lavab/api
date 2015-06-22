@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -13,18 +12,11 @@ import (
 	"github.com/lavab/api/utils"
 )
 
-// AccountsListResponse contains the result of the AccountsList request.
-type AccountsListResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
 // AccountsList returns a list of accounts visible to an user
 func AccountsList(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, 501, &AccountsListResponse{
-		Success: false,
-		Message: "Sorry, not implemented yet",
-	})
+	utils.JSONResponse(w, 501, utils.NewError(
+		utils.AccountsListUnknown, "Account not implemented yet", false,
+	))
 }
 
 // AccountsCreateRequest contains the input for the AccountsCreate endpoint.
@@ -48,14 +40,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 	var input AccountsCreateRequest
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &AccountsCreateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.AccountsCreateInvalidInput, err, false,
+		))
 		return
 	}
 
@@ -77,10 +64,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 	// "unknown" requests are empty and invalid
 	if requestType == "unknown" {
-		utils.JSONResponse(w, 400, &AccountsCreateResponse{
-			Success: false,
-			Message: "Invalid request",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.AccountsCreateUnknownStep, "Unable to recognize the step", false,
+		))
 		return
 	}
 
@@ -90,43 +76,33 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		// Validate the username
 		if len(input.Username) < 3 || len(utils.RemoveDots(input.Username)) < 3 || len(input.Username) > 32 {
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid username - it has to be at least 3 and at max 32 characters long",
-			})
+			utils.JSONResponse(w, 400, utils.NewError(
+				utils.AccountsCreateInvalidLength, "Invalid username - it has to be at least 3 and at max 32 characters long", false,
+			))
 			return
 		}
 
 		// Ensure that the username is not used in address table
 		if used, err := env.Addresses.GetAddress(utils.RemoveDots(input.Username)); err == nil || used != nil {
-			utils.JSONResponse(w, 409, &AccountsCreateResponse{
-				Success: false,
-				Message: "Username already used",
-			})
+			utils.JSONResponse(w, 409, utils.NewError(
+				utils.AccountsCreateUsernameTaken, "Username already taken", false,
+			))
 			return
 		}
 
 		// Then check it in the accounts table
 		if ok, err := env.Accounts.IsUsernameUsed(utils.RemoveDots(input.Username)); ok || err != nil {
-			utils.JSONResponse(w, 409, &AccountsCreateResponse{
-				Success: false,
-				Message: "Username already used",
-			})
+			utils.JSONResponse(w, 409, utils.NewError(
+				utils.AccountsCreateUsernameTaken, "Username already taken", false,
+			))
 			return
 		}
 
 		// Also check that the email is unique
 		if used, err := env.Accounts.IsEmailUsed(input.AltEmail); err != nil || used {
-			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"error": err.Error(),
-				}).Error("Unable to lookup registered accounts for emails")
-			}
-
-			utils.JSONResponse(w, 409, &AccountsCreateResponse{
-				Success: false,
-				Message: "Email already used",
-			})
+			utils.JSONResponse(w, 409, utils.NewError(
+				utils.AccountsCreateEmailUsed, "Email already used", false,
+			))
 			return
 		}
 
@@ -141,14 +117,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		// Try to save it in the database
 		if err := env.Accounts.Insert(account); err != nil {
-			utils.JSONResponse(w, 500, &AccountsCreateResponse{
-				Success: false,
-				Message: "Internal server error - AC/CR/02",
-			})
-
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Could not insert an user into the database")
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.AccountsCreateUnableToInsertAccount, err, true,
+			))
 			return
 		}
 
@@ -170,70 +141,50 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Fetch the user from database
 		account, err := env.Accounts.FindAccountByName(input.Username)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":    err.Error(),
-				"username": input.Username,
-			}).Warn("User not found in the database")
-
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid username",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateUserNotFound, err, false,
+			))
 			return
 		}
 
 		// Fetch the token from the database
 		token, err := env.Tokens.GetToken(input.InviteCode)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Warn("Unable to fetch a registration token from the database")
-
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateInvalidToken, err, false,
+			))
 			return
 		}
 
 		// Ensure that the invite code was given to this particular user.
 		if token.Owner != account.ID {
-			env.Log.WithFields(logrus.Fields{
-				"user_id": account.ID,
-				"owner":   token.Owner,
-			}).Warn("Not owned invitation code used by an user")
-
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateInvalidTokenOwner, "You don't own this invitation code", false,
+			))
 			return
 		}
 
 		// Ensure that the token's type is valid
 		if token.Type != "verify" {
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateInvalidTokenType, "Invalid token type - "+token.Type, false,
+			))
 			return
 		}
 
 		// Check if it's expired
 		if token.Expired() {
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Expired invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateExpiredToken, "This token has expired", false,
+			))
 			return
 		}
 
 		// Ensure that the account is "registered"
 		if account.Status != "registered" {
-			utils.JSONResponse(w, 403, &AccountsCreateResponse{
-				Success: true,
-				Message: "This account was already configured",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateAlreadyConfigured, "This account is already configured", false,
+			))
 			return
 		}
 
@@ -253,70 +204,50 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Fetch the user from database
 		account, err := env.Accounts.FindAccountByName(input.Username)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":    err.Error(),
-				"username": input.Username,
-			}).Warn("User not found in the database")
-
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid username",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateUserNotFound, err, false,
+			))
 			return
 		}
 
 		// Fetch the token from the database
 		token, err := env.Tokens.GetToken(input.InviteCode)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Warn("Unable to fetch a registration token from the database")
-
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateInvalidToken, err, false,
+			))
 			return
 		}
 
 		// Ensure that the invite code was given to this particular user.
 		if token.Owner != account.ID {
-			env.Log.WithFields(logrus.Fields{
-				"user_id": account.ID,
-				"owner":   token.Owner,
-			}).Warn("Not owned invitation code used by an user")
-
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateInvalidTokenOwner, "You don't own this invitation code", false,
+			))
 			return
 		}
 
 		// Ensure that the token's type is valid
 		if token.Type != "verify" {
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Invalid invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateInvalidTokenType, "Invalid token type - "+token.Type, false,
+			))
 			return
 		}
 
 		// Check if it's expired
 		if token.Expired() {
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
-				Success: false,
-				Message: "Expired invitation code",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateExpiredToken, "This token has expired", false,
+			))
 			return
 		}
 
 		// Ensure that the account is "registered"
 		if account.Status != "registered" {
-			utils.JSONResponse(w, 403, &AccountsCreateResponse{
-				Success: true,
-				Message: "This account was already configured",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateAlreadyConfigured, "This account is already configured", false,
+			))
 			return
 		}
 
@@ -324,29 +255,23 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 
 		// Ensure that user has chosen a secure password (check against 10k most used)
 		if env.PasswordBF.TestString(input.Password) {
-			utils.JSONResponse(w, 403, &AccountsCreateResponse{
-				Success: false,
-				Message: "Weak password",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsCreateWeakPassword, "Weak password", false,
+			))
 			return
 		}
 
 		// We can't really make more checks on the password, user could as well send us a hash
 		// of a simple password, but we assume that no developer is that stupid (actually,
-		// considering how many people upload their private keys and AWS credentials, I'm starting
-		// to doubt the competence of some so-called "web deyvelopayrs")
+		// considering how many people upload their private keys and AWS credentials to GitHub,
+		// I'm starting to doubt the competence of some so-called "web deyvelopayrs")
 
 		// Set the password
 		err = account.SetPassword(input.Password)
 		if err != nil {
-			utils.JSONResponse(w, 500, &AccountsCreateResponse{
-				Success: false,
-				Message: "Internal server error - AC/CR/01",
-			})
-
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Unable to hash the password")
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.AccountsCreateUnableToHash, err, true,
+			))
 			return
 		}
 
@@ -380,14 +305,9 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		if err != nil {
-			utils.JSONResponse(w, 500, &AccountsCreateResponse{
-				Success: false,
-				Message: "Internal server error - AC/CR/03",
-			})
-
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Could not insert labels into the database")
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.AccountsCreateUnableToPrepareLabels, err, true,
+			))
 			return
 		}
 
@@ -401,39 +321,25 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		if err != nil {
-			utils.JSONResponse(w, 500, &AccountsCreateResponse{
-				Success: false,
-				Message: "Unable to create a new address mapping",
-			})
-
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Could not insert an address mapping into db")
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.AccountsCreateUnableToCreateAddress, err, true,
+			))
 			return
 		}
 
 		// Update the account
 		err = env.Accounts.UpdateID(account.ID, account)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"id":    account.ID,
-			}).Error("Unable to update an account")
-
-			utils.JSONResponse(w, 500, &AccountsCreateResponse{
-				Success: false,
-				Message: "Unable to update the account",
-			})
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.AccountsCreateUnableToUpdateAccount, err, true,
+			))
 			return
 		}
 
 		// Remove the token and return a response
 		err = env.Tokens.DeleteID(input.InviteCode)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"id":    input.InviteCode,
-			}).Error("Could not remove the token from database")
+			env.Raven.CaptureError(err, nil)
 		}
 
 		utils.JSONResponse(w, 200, &AccountsCreateResponse{
@@ -459,10 +365,9 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
-		utils.JSONResponse(w, 501, &AccountsGetResponse{
-			Success: false,
-			Message: `Only the "me" user is implemented`,
-		})
+		utils.JSONResponse(w, 501, utils.NewError(
+			utils.AccountsGetOnlyMe, "You can only get your own account's details", false,
+		))
 		return
 	}
 
@@ -472,10 +377,9 @@ func AccountsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
-			Success: false,
-			Message: "Unable to resolve the account",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsGetUnableToGet, err, true,
+		))
 		return
 	}
 
@@ -491,8 +395,6 @@ type AccountsUpdateRequest struct {
 	AltEmail        string      `json:"alt_email" schema:"alt_email"`
 	CurrentPassword string      `json:"current_password" schema:"current_password"`
 	NewPassword     string      `json:"new_password" schema:"new_password"`
-	FactorType      string      `json:"factor_type" schema:"factor_type"`
-	FactorValue     []string    `json:"factor_value" schema:"factor_value"`
 	Token           string      `json:"token" schema:"token"`
 	Settings        interface{} `json:"settings" schema:"settings"`
 	PublicKey       string      `json:"public_key" schema:"public_key"`
@@ -500,11 +402,9 @@ type AccountsUpdateRequest struct {
 
 // AccountsUpdateResponse contains the result of the AccountsUpdate request.
 type AccountsUpdateResponse struct {
-	Success         bool            `json:"success"`
-	Message         string          `json:"message,omitempty"`
-	Account         *models.Account `json:"account,omitempty"`
-	FactorType      string          `json:"factor_type,omitempty"`
-	FactorChallenge string          `json:"factor_challenge,omitempty"`
+	Success bool            `json:"success"`
+	Message string          `json:"message,omitempty"`
+	Account *models.Account `json:"account,omitempty"`
 }
 
 // AccountsUpdate allows changing the account's information (password etc.)
@@ -513,14 +413,9 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	var input AccountsUpdateRequest
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &AccountsUpdateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.AccountsUpdateOnlyMe, err, false,
+		))
 		return
 	}
 
@@ -529,10 +424,9 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
-		utils.JSONResponse(w, 501, &AccountsUpdateResponse{
-			Success: false,
-			Message: `Only the "me" user is implemented`,
-		})
+		utils.JSONResponse(w, 501, utils.NewError(
+			utils.AccountsUpdateOnlyMe, "You can only update your own account", false,
+		))
 		return
 	}
 
@@ -542,84 +436,34 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
-			Success: false,
-			Message: "Unable to resolve the account",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsUpdateUnableToGet, err, true,
+		))
 		return
 	}
 
 	if input.NewPassword != "" {
 		if valid, _, err := user.VerifyPassword(input.CurrentPassword); err != nil || !valid {
-			utils.JSONResponse(w, 403, &AccountsUpdateResponse{
-				Success: false,
-				Message: "Invalid current password",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsUpdateInvalidCurrentPassword, err, false,
+			))
 			return
 		}
 	}
 
-	// Check for 2nd factor
-	if user.FactorType != "" {
-		factor, ok := env.Factors[user.FactorType]
-		if ok {
-			// Verify the 2FA
-			verified, challenge, err := user.Verify2FA(factor, input.Token)
-			if err != nil {
-				utils.JSONResponse(w, 500, &AccountsUpdateResponse{
-					Success: false,
-					Message: "Internal 2FA error",
-				})
-
-				env.Log.WithFields(logrus.Fields{
-					"err":    err.Error(),
-					"factor": user.FactorType,
-				}).Warn("2FA authentication error")
-				return
-			}
-
-			// Token was probably empty. Return the challenge.
-			if !verified && challenge != "" {
-				utils.JSONResponse(w, 403, &AccountsUpdateResponse{
-					Success:         false,
-					Message:         "2FA token was not passed",
-					FactorType:      user.FactorType,
-					FactorChallenge: challenge,
-				})
-				return
-			}
-
-			// Token was incorrect
-			if !verified {
-				utils.JSONResponse(w, 403, &AccountsUpdateResponse{
-					Success:    false,
-					Message:    "Invalid token passed",
-					FactorType: user.FactorType,
-				})
-				return
-			}
-		}
-	}
-
 	if input.NewPassword != "" && env.PasswordBF.TestString(input.NewPassword) {
-		utils.JSONResponse(w, 400, &AccountsUpdateResponse{
-			Success: false,
-			Message: "Weak new password",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.AccountsUpdateWeakPassword, "Weak new password", false,
+		))
 		return
 	}
 
 	if input.NewPassword != "" {
 		err = user.SetPassword(input.NewPassword)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Unable to hash a password")
-
-			utils.JSONResponse(w, 500, &AccountsUpdateResponse{
-				Success: false,
-				Message: "Internal error (code AC/UP/01)",
-			})
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.AccountsUpdateUnableToHash, err, true,
+			))
 			return
 		}
 	}
@@ -635,64 +479,29 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	if input.PublicKey != "" {
 		key, err := env.Keys.FindByFingerprint(input.PublicKey)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":       err.Error(),
-				"fingerprint": input.PublicKey,
-			}).Error("Unable to find a key")
-
-			utils.JSONResponse(w, 400, &AccountsUpdateResponse{
-				Success: false,
-				Message: "Invalid public key",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsUpdateInvalidPublicKey, err, false,
+			))
 			return
 		}
 
 		if key.Owner != user.ID {
-			env.Log.WithFields(logrus.Fields{
-				"user_id:":    user.ID,
-				"owner":       key.Owner,
-				"fingerprint": input.PublicKey,
-			}).Error("Unable to find a key")
-
-			utils.JSONResponse(w, 400, &AccountsUpdateResponse{
-				Success: false,
-				Message: "Invalid public key",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.AccountsUpdateInvalidPublicKeyOwner, "You're not the owner of that public key", false,
+			))
 			return
 		}
 
 		user.PublicKey = input.PublicKey
 	}
 
-	if input.FactorType != "" {
-		// Check if such factor exists
-		if _, exists := env.Factors[input.FactorType]; !exists {
-			utils.JSONResponse(w, 400, &AccountsUpdateResponse{
-				Success: false,
-				Message: "Invalid new 2FA type",
-			})
-			return
-		}
-
-		user.FactorType = input.FactorType
-	}
-
-	if input.FactorValue != nil && len(input.FactorValue) > 0 {
-		user.FactorValue = input.FactorValue
-	}
-
 	user.DateModified = time.Now()
 
 	err = env.Accounts.UpdateID(session.Owner, user)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to update an account")
-
-		utils.JSONResponse(w, 500, &AccountsUpdateResponse{
-			Success: false,
-			Message: "Internal error (code AC/UP/02)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsUpdateUnableToUpdate, err, true,
+		))
 		return
 	}
 
@@ -716,10 +525,9 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
-		utils.JSONResponse(w, 501, &AccountsDeleteResponse{
-			Success: false,
-			Message: `Only the "me" user is implemented`,
-		})
+		utils.JSONResponse(w, 501, utils.NewError(
+			utils.AccountsDeleteOnlyMe, "You can only delete your own account", false,
+		))
 		return
 	}
 
@@ -729,10 +537,9 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the user object from the database
 	user, err := env.Accounts.GetAccount(session.Owner)
 	if err != nil {
-		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
-			Success: false,
-			Message: "Unable to resolve the account",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsDeleteUnableToGet, err, true,
+		))
 		return
 	}
 
@@ -747,29 +554,18 @@ func AccountsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Delete tokens
 	err = env.Tokens.DeleteOwnedBy(user.ID)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"id":    user.ID,
-			"error": err.Error(),
-		}).Error("Unable to remove account's tokens")
-
-		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
-			Success: false,
-			Message: "Internal error (code AC/DE/05)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsDeleteUnableToDelete, err, true,
+		))
 		return
 	}
 
 	// Delete account
 	err = env.Accounts.DeleteID(user.ID)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to delete an account")
-
-		utils.JSONResponse(w, 500, &AccountsDeleteResponse{
-			Success: false,
-			Message: "Internal error (code AC/DE/06)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsDeleteUnableToDelete, err, true,
+		))
 		return
 	}
 
@@ -792,10 +588,9 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
-		utils.JSONResponse(w, 501, &AccountsWipeDataResponse{
-			Success: false,
-			Message: `Only the "me" user is implemented`,
-		})
+		utils.JSONResponse(w, 501, utils.NewError(
+			utils.AccountsWipeDataOnlyMe, "You can only delete your own account", false,
+		))
 		return
 	}
 
@@ -806,15 +601,9 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	user, err := env.Accounts.GetTokenOwner(session)
 	if err != nil {
 		// The session refers to a non-existing user
-		env.Log.WithFields(logrus.Fields{
-			"id":    session.ID,
-			"error": err.Error(),
-		}).Warn("Valid session referred to a removed account")
-
-		utils.JSONResponse(w, 410, &AccountsWipeDataResponse{
-			Success: false,
-			Message: "Account disabled",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsWipeDataUnableToGet, err, true,
+		))
 		return
 	}
 
@@ -829,15 +618,9 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Delete tokens
 	err = env.Tokens.DeleteOwnedBy(user.ID)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"id":    user.ID,
-			"error": err.Error(),
-		}).Error("Unable to remove account's tokens")
-
-		utils.JSONResponse(w, 500, &AccountsWipeDataResponse{
-			Success: false,
-			Message: "Internal error (code AC/WD/05)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsWipeDataUnableToDelete, err, true,
+		))
 		return
 	}
 
@@ -858,10 +641,9 @@ func AccountsStartOnboarding(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Right now we only support "me" as the ID
 	if id != "me" {
-		utils.JSONResponse(w, 501, &AccountsStartOnboardingResponse{
-			Success: false,
-			Message: `Only the "me" user is implemented`,
-		})
+		utils.JSONResponse(w, 501, utils.NewError(
+			utils.AccountsStartOnboardingOnlyMe, "You can only start onboarding for your own account", false,
+		))
 		return
 	}
 
@@ -871,65 +653,46 @@ func AccountsStartOnboarding(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Fetch the user object from the database
 	account, err := env.Accounts.GetTokenOwner(session)
 	if err != nil {
-		// The session refers to a non-existing user
-		env.Log.WithFields(logrus.Fields{
-			"id":    session.ID,
-			"error": err.Error(),
-		}).Warn("Valid session referred to a removed account")
-
-		utils.JSONResponse(w, 410, &AccountsStartOnboardingResponse{
-			Success: false,
-			Message: "Account disabled",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsStartOnboardingUnableToGet, err, true,
+		))
 		return
 	}
 
 	x1, ok := account.Settings.(map[string]interface{})
 	if !ok {
-		utils.JSONResponse(w, 403, &AccountsStartOnboardingResponse{
-			Success: false,
-			Message: "Account misconfigured #1",
-		})
+		utils.JSONResponse(w, 403, utils.NewError(
+			utils.AccountsStartOnboardingMisconfigured, "Account settings are not an array", true,
+		))
 		return
 	}
 
 	x2, ok := x1["firstName"]
 	if !ok {
-		utils.JSONResponse(w, 403, &AccountsStartOnboardingResponse{
-			Success: false,
-			Message: "Account misconfigured #2",
-		})
+		utils.JSONResponse(w, 403, utils.NewError(
+			utils.AccountsStartOnboardingMisconfigured, "Account settings do not have a first name property", true,
+		))
 		return
 	}
 
 	x3, ok := x2.(string)
 	if !ok {
-		utils.JSONResponse(w, 403, &AccountsStartOnboardingResponse{
-			Success: false,
-			Message: "Account misconfigured #3",
-		})
+		utils.JSONResponse(w, 403, utils.NewError(
+			utils.AccountsStartOnboardingMisconfigured, "First name in account settings is not a string", true,
+		))
 		return
 	}
 
-	data, err := json.Marshal(map[string]interface{}{
-		"type":  "onboarding",
-		"email": account.Name + "@lavaboom.com",
-		// polish roulette
+	data, _ := json.Marshal(map[string]interface{}{
+		"type":       "onboarding",
+		"email":      account.Name + "@lavaboom.com",
 		"first_name": x3,
 	})
-	if !ok {
-		utils.JSONResponse(w, 500, &AccountsStartOnboardingResponse{
-			Success: false,
-			Message: "Unable to encode a message",
-		})
-		return
-	}
 
 	if err := env.Producer.Publish("hub", data); err != nil {
-		utils.JSONResponse(w, 500, &AccountsCreateResponse{
-			Success: false,
-			Message: "Unable to initialize onboarding emails",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.AccountsStartOnboardingUnableToInit, err, true,
+		))
 		return
 	}
 

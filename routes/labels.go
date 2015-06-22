@@ -3,7 +3,6 @@ package routes
 import (
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	r "github.com/dancannon/gorethink"
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/models"
@@ -34,83 +33,62 @@ func LabelsList(c web.C, w http.ResponseWriter, req *http.Request) {
 		"Sent",
 		session.Owner,
 		true,
+	}).Map(func(row r.Term) r.Term {
+		return row.Field("id")
 	}).Run(env.Rethink)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to get account's specified labels")
-
-		utils.JSONResponse(w, 500, &LabelsListResponse{
-			Success: false,
-			Message: err.Error(),
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsListUnableToFetchBuiltinLabels, err, true,
+		))
 		return
 	}
 	defer cursor.Close()
-	var spamTrashSent []*models.Label
+	var spamTrashSent []string
 	if err := cursor.All(&spamTrashSent); err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to unmarshal account's specified labels")
-
-		utils.JSONResponse(w, 500, &LabelsListResponse{
-			Success: false,
-			Message: err.Error(),
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsListUnableToFetchBuiltinLabels, err, true,
+		))
 		return
 	}
 
 	if len(spamTrashSent) != 3 {
-		env.Log.WithFields(logrus.Fields{
-			"count":   len(spamTrashSent),
-			"account": session.Owner,
-		}).Error("Invalid count of Trash, Sent and Spam labels")
-
-		utils.JSONResponse(w, 500, &LabelsListResponse{
-			Success: false,
-			Message: "Misconfigured account",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsListInvalidBuiltinLabels, "Account's builtin labels are missing", true,
+		))
 		return
 	}
 
 	cursor, err = env.Labels.GetTable().GetAllByIndex("owner", session.Owner).Map(func(label r.Term) r.Term {
-		return label.Merge(map[string]interface{}{
-			"total_threads_count": env.Threads.GetTable().GetAllByIndex("labels", label.Field("id")).Count(),
-			"unread_threads_count": env.Threads.GetTable().GetAllByIndex("labels", label.Field("id")).Filter(func(thread r.Term) r.Term {
-				return r.Not(thread.Field("is_read")).And(
-					r.Not(
-						thread.Field("labels").Contains(spamTrashSent[0].ID).Or(
-							thread.Field("labels").Contains(spamTrashSent[1].ID).Or(
-								thread.Field("labels").Contains(spamTrashSent[2].ID),
-							),
-						),
-					),
-				)
-			}).Count(),
+		return env.Threads.GetTable().
+			GetAllByIndex("labels", label.Field("id")).
+			CoerceTo("array").
+			Do(func(threads r.Term) r.Term {
+			return label.Merge(map[string]interface{}{
+				"total_threads_count": threads.Count(),
+				"unread_threads_count": threads.Filter(func(thread r.Term) r.Term {
+					return thread.Field("is_read").Not().And(
+						thread.Field("labels").Map(func(label r.Term) r.Term {
+							return r.Expr(spamTrashSent).Contains(label)
+						}).Reduce(func(left r.Term, right r.Term) r.Term {
+							return left.Or(right)
+						}).Not(),
+					)
+				}).Count(),
+			})
 		})
 	}).Run(env.Rethink)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to get account's all labels")
-
-		utils.JSONResponse(w, 500, &LabelsListResponse{
-			Success: false,
-			Message: err.Error(),
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsListUnableToFetchAllLabels, err, true,
+		))
 		return
 	}
 	defer cursor.Close()
 	var labels []*models.Label
 	if err := cursor.All(&labels); err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to unmarshal account's labels")
-
-		utils.JSONResponse(w, 500, &LabelsListResponse{
-			Success: false,
-			Message: err.Error(),
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsListUnableToFetchAllLabels, err, true,
+		))
 		return
 	}
 
@@ -137,14 +115,9 @@ func LabelsCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 	var input LabelsCreateRequest
 	err := utils.ParseRequest(req, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &LabelsCreateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.LabelsCreateInvalidInput, err, false,
+		))
 		return
 	}
 
@@ -153,18 +126,16 @@ func LabelsCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Ensure that the input data isn't empty
 	if input.Name == "" {
-		utils.JSONResponse(w, 400, &LabelsCreateResponse{
-			Success: false,
-			Message: "Invalid request",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.LabelsCreateInvalidInput, "Name is empty", false,
+		))
 		return
 	}
 
 	if _, err := env.Labels.GetLabelByNameAndOwner(session.Owner, input.Name); err == nil {
-		utils.JSONResponse(w, 409, &LabelsCreateResponse{
-			Success: false,
-			Message: "Label with such name already exists",
-		})
+		utils.JSONResponse(w, 409, utils.NewError(
+			utils.LabelsCreateAlreadyExists, "A label with such name already exists", false,
+		))
 		return
 	}
 
@@ -176,14 +147,9 @@ func LabelsCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Insert the label into the database
 	if err := env.Labels.Insert(label); err != nil {
-		utils.JSONResponse(w, 500, &LabelsCreateResponse{
-			Success: false,
-			Message: "internal server error - LA/CR/01",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not insert a label into the database")
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.LabelsCreateUnableToInsert, err, true,
+		))
 		return
 	}
 
@@ -202,58 +168,80 @@ type LabelsGetResponse struct {
 
 // LabelsGet does *something* - TODO
 func LabelsGet(c web.C, w http.ResponseWriter, req *http.Request) {
-	// Get the label from the database
-	label, err := env.Labels.GetLabel(c.URLParams["id"])
+	session := c.Env["token"].(*models.Token)
+
+	// Fetch spam, trash and id
+	cursor, err := env.Labels.GetTable().GetAllByIndex("nameOwnerBuiltin", []interface{}{
+		"Spam",
+		session.Owner,
+		true,
+	}, []interface{}{
+		"Trash",
+		session.Owner,
+		true,
+	}, []interface{}{
+		"Sent",
+		session.Owner,
+		true,
+	}).Map(func(row r.Term) r.Term {
+		return row.Field("id")
+	}).Run(env.Rethink)
 	if err != nil {
-		utils.JSONResponse(w, 404, &LabelsGetResponse{
-			Success: false,
-			Message: "Label not found",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsListUnableToFetchBuiltinLabels, err, true,
+		))
+		return
+	}
+	defer cursor.Close()
+	var spamTrashSent []string
+	if err := cursor.All(&spamTrashSent); err != nil {
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsListUnableToFetchBuiltinLabels, err, true,
+		))
 		return
 	}
 
-	// Fetch the current session from the middleware
-	session := c.Env["token"].(*models.Token)
+	// Fetch the label
+	cursor, err = env.Labels.GetTable().Get(c.URLParams["id"]).Do(func(label r.Term) r.Term {
+		return env.Threads.GetTable().
+			GetAllByIndex("labels", label.Field("id")).
+			CoerceTo("array").
+			Do(func(threads r.Term) r.Term {
+			return label.Merge(map[string]interface{}{
+				"total_threads_count": threads.Count(),
+				"unread_threads_count": threads.Filter(func(thread r.Term) r.Term {
+					return thread.Field("is_read").Not().And(
+						thread.Field("labels").Map(func(label r.Term) r.Term {
+							return r.Expr(spamTrashSent).Contains(label)
+						}).Reduce(func(left r.Term, right r.Term) r.Term {
+							return left.Or(right)
+						}).Not(),
+					)
+				}).Count(),
+			})
+		})
+	}).Run(env.Rethink)
+	if err != nil {
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.LabelsGetUnableToGet, err, true,
+		))
+		return
+	}
+	var label *models.Label
+	if err := cursor.One(&label); err != nil {
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.LabelsGetUnableToGet, err, true,
+		))
+		return
+	}
 
 	// Check for ownership
 	if label.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &LabelsGetResponse{
-			Success: false,
-			Message: "Label not found",
-		})
+		utils.JSONResponse(w, 403, utils.NewError(
+			utils.LabelsGetNotOwned, "You're not the owner of this label", false,
+		))
 		return
 	}
-
-	totalCount, err := env.Threads.CountByLabel(label.ID)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"label": label.ID,
-		}).Error("Unable to fetch total threads count")
-
-		utils.JSONResponse(w, 500, &LabelsListResponse{
-			Success: false,
-			Message: "Internal error (code LA/GE/01)",
-		})
-		return
-	}
-
-	unreadCount, err := env.Threads.CountByLabelUnread(label.ID)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"label": label.ID,
-		}).Error("Unable to fetch unread threads count")
-
-		utils.JSONResponse(w, 500, &LabelsListResponse{
-			Success: false,
-			Message: "Internal error (code LA/GE/01)",
-		})
-		return
-	}
-
-	label.TotalThreadsCount = totalCount
-	label.UnreadThreadsCount = unreadCount
 
 	// Write the label to the response
 	utils.JSONResponse(w, 200, &LabelsGetResponse{
@@ -279,24 +267,18 @@ func LabelsUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	var input LabelsUpdateRequest
 	err := utils.ParseRequest(req, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &LabelsUpdateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.LabelsUpdateInvalidInput, err, false,
+		))
 		return
 	}
 
 	// Get the label from the database
 	label, err := env.Labels.GetLabel(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &LabelsUpdateResponse{
-			Success: false,
-			Message: "Label not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.LabelsUpdateUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -305,10 +287,9 @@ func LabelsUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Check for ownership
 	if label.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &LabelsUpdateResponse{
-			Success: false,
-			Message: "Label not found",
-		})
+		utils.JSONResponse(w, 403, utils.NewError(
+			utils.LabelsUpdateUnableToGet, "You're not the owner of this label", false,
+		))
 		return
 	}
 
@@ -319,15 +300,9 @@ func LabelsUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Perform the update
 	err = env.Labels.UpdateID(c.URLParams["id"], label)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to update a contact")
-
-		utils.JSONResponse(w, 500, &LabelsUpdateResponse{
-			Success: false,
-			Message: "Internal error (code LA/UP/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsUpdateUnableToUpdate, err, true,
+		))
 		return
 	}
 
@@ -349,10 +324,9 @@ func LabelsDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the label from the database
 	label, err := env.Labels.GetLabel(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &LabelsDeleteResponse{
-			Success: false,
-			Message: "Label not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.LabelsDeleteUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -361,25 +335,18 @@ func LabelsDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 
 	// Check for ownership
 	if label.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &LabelsDeleteResponse{
-			Success: false,
-			Message: "Label not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.LabelsDeleteNotOwned, "You're not the owner of this label", false,
+		))
 		return
 	}
 
 	// Perform the deletion
 	err = env.Labels.DeleteID(c.URLParams["id"])
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to delete a label")
-
-		utils.JSONResponse(w, 500, &LabelsDeleteResponse{
-			Success: false,
-			Message: "Internal error (code LA/DE/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.LabelsDeleteUnableToDelete, err, true,
+		))
 		return
 	}
 

@@ -2,8 +2,9 @@ package routes
 
 import (
 	"net/http"
+	"strings"
 
-	"github.com/Sirupsen/logrus"
+	r "github.com/dancannon/gorethink"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -17,114 +18,106 @@ type FilesListResponse struct {
 	Files   *[]*models.File `json:"files,omitempty"`
 }
 
-func FilesList(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
-	query := r.URL.Query()
-	email := query.Get("email")
-	name := query.Get("name")
+	var (
+		query         = req.URL.Query()
+		sTags         = query.Get("tags")
+		excludeBodies = query.Get("exclude_bodies")
+		result        []*models.File
+	)
 
-	if email == "" || name == "" {
-		utils.JSONResponse(w, 400, &FilesListResponse{
-			Success: false,
-			Message: "No email or name in get params",
-		})
-		return
+	q := r.Table("files")
+
+	if sTags == "" {
+		q = q.GetAllByIndex("owner", session.Owner)
+	} else {
+		tags := strings.Split(sTags, ",")
+		ids := []interface{}{}
+		for _, tag := range tags {
+			ids = append(ids, []interface{}{
+				session.Owner,
+				tag,
+			})
+		}
+
+		q = q.GetAllByIndex("ownerTags", ids...)
 	}
 
-	files, err := env.Files.GetInEmail(session.Owner, email, name)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to fetch files")
+	if excludeBodies == "true" {
+		q = q.Without("body")
+	}
 
-		utils.JSONResponse(w, 500, &FilesListResponse{
-			Success: false,
-			Message: "Internal error (code FI/LI/01)",
-		})
+	cursor, err := q.Run(env.Rethink)
+	if err != nil {
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesListUnableToGet, err, false,
+		))
+		return
+	}
+	defer cursor.Close()
+	if err := cursor.All(&result); err != nil {
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesListUnableToGet, err, false,
+		))
 		return
 	}
 
 	utils.JSONResponse(w, 200, &FilesListResponse{
 		Success: true,
-		Files:   &files,
+		Files:   &result,
 	})
 }
 
 type FilesCreateRequest struct {
-	Data            string   `json:"data" schema:"data"`
-	Name            string   `json:"name" schema:"name"`
-	Encoding        string   `json:"encoding" schema:"encoding"`
-	VersionMajor    int      `json:"version_major" schema:"version_major"`
-	VersionMinor    int      `json:"version_minor" schema:"version_minor"`
-	PGPFingerprints []string `json:"pgp_fingerprints" schema:"pgp_fingerprints"`
+	Name string                 `json:"name" schema:"name"`
+	Meta map[string]interface{} `json:"meta" schema:"meta"`
+	Body []byte                 `json:"body" schema:"body"`
+	Tags []string               `json:"tags" schema:"tags"`
 }
 
 type FilesCreateResponse struct {
-	Success bool         `json:"success"`
-	Message string       `json:"message"`
-	File    *models.File `json:"file,omitempty"`
+	Success bool    `json:"success"`
+	Message string  `json:"message"`
+	ID      *string `json:"file,omitempty"`
 }
 
 // FilesCreate creates a new file
-func FilesCreate(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesCreate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input FilesCreateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &FilesCreateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.FilesCreateInvalidInput, err, false,
+		))
 		return
 	}
 
 	// Fetch the current session from the middleware
 	session := c.Env["token"].(*models.Token)
 
-	// Ensure that the input data isn't empty
-	if input.Data == "" || input.Name == "" || input.Encoding == "" {
-		utils.JSONResponse(w, 400, &FilesCreateResponse{
-			Success: false,
-			Message: "Invalid request",
-		})
-		return
-	}
-
 	// Create a new file struct
 	file := &models.File{
-		Encrypted: models.Encrypted{
-			Encoding:        input.Encoding,
-			Data:            input.Data,
-			Schema:          "file",
-			VersionMajor:    input.VersionMajor,
-			VersionMinor:    input.VersionMinor,
-			PGPFingerprints: input.PGPFingerprints,
-		},
 		Resource: models.MakeResource(session.Owner, input.Name),
+		Meta:     input.Meta,
+		Body:     input.Body,
+		Tags:     input.Tags,
 	}
 
 	// Insert the file into the database
 	if err := env.Files.Insert(file); err != nil {
-		utils.JSONResponse(w, 500, &FilesCreateResponse{
-			Success: false,
-			Message: "internal server error - FI/CR/01",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not insert a file into the database")
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesCreateUnableToInsert, err, true,
+		))
 		return
 	}
 
 	utils.JSONResponse(w, 201, &FilesCreateResponse{
 		Success: true,
 		Message: "A new file was successfully created",
-		File:    file,
+		ID:      &file.ID,
 	})
 }
 
@@ -136,14 +129,21 @@ type FilesGetResponse struct {
 }
 
 // FilesGet gets the requested file from the database
-func FilesGet(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesGet(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
-	file, err := env.Files.GetFile(c.URLParams["id"])
+	cursor, err := r.Table("files").Get(c.URLParams["id"]).Run(env.Rethink)
 	if err != nil {
-		utils.JSONResponse(w, 404, &FilesGetResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesGetUnableToGet, err, true,
+		))
+		return
+	}
+	defer cursor.Close()
+	var file *models.File
+	if err := cursor.One(&file); err != nil {
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesGetUnableToGet, err, true,
+		))
 		return
 	}
 
@@ -152,10 +152,9 @@ func FilesGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Check for ownership
 	if file.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &FilesGetResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesGetNotOwned, "You're not the owner of this file", false,
+		))
 		return
 	}
 
@@ -168,12 +167,10 @@ func FilesGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // FilesUpdateRequest is the payload passed to PUT /files/:id
 type FilesUpdateRequest struct {
-	Data            string   `json:"data" schema:"data"`
-	Name            string   `json:"name" schema:"name"`
-	Encoding        string   `json:"encoding" schema:"encoding"`
-	VersionMajor    *int     `json:"version_major" schema:"version_major"`
-	VersionMinor    *int     `json:"version_minor" schema:"version_minor"`
-	PGPFingerprints []string `json:"pgp_fingerprints" schema:"pgp_fingerprints"`
+	Name *string                `json:"name" schema:"name"`
+	Meta map[string]interface{} `json:"meta" schema:"meta"`
+	Body []byte                 `json:"body" schema:"body"`
+	Tags []string               `json:"tags" schema:"tags"`
 }
 
 // FilesUpdateResponse contains the result of the FilesUpdate request.
@@ -184,29 +181,23 @@ type FilesUpdateResponse struct {
 }
 
 // FilesUpdate updates an existing file in the database
-func FilesUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesUpdate(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Decode the request
 	var input FilesUpdateRequest
-	err := utils.ParseRequest(r, &input)
+	err := utils.ParseRequest(req, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &FilesUpdateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.FilesUpdateInvalidInput, err, false,
+		))
 		return
 	}
 
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &FilesUpdateResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.FilesUpdateUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -215,49 +206,34 @@ func FilesUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Check for ownership
 	if file.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &FilesUpdateResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesUpdateNotOwned, "You're not the owner of this file", false,
+		))
 		return
 	}
 
-	if input.Data != "" {
-		file.Data = input.Data
+	if input.Name != nil {
+		file.Name = *input.Name
 	}
 
-	if input.Name != "" {
-		file.Name = input.Name
+	if input.Meta != nil {
+		file.Meta = input.Meta
 	}
 
-	if input.Encoding != "" {
-		file.Encoding = input.Encoding
+	if input.Body != nil {
+		file.Body = input.Body
 	}
 
-	if input.VersionMajor != nil {
-		file.VersionMajor = *input.VersionMajor
-	}
-
-	if input.VersionMinor != nil {
-		file.VersionMinor = *input.VersionMinor
-	}
-
-	if input.PGPFingerprints != nil {
-		file.PGPFingerprints = input.PGPFingerprints
+	if input.Tags != nil {
+		file.Tags = input.Tags
 	}
 
 	// Perform the update
 	err = env.Files.UpdateID(c.URLParams["id"], file)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to update a file")
-
-		utils.JSONResponse(w, 500, &FilesUpdateResponse{
-			Success: false,
-			Message: "Internal error (code FI/UP/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesUpdateUnableToUpdate, err, true,
+		))
 		return
 	}
 
@@ -275,14 +251,13 @@ type FilesDeleteResponse struct {
 }
 
 // FilesDelete removes a file from the database
-func FilesDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+func FilesDelete(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
 	file, err := env.Files.GetFile(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &FilesDeleteResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesDeleteUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -291,25 +266,18 @@ func FilesDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Check for ownership
 	if file.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &FilesDeleteResponse{
-			Success: false,
-			Message: "File not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesDeleteNotOwned, "You're not the owner of this file", false,
+		))
 		return
 	}
 
 	// Perform the deletion
 	err = env.Files.DeleteID(c.URLParams["id"])
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to delete a file")
-
-		utils.JSONResponse(w, 500, &FilesDeleteResponse{
-			Success: false,
-			Message: "Internal error (code FI/DE/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.FilesDeleteUnableToDelete, err, true,
+		))
 		return
 	}
 

@@ -1,8 +1,6 @@
 package routes
 
 import (
-	//"bytes"
-	//"io"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
@@ -11,10 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/zenazn/goji/web"
-	//"golang.org/x/crypto/openpgp"
-	//"golang.org/x/crypto/openpgp/armor"
 	_ "golang.org/x/crypto/ripemd160"
 
 	"github.com/lavab/api/env"
@@ -51,15 +46,9 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	if offsetRaw != "" {
 		o, err := strconv.Atoi(offsetRaw)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":  err,
-				"offset": offset,
-			}).Error("Invalid offset")
-
-			utils.JSONResponse(w, 400, &EmailsListResponse{
-				Success: false,
-				Message: "Invalid offset",
-			})
+			utils.JSONResponse(w, 400, utils.NewError(
+				utils.EmailsListInvalidOffset, err, false,
+			))
 			return
 		}
 		offset = o
@@ -68,15 +57,9 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	if limitRaw != "" {
 		l, err := strconv.Atoi(limitRaw)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"limit": limit,
-			}).Error("Invalid limit")
-
-			utils.JSONResponse(w, 400, &EmailsListResponse{
-				Success: false,
-				Message: "Invalid limit",
-			})
+			utils.JSONResponse(w, 400, utils.NewError(
+				utils.EmailsListInvalidLimit, err, false,
+			))
 			return
 		}
 		limit = l
@@ -89,28 +72,18 @@ func EmailsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get contacts from the database
 	emails, err := env.Emails.List(session.Owner, sort, offset, limit, thread)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to fetch emails")
-
-		utils.JSONResponse(w, 500, &EmailsListResponse{
-			Success: false,
-			Message: "Internal error (code EM/LI/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.EmailsListUnableToGet, err, true,
+		))
 		return
 	}
 
 	if offsetRaw != "" || limitRaw != "" {
 		count, err := env.Emails.CountOwnedBy(session.Owner)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Unable to count emails")
-
-			utils.JSONResponse(w, 500, &EmailsListResponse{
-				Success: false,
-				Message: "Internal error (code EM/LI/02)",
-			})
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.EmailsListUnableToCount, err, true,
+			))
 			return
 		}
 		w.Header().Set("X-Total-Count", strconv.Itoa(count))
@@ -139,15 +112,14 @@ type EmailsCreateRequest struct {
 	BCC  []string `json:"bcc"`
 
 	// Encrypted parts
-	PGPFingerprints []string `json:"pgp_fingerprints"`
-	Manifest        string   `json:"manifest"`
-	Body            string   `json:"body"`
-	Files           []string `json:"files"`
+	Manifest string   `json:"manifest"`
+	Body     string   `json:"body"`
+	Files    []string `json:"files"`
 
 	// Temporary partials if you're sending unencrypted
 	Subject     string `json:"subject"`
 	ContentType string `json:"content_type"`
-	ReplyTo     string `json:"reply_to"`
+	InReplyTo   string `json:"in_reply_to"`
 
 	SubjectHash string `json:"subject_hash"`
 }
@@ -165,14 +137,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	var input EmailsCreateRequest
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &EmailsCreateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.EmailsCreateInvalidInput, err, false,
+		))
 		return
 	}
 
@@ -181,19 +148,17 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Ensure that the kind is valid
 	if input.Kind != "raw" && input.Kind != "manifest" && input.Kind != "pgpmime" {
-		utils.JSONResponse(w, 400, &EmailsCreateResponse{
-			Success: false,
-			Message: "Invalid email encryption kind",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.EmailsCreateInvalidInput, "Invalid email encryption kind", false,
+		))
 		return
 	}
 
 	// Ensure that there's at least one recipient and that there's body
-	if len(input.To) == 0 || input.Body == "" {
-		utils.JSONResponse(w, 400, &EmailsCreateResponse{
-			Success: false,
-			Message: "Invalid email",
-		})
+	if input.To == nil || len(input.To) == 0 || input.Body == "" {
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.EmailsCreateInvalidInput, "Invalid to field or empty body", false,
+		))
 		return
 	}
 
@@ -201,18 +166,16 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		// Check rights to files
 		files, err := env.Files.GetFiles(input.Files...)
 		if err != nil {
-			utils.JSONResponse(w, 500, &EmailsCreateResponse{
-				Success: false,
-				Message: "Unable to fetch emails",
-			})
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.EmailsCreateUnableToFetchFiles, err, false,
+			))
 			return
 		}
 		for _, file := range files {
 			if file.Owner != session.Owner {
-				utils.JSONResponse(w, 403, &EmailsCreateResponse{
-					Success: false,
-					Message: "You are not the owner of file " + file.ID,
-				})
+				utils.JSONResponse(w, 403, utils.NewError(
+					utils.EmailsCreateFileNotOwned, "You're not the owner of file "+file.ID, false,
+				))
 				return
 			}
 		}
@@ -230,15 +193,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	account, err := env.Accounts.GetTokenOwner(c.Env["token"].(*models.Token))
 	if err != nil {
 		// The session refers to a non-existing user
-		env.Log.WithFields(logrus.Fields{
-			"id":    session.ID,
-			"error": err.Error(),
-		}).Warn("Valid session referred to a removed account")
-
-		utils.JSONResponse(w, 410, &EmailsCreateResponse{
-			Success: false,
-			Message: "Account disabled",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.EmailsCreateUnableToFetchAccount, err, true,
+		))
 		return
 	}
 
@@ -250,15 +207,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		"owner":   account.ID,
 	}, &label)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"id":    account.ID,
-			"error": err.Error(),
-		}).Warn("Account has no sent label")
-
-		utils.JSONResponse(w, 410, &EmailsCreateResponse{
-			Success: false,
-			Message: "Misconfigured account",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.EmailsCreateUnableToFetchLabel, err, true,
+		))
 		return
 	}
 
@@ -266,10 +217,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		// Parse the from field
 		from, err := mail.ParseAddress(input.From)
 		if err != nil {
-			utils.JSONResponse(w, 400, &EmailsCreateResponse{
-				Success: false,
-				Message: "Invalid email.From",
-			})
+			utils.JSONResponse(w, 400, utils.NewError(
+				utils.EmailsCreateInvalidFromAddress, err, false,
+			))
 			return
 		}
 
@@ -278,27 +228,24 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			parts := strings.SplitN(from.Address, "@", 2)
 
 			if parts[1] != env.Config.EmailDomain {
-				utils.JSONResponse(w, 400, &EmailsCreateResponse{
-					Success: false,
-					Message: "Invalid email.From (invalid domain)",
-				})
+				utils.JSONResponse(w, 403, utils.NewError(
+					utils.EmailsCreateInvalidFromAddress, "Invalid from domain", false,
+				))
 				return
 			}
 
 			address, err := env.Addresses.GetAddress(parts[0])
 			if err != nil {
-				utils.JSONResponse(w, 400, &EmailsCreateResponse{
-					Success: false,
-					Message: "Invalid email.From (invalid username)",
-				})
+				utils.JSONResponse(w, 403, utils.NewError(
+					utils.EmailsCreateInvalidFromAddress, err, false,
+				))
 				return
 			}
 
 			if address.Owner != account.ID {
-				utils.JSONResponse(w, 400, &EmailsCreateResponse{
-					Success: false,
-					Message: "Invalid email.From (address not owned)",
-				})
+				utils.JSONResponse(w, 403, utils.NewError(
+					utils.EmailsCreateInvalidFromAddress, "You're not the owner of that address.", false,
+				))
 				return
 			}
 		}
@@ -326,15 +273,16 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		// todo: make it an actual exists check to reduce lan bandwidth
 		thread, err := env.Threads.GetThread(input.Thread)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"id":    input.Thread,
-				"error": err.Error(),
-			}).Warn("Cannot retrieve a thread")
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.EmailsCreateUnableToFetchThread, err, false,
+			))
+			return
+		}
 
-			utils.JSONResponse(w, 400, &EmailsCreateResponse{
-				Success: false,
-				Message: "Invalid thread",
-			})
+		if thread.Owner != account.Owner {
+			utils.JSONResponse(w, 403, utils.NewError(
+				utils.EmailsCreateThreadNotOwned, "You're not the owner of this thread", false,
+			))
 			return
 		}
 
@@ -345,15 +293,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			if err := env.Threads.UpdateID(thread.ID, map[string]interface{}{
 				"secure": "some",
 			}); err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"id":    input.Thread,
-					"error": err.Error(),
-				}).Warn("Cannot update a thread")
-
-				utils.JSONResponse(w, 400, &EmailsCreateResponse{
-					Success: false,
-					Message: "Unable to update the thread",
-				})
+				utils.JSONResponse(w, 500, utils.NewError(
+					utils.EmailsCreateUnableToUpdateThread, err, true,
+				))
 				return
 			}
 		}
@@ -361,6 +303,12 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		secure := "all"
 		if input.Kind == "raw" {
 			secure = "none"
+		}
+
+		if input.SubjectHash == "" {
+			// Generate the subject hash
+			shr := sha256.Sum256([]byte(prefixesRegex.ReplaceAllString(input.Subject, "")))
+			input.SubjectHash = hex.EncodeToString(shr[:])
 		}
 
 		thread := &models.Thread{
@@ -375,14 +323,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 		err := env.Threads.Insert(thread)
 		if err != nil {
-			utils.JSONResponse(w, 500, &EmailsCreateResponse{
-				Success: false,
-				Message: "Unable to create a new thread",
-			})
-
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Unable to create a new thread")
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.EmailsCreateUnableToInsertThread, err, true,
+			))
 			return
 		}
 
@@ -392,6 +335,12 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Calculate the message ID
 	idHash := sha256.Sum256([]byte(resource.ID))
 	messageID := hex.EncodeToString(idHash[:]) + "@" + env.Config.EmailDomain
+
+	// Determine if email is secure
+	secure := true
+	if input.Kind == "raw" {
+		secure = false
+	}
 
 	// Create a new email struct
 	email := &models.Email{
@@ -406,67 +355,31 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		CC:   input.CC,
 		BCC:  input.BCC,
 
-		PGPFingerprints: input.PGPFingerprints,
-		Manifest:        input.Manifest,
-		Body:            input.Body,
-		Files:           input.Files,
+		Manifest: input.Manifest,
+		Body:     input.Body,
+		Files:    input.Files,
 
 		ContentType: input.ContentType,
-		ReplyTo:     input.ReplyTo,
+		InReplyTo:   input.InReplyTo,
 
 		Status: "queued",
+		Secure: secure,
 	}
 
 	// Insert the email into the database
 	if err := env.Emails.Insert(email); err != nil {
-		utils.JSONResponse(w, 500, &EmailsCreateResponse{
-			Success: false,
-			Message: "internal server error - EM/CR/01",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not insert an email into the database")
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.EmailsCreateUnableToInsertEmail, err, true,
+		))
 		return
 	}
-
-	// I'm going to whine at this part, as we are doubling the email sending code
-
-	// Check if To contains lavaboom emails
-	/*for _, address := range email.To {
-		parts := strings.SplitN(address, "@", 2)
-		if parts[1] == env.Config.EmailDomain {
-			go sendEmail(parts[0], email)
-		}
-	}
-
-	// Check if CC contains lavaboom emails
-	for _, address := range email.CC {
-		parts := strings.SplitN(address, "@", 2)
-		if parts[1] == env.Config.EmailDomain {
-			go sendEmail(parts[0], email)
-		}
-	}
-
-	// Check if BCC contains lavaboom emails
-	for _, address := range email.BCC {
-		parts := strings.SplitN(address, "@", 2)
-		if parts[1] == env.Config.EmailDomain {
-			go sendEmail(parts[0], email)
-		}
-	}*/
 
 	// Add a send request to the queue
 	err = env.Producer.Publish("send_email", []byte(`"`+email.ID+`"`))
 	if err != nil {
-		utils.JSONResponse(w, 500, &EmailsCreateResponse{
-			Success: false,
-			Message: "internal server error - EM/CR/03",
-		})
-
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Could not publish an email send request")
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.EmailsCreateUnableToQueue, err, true,
+		))
 		return
 	}
 
@@ -488,10 +401,9 @@ func EmailsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the email from the database
 	email, err := env.Emails.GetEmail(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &EmailsGetResponse{
-			Success: false,
-			Message: "Email not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.EmailsGetUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -500,10 +412,9 @@ func EmailsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Check for ownership
 	if email.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &EmailsGetResponse{
-			Success: false,
-			Message: "Email not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.EmailsGetNotOwned, "You're not the owner of this email", false,
+		))
 		return
 	}
 
@@ -525,10 +436,9 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the email from the database
 	email, err := env.Emails.GetEmail(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &EmailsDeleteResponse{
-			Success: false,
-			Message: "Email not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.EmailsDeleteUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -537,25 +447,18 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Check for ownership
 	if email.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &EmailsDeleteResponse{
-			Success: false,
-			Message: "Email not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.EmailsDeleteNotOwned, "You're not the owner of this email", false,
+		))
 		return
 	}
 
 	// Perform the deletion
 	err = env.Emails.DeleteID(c.URLParams["id"])
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to delete a email")
-
-		utils.JSONResponse(w, 500, &EmailsDeleteResponse{
-			Success: false,
-			Message: "Internal error (code EM/DE/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.EmailsDeleteUnableToDelete, err, false,
+		))
 		return
 	}
 
@@ -565,228 +468,3 @@ func EmailsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 		Message: "Email successfully removed",
 	})
 }
-
-/*func sendEmail(account string, email *models.Email) {
-	// find recipient's account
-	recipient, err := env.Accounts.FindAccountByName(account)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"name":  account,
-		}).Warn("Unable to fetch recipent's account")
-		return
-	}
-
-	newEmail := *email
-
-	// check if the email is unencrypted
-	if newEmail.Body.PGPFingerprints == nil || len(newEmail.Body.PGPFingerprints) == 0 {
-		// check if the acc has a pkey set
-		if recipient.PublicKey == "" {
-			env.Log.WithFields(logrus.Fields{
-				"name": account,
-			}).Warn("Recipient has no public key set")
-			return
-		}
-
-		// fetch the pkey
-		key, err := env.Keys.FindByFingerprint(recipient.PublicKey)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":       err.Error(),
-				"fingerprint": recipient.PublicKey,
-				"name":        account,
-			}).Warn("Recipient's public key does not exist")
-			return
-		}
-
-		// parse the armored key
-		entityList, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key.Key))
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":       err.Error(),
-				"fingerprint": recipient.PublicKey,
-			}).Warn("Cannot parse an armored key")
-			return
-		}
-
-		// first key should be the pkey
-		publicKey := entityList[0]
-
-		// prepare a buffer for ciphertext and initialize openpgp
-		output := &bytes.Buffer{}
-		input, err := openpgp.Encrypt(output, []*openpgp.Entity{publicKey}, nil, nil, nil)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":       err.Error(),
-				"fingerprint": recipient.PublicKey,
-			}).Warn("Cannot set up an OpenPGP encrypter")
-			return
-		}
-
-		// write email's contents into input
-		_, err = input.Write([]byte(newEmail.Body.Data))
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":       err.Error(),
-				"fingerprint": recipient.PublicKey,
-			}).Warn("Cannot write into the OpenPGP's input")
-			return
-		}
-
-		// close the input
-		if err := input.Close(); err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":       err.Error(),
-				"fingerprint": recipient.PublicKey,
-			}).Warn("Cannot close OpenPGP's input")
-			return
-		}
-
-		// encode output into armor
-		armoredOutput := &bytes.Buffer{}
-		armoredInput, err := armor.Encode(armoredOutput, "PGP MESSAGE", map[string]string{
-			"Version": "Lavaboom " + env.Config.APIVersion,
-		})
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Warn("Cannot initialize a new armor encoding")
-			return
-		}
-
-		_, err = io.Copy(armoredInput, output)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Warn("Unable to copy encrypted ciphertext into the armor processor")
-			return
-		}
-
-		if err := armoredInput.Close(); err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":       err.Error(),
-				"fingerprint": recipient.PublicKey,
-			}).Warn("Cannot close armoring's input")
-			return
-		}
-
-		newEmail.Body.PGPFingerprints = []string{recipient.PublicKey}
-		newEmail.Body.Data = armoredOutput.String()
-	}
-
-	// Get the "Inbox" label's ID
-	var inbox *models.Label
-	err = env.Labels.WhereAndFetchOne(map[string]interface{}{
-		"name":    "Inbox",
-		"builtin": true,
-		"owner":   recipient.ID,
-	}, &inbox)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"id":    recipient.ID,
-			"error": err.Error(),
-		}).Warn("Account has no inbox label")
-		return
-	}
-
-	// strip prefixes from the subject
-	rawSubject := prefixesRegex.ReplaceAllString(newEmail.Name, "")
-
-	emailResource := models.MakeResource(recipient.ID, newEmail.Name)
-
-	var thread *models.Thread
-	err = env.Threads.WhereAndFetchOne(map[string]interface{}{
-		"name":  rawSubject,
-		"owner": recipient.ID,
-	}, &thread)
-	if err != nil {
-		thread = &models.Thread{
-			Resource: models.MakeResource(recipient.ID, rawSubject),
-			Emails:   []string{emailResource.ID},
-			Labels:   []string{inbox.ID},
-			Members:  append(append(newEmail.To, newEmail.CC...), newEmail.BCC...),
-			IsRead:   false,
-		}
-
-		err := env.Threads.Insert(thread)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Unable to create a new thread")
-			return
-		}
-	} else {
-		existingMembers := make(map[string]struct{})
-
-		for _, member := range thread.Members {
-			existingMembers[member] = struct{}{}
-		}
-
-		for _, member := range newEmail.To {
-			if _, ok := existingMembers[member]; !ok {
-				thread.Members = append(thread.Members, member)
-				existingMembers[member] = struct{}{}
-			}
-		}
-
-		for _, member := range newEmail.CC {
-			if _, ok := existingMembers[member]; !ok {
-				thread.Members = append(thread.Members, member)
-				existingMembers[member] = struct{}{}
-			}
-		}
-
-		for _, member := range newEmail.BCC {
-			if _, ok := existingMembers[member]; !ok {
-				thread.Members = append(thread.Members, member)
-				existingMembers[member] = struct{}{}
-			}
-		}
-
-		err := env.Threads.UpdateID(thread.ID, thread)
-		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"id":    thread.ID,
-				"error": err.Error(),
-			}).Error("Unable to update an existing thread")
-			return
-		}
-	}
-
-	// Insert the new email
-	newEmail.Resource = emailResource
-	newEmail.Status = "processed"
-	newEmail.Thread = thread.ID
-
-	err = env.Emails.Insert(newEmail)
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to create a new email")
-		return
-	}
-
-	// Send notifications
-	err = env.Producer.Publish("email_delivery", map[string]interface{}{
-		"id":    email.ID,
-		"owner": email.Owner,
-	})
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"id":    email.ID,
-			"error": err.Error(),
-		}).Error("Unable to publish a delivery message")
-	}
-
-	err = env.NATS.Publish("email_receipt", map[string]interface{}{
-		"id":    newEmail.ID,
-		"owner": newEmail.Owner,
-	})
-	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"id":    newEmail.ID,
-			"error": err.Error(),
-		}).Error("Unable to publish a receipt message")
-	}
-}*/

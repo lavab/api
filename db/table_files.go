@@ -12,13 +12,13 @@ type FilesTable struct {
 }
 
 func (f *FilesTable) GetFile(id string) (*models.File, error) {
-	var result models.File
+	var result *models.File
 
 	if err := f.FindFetchOne(id, &result); err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 func (f *FilesTable) GetFiles(ids ...string) ([]*models.File, error) {

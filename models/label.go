@@ -16,6 +16,6 @@ type Label struct {
 	// Examples: inbox, trash, spam, drafts, starred, etc.
 	Builtin bool `json:"builtin" gorethink:"builtin"`
 
-	UnreadThreadsCount int `json:"unread_threads_count" gorethink:"unread_threads_count"`
-	TotalThreadsCount  int `json:"total_threads_count" gorethink:"total_threads_count"`
+	UnreadThreadsCount int `json:"unread_threads_count" gorethink:"unread_threads_count,omitempty"`
+	TotalThreadsCount  int `json:"total_threads_count" gorethink:"total_threads_count,omitempty"`
 }

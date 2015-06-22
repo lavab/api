@@ -40,15 +40,9 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	if offsetRaw != "" {
 		o, err := strconv.Atoi(offsetRaw)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error":  err,
-				"offset": offset,
-			}).Error("Invalid offset")
-
-			utils.JSONResponse(w, 400, &ThreadsListResponse{
-				Success: false,
-				Message: "Invalid offset",
-			})
+			utils.JSONResponse(w, 400, utils.NewError(
+				utils.ThreadsListInvalidOffset, err, false,
+			))
 			return
 		}
 		offset = o
@@ -57,15 +51,9 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 	if limitRaw != "" {
 		l, err := strconv.Atoi(limitRaw)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"limit": limit,
-			}).Error("Invalid limit")
-
-			utils.JSONResponse(w, 400, &ThreadsListResponse{
-				Success: false,
-				Message: "Invalid limit",
-			})
+			utils.JSONResponse(w, 400, utils.NewError(
+				utils.ThreadsListInvalidLimit, err, false,
+			))
 			return
 		}
 		limit = l
@@ -81,28 +69,18 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	threads, err := env.Threads.List(session.Owner, sort, offset, limit, labels)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Error("Unable to fetch threads")
-
-		utils.JSONResponse(w, 500, &ThreadsListResponse{
-			Success: false,
-			Message: "Internal error (code TH/LI/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.ThreadsListUnableToGet, err, true,
+		))
 		return
 	}
 
 	if offsetRaw != "" || limitRaw != "" {
 		count, err := env.Threads.CountOwnedBy(session.Owner)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-			}).Error("Unable to count threads")
-
-			utils.JSONResponse(w, 500, &ThreadsListResponse{
-				Success: false,
-				Message: "Internal error (code TH/LI/02)",
-			})
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.ThreadsListUnableToCount, err, true,
+			))
 			return
 		}
 		w.Header().Set("X-Total-Count", strconv.Itoa(count))
@@ -116,30 +94,28 @@ func ThreadsList(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // ThreadsGetResponse contains the result of the ThreadsGet request.
 type ThreadsGetResponse struct {
-	Success bool             `json:"success"`
-	Message string           `json:"message"`
-	Thread  *models.Thread   `json:"thread,omitempty"`
-	Emails  *[]*models.Email `json:"emails,omitempty"`
+	Success bool            `json:"success"`
+	Message string          `json:"message"`
+	Thread  *models.Thread  `json:"thread,omitempty"`
+	Emails  []*models.Email `json:"emails,omitempty"`
 }
 
 // ThreadsGet returns information about a single thread.
 func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	thread, err := env.Threads.GetThread(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &ThreadsGetResponse{
-			Success: false,
-			Message: "Thread not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.ThreadsGetUnableToGet, err, false,
+		))
 		return
 	}
 
 	session := c.Env["token"].(*models.Token)
 
 	if thread.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &ThreadsGetResponse{
-			Success: false,
-			Message: "Thread not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.ThreadsGetNotOwned, "You're not the owner of this thread", false,
+		))
 		return
 	}
 
@@ -157,15 +133,9 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	if ok := r.URL.Query().Get("list_emails"); ok == "true" || ok == "1" {
 		emails, err = env.Emails.GetByThread(thread.ID)
 		if err != nil {
-			env.Log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"id":    thread.ID,
-			}).Error("Unable to fetch emails linked to a thread")
-
-			utils.JSONResponse(w, 500, &ThreadsGetResponse{
-				Success: false,
-				Message: "Unable to retrieve emails",
-			})
+			utils.JSONResponse(w, 500, utils.NewError(
+				utils.ThreadsGetUnableToFetchEmails, err, true,
+			))
 			return
 		}
 	}
@@ -173,7 +143,7 @@ func ThreadsGet(c web.C, w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 200, &ThreadsGetResponse{
 		Success: true,
 		Thread:  thread,
-		Emails:  &emails,
+		Emails:  emails,
 	})
 }
 
@@ -194,24 +164,18 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	var input ThreadsUpdateRequest
 	err := utils.ParseRequest(r, &input)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-		}).Warn("Unable to decode a request")
-
-		utils.JSONResponse(w, 400, &ThreadsUpdateResponse{
-			Success: false,
-			Message: "Invalid input format",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.ThreadsUpdateInvalidInput, err, false,
+		))
 		return
 	}
 
 	// Get the thread from the database
 	thread, err := env.Threads.GetThread(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &ThreadsUpdateResponse{
-			Success: false,
-			Message: "Thread not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.ThreadsUpdateUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -220,10 +184,9 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Check for ownership
 	if thread.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &ContactsUpdateResponse{
-			Success: false,
-			Message: "Contact not found",
-		})
+		utils.JSONResponse(w, 400, utils.NewError(
+			utils.ThreadsUpdateNotOwned, "You're not the owner of this thread", false,
+		))
 		return
 	}
 
@@ -244,15 +207,9 @@ func ThreadsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	err = env.Threads.UpdateID(c.URLParams["id"], thread)
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to update a thread")
-
-		utils.JSONResponse(w, 500, &ThreadsUpdateResponse{
-			Success: false,
-			Message: "Internal error (code TH/UP/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.ThreadsUpdateUnableToUpdate, err, true,
+		))
 		return
 	}
 
@@ -274,10 +231,9 @@ func ThreadsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Get the thread from the database
 	thread, err := env.Threads.GetThread(c.URLParams["id"])
 	if err != nil {
-		utils.JSONResponse(w, 404, &ThreadsDeleteResponse{
-			Success: false,
-			Message: "Thread not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.ThreadsUpdateUnableToGet, err, false,
+		))
 		return
 	}
 
@@ -286,40 +242,27 @@ func ThreadsDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	// Check for ownership
 	if thread.Owner != session.Owner {
-		utils.JSONResponse(w, 404, &ThreadsDeleteResponse{
-			Success: false,
-			Message: "Thread not found",
-		})
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.ThreadsUpdateNotOwned, "You're not the owner of this thread", false,
+		))
 		return
 	}
 
 	// Perform the deletion
 	err = env.Threads.DeleteID(c.URLParams["id"])
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to delete a thread")
-
-		utils.JSONResponse(w, 500, &ThreadsDeleteResponse{
-			Success: false,
-			Message: "Internal error (code TH/DE/01)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.ThreadsDeleteUnableToDeleteThread, err, true,
+		))
 		return
 	}
 
 	// Remove dependent emails
 	err = env.Emails.DeleteByThread(c.URLParams["id"])
 	if err != nil {
-		env.Log.WithFields(logrus.Fields{
-			"error": err.Error(),
-			"id":    c.URLParams["id"],
-		}).Error("Unable to delete emails by thread")
-
-		utils.JSONResponse(w, 500, &ThreadsDeleteResponse{
-			Success: false,
-			Message: "Internal error (code TH/DE/02)",
-		})
+		utils.JSONResponse(w, 500, utils.NewError(
+			utils.ThreadsDeleteUnableToDeleteEmails, err, true,
+		))
 		return
 	}
 

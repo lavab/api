@@ -20,9 +20,6 @@ type Email struct {
 	// BCC is only visible in sent emails
 	BCC []string `json:"bcc" gorethink:"bcc"`
 
-	// Fingerprints used for body and manifest
-	PGPFingerprints []string `json:"pgp_fingerprints" gorethink:"pgp_fingerprints"`
-
 	// Files contains IDs of other files
 	Files []string `json:"files" gorethink:"files"`
 
@@ -34,11 +31,13 @@ type Email struct {
 
 	// ContentType of the body in unencrypted emails
 	ContentType string `json:"content_type" gorethink:"content_type"`
-	ReplyTo     string `json:"reply_to" gorethink:"reply_to"`
+	InReplyTo   string `json:"in_reply_to" gorethink:"in_reply_to"`
 
 	// Contains ID of the thread
 	Thread string `json:"thread" gorethink:"thread"`
 
 	// received or (queued|processed)
 	Status string `json:"status" gorethink:"status"`
+
+	Secure bool `json:"secure" gorethink:"secure"`
 }
