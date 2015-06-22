@@ -131,10 +131,18 @@ type FilesGetResponse struct {
 // FilesGet gets the requested file from the database
 func FilesGet(c web.C, w http.ResponseWriter, req *http.Request) {
 	// Get the file from the database
-	file, err := env.Files.GetFile(c.URLParams["id"])
+	cursor, err := r.Table("files").Get(c.URLParams["id"]).Run(env.Rethink)
 	if err != nil {
 		utils.JSONResponse(w, 404, utils.NewError(
-			utils.FilesGetUnableToGet, err, false,
+			utils.FilesGetUnableToGet, err, true,
+		))
+		return
+	}
+	defer cursor.Close()
+	var file *models.File
+	if err := cursor.One(&file); err != nil {
+		utils.JSONResponse(w, 404, utils.NewError(
+			utils.FilesGetUnableToGet, err, true,
 		))
 		return
 	}
