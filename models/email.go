@@ -20,9 +20,6 @@ type Email struct {
 	// BCC is only visible in sent emails
 	BCC []string `json:"bcc" gorethink:"bcc"`
 
-	// Fingerprints used for body and manifest
-	PGPFingerprints []string `json:"pgp_fingerprints" gorethink:"pgp_fingerprints"`
-
 	// Files contains IDs of other files
 	Files []string `json:"files" gorethink:"files"`
 

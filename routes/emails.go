@@ -112,10 +112,9 @@ type EmailsCreateRequest struct {
 	BCC  []string `json:"bcc"`
 
 	// Encrypted parts
-	PGPFingerprints []string `json:"pgp_fingerprints"`
-	Manifest        string   `json:"manifest"`
-	Body            string   `json:"body"`
-	Files           []string `json:"files"`
+	Manifest string   `json:"manifest"`
+	Body     string   `json:"body"`
+	Files    []string `json:"files"`
 
 	// Temporary partials if you're sending unencrypted
 	Subject     string `json:"subject"`
@@ -356,10 +355,9 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		CC:   input.CC,
 		BCC:  input.BCC,
 
-		PGPFingerprints: input.PGPFingerprints,
-		Manifest:        input.Manifest,
-		Body:            input.Body,
-		Files:           input.Files,
+		Manifest: input.Manifest,
+		Body:     input.Body,
+		Files:    input.Files,
 
 		ContentType: input.ContentType,
 		InReplyTo:   input.InReplyTo,
