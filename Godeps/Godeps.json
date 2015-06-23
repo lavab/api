@@ -87,10 +87,6 @@
 			"Rev": "396b73a566d0993675357e6648bb98587a6162b4"
 		},
 		{
-			"ImportPath": "github.com/franela/goreq",
-			"Rev": "af1fa234b970dcb632d037e5d40217bd3d0ed741"
-		},
-		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
 			"Rev": "535138d7bcd717d6531c701ef5933d98b1866257"
 		},
@@ -132,10 +128,6 @@
 			"Rev": "85cb2fcfa59888a7abe9d16e844501aa3782e259"
 		},
 		{
-			"ImportPath": "github.com/jtolds/gls",
-			"Rev": "f1ac7f4f24f50328e6bc838ca4437d1612a0243c"
-		},
-		{
 			"ImportPath": "github.com/lavab/flag",
 			"Rev": "6d5479a9c2f744a1db55e2b5a5f610f50002fdad"
 		},
@@ -144,27 +136,13 @@
 			"Rev": "9343bfb47bb4d677650b9716a2c6da6645612084"
 		},
 		{
+			"ImportPath": "github.com/lavab/webhook/events",
+			"Rev": "e5c2979e18cd3bca95add31161af86a9fdf4f12a"
+		},
+		{
 			"ImportPath": "github.com/mreiferson/go-snappystream",
 			"Comment": "v0.2.2-8-ga5260a3",
 			"Rev": "a5260a307b3e7dd583283c1e2717445244d506c7"
-		},
-		{
-			"ImportPath": "github.com/smartystreets/assertions",
-			"Comment": "1.5.0-385-gf84dc26",
-			"Rev": "f84dc26dce9c465dec172485e01faf2e53517a13"
-		},
-		{
-			"ImportPath": "github.com/smartystreets/goconvey/convey",
-			"Comment": "1.5.0-392-g68c2220",
-			"Rev": "68c22200a00354e2a63e1a0ade46eadd20e00333"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/assert",
-			"Rev": "8ce79b9f0b77745113f82c17d0756771456ccbd3"
-		},
-		{
-			"ImportPath": "github.com/stretchr/testify/require",
-			"Rev": "8ce79b9f0b77745113f82c17d0756771456ccbd3"
 		},
 		{
 			"ImportPath": "github.com/willf/bitset",
