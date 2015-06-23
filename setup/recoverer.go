@@ -37,5 +37,7 @@ func recoverer(c *web.C, h http.Handler) http.Handler {
 				"request_id": id,
 			})
 		}()
+
+		h.ServeHTTP(w, r)
 	})
 }
