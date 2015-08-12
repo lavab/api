@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
-	r "github.com/dancannon/gorethink"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -21,7 +20,7 @@ type FilesListResponse struct {
 func FilesList(c web.C, w http.ResponseWriter, req *http.Request) {
 	session := c.Env["token"].(*models.Token)
 
-	query := r.URL.Query()
+	query := req.URL.Query()
 	email := query.Get("email")
 	name := query.Get("name")
 
