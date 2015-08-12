@@ -4,6 +4,7 @@ import (
 	"github.com/gyepisam/mcf"
 	_ "github.com/gyepisam/mcf/scrypt" // Required to have mcf hash the password into scrypt
 	"github.com/lavab/api/factor"
+	"github.com/stripe/stripe-go"
 	"golang.org/x/crypto/openpgp"
 )
 
@@ -15,7 +16,7 @@ type Account struct {
 
 	// Billing is a struct containing billing information.
 	// TODO Work in progress
-	Billing BillingData `json:"billing" gorethink:"billing"`
+	Billing BillingData `json:"billing" gorethink:"billing,omitempty"`
 
 	// Password is the password used to login to the account.
 	// It's hashed and salted using scrypt.
@@ -28,9 +29,10 @@ type Account struct {
 	Settings interface{} `json:"settings" gorethink:"settings"`
 
 	// Type is the account type.
-	// Examples (work in progress):
+	// Examples:
 	//		* beta: while in beta these are full accounts; after beta, these are normal accounts with special privileges
-	//		* std: standard, free account
+	//		* free: standard, free account
+	//    * plus: plus account
 	//		* premium: premium account
 	//		* superuser: Lavaboom staff
 	Type string `json:"type" gorethink:"type"`
@@ -40,7 +42,17 @@ type Account struct {
 	FactorType  string   `json:"-" gorethink:"factor_type"`
 	FactorValue []string `json:"-" gorethink:"factor_value"`
 
+	// Status is the accounts status.
+	// Examples:
+	//		* active: regular status (this used to be called "setup", as in "already set up")
+	//		* registered: registered and not activated
+	//		* inactive: can't receive or send emails
+	//		* banned: suspended for bad behaviour
 	Status string `json:"status" gorethink:"status"`
+
+	// StorageLimit and StorageUsed indicate how many bytes of storage this account is using
+	StorageLimit uint64 `json:"storage_limit" gorethink:"storage_limit,omitempty"`
+	StorageUsed  uint64 `json:"storage_used" gorethink:"storage_used,omitempty"`
 
 	Key *openpgp.Entity `json:"-" gorethink:"-"`
 }
@@ -112,4 +124,6 @@ type SettingsData struct {
 
 // BillingData TODO
 type BillingData struct {
+	Type   string          `json:"type" gorethink:"type"`
+	Stripe stripe.Customer `json:"stripe" gorethink:"stripe"`
 }
