@@ -47,7 +47,7 @@ func init() {
 	}
 
 	// Clear the test database
-	err = gorethink.DbDrop("test").Exec(rdbSession)
+	err = gorethink.DBDrop("test").Exec(rdbSession)
 	if err != nil {
 		fmt.Println("removing the test database should not return an error, got " + err.Error())
 	}
