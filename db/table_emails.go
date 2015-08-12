@@ -101,6 +101,7 @@ func (e *EmailsTable) List(
 	if err != nil {
 		return nil, err
 	}
+	defer cursor.Close()
 
 	// Fetch the cursor
 	var resp []*models.Email

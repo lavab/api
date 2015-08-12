@@ -72,8 +72,6 @@ var (
 	// YubiCloud params
 	yubiCloudID  = flag.String("yubicloud_id", "", "YubiCloud API id")
 	yubiCloudKey = flag.String("yubicloud_key", "", "YubiCloud API key")
-	// loggly
-	logglyToken = flag.String("loggly_token", "", "Loggly token")
 	// etcd
 	etcdAddress  = flag.String("etcd_address", "", "etcd peer addresses split by commas")
 	etcdCAFile   = flag.String("etcd_ca_file", "", "etcd path to server cert's ca")
@@ -86,6 +84,11 @@ var (
 	slackChannel  = flag.String("slack_channel", "#notif-api-logs", "channel to which Slack bot will send messages")
 	slackIcon     = flag.String("slack_icon", ":ghost:", "emoji icon of the Slack bot")
 	slackUsername = flag.String("slack_username", "API", "username of the Slack bot")
+	// Password bloom filter path
+	bloomFilter = flag.String("bloom_filter", "bloom.db", "Bloom filter containing passwords")
+	bloomCount  = flag.Uint("bloom_count", 14522336, "Estimated count of passwords in the bloom filter")
+	// raven dsn
+	ravenDSN = flag.String("raven_dsn", "", "DSN of the Raven connection")
 )
 
 func main() {
@@ -116,13 +119,16 @@ func main() {
 		YubiCloudID:  *yubiCloudID,
 		YubiCloudKey: *yubiCloudKey,
 
-		LogglyToken: *logglyToken,
-
 		SlackURL:      *slackURL,
 		SlackLevels:   *slackLevels,
 		SlackChannel:  *slackChannel,
 		SlackIcon:     *slackIcon,
 		SlackUsername: *slackUsername,
+
+		BloomFilter: *bloomFilter,
+		BloomCount:  *bloomCount,
+
+		RavenDSN: *ravenDSN,
 	}
 
 	// Generate a mux

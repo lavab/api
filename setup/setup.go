@@ -2,6 +2,8 @@ package setup
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +17,9 @@ import (
 	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
 	"github.com/johntdyer/slackrus"
-	"github.com/pzduniak/glogrus"
-	"github.com/segmentio/go-loggly"
+	//"github.com/pzduniak/glogrus"
+	"github.com/getsentry/raven-go"
+	"github.com/willf/bloom"
 	"github.com/zenazn/goji/web"
 	"github.com/zenazn/goji/web/middleware"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
@@ -26,6 +29,7 @@ import (
 	"github.com/lavab/api/env"
 	"github.com/lavab/api/factor"
 	"github.com/lavab/api/routes"
+	"github.com/lavab/api/utils"
 )
 
 // sessions contains all "subscribing" WebSockets sessions
@@ -54,13 +58,7 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		log.Formatter = &logrus.JSONFormatter{}
 	}
 
-	// Install logrus hooks
-	if flags.LogglyToken != "" {
-		log.Hooks.Add(&logglyHook{
-			Loggly: loggly.New(flags.LogglyToken),
-		})
-	}
-
+	// Install Logrus hooks
 	if flags.SlackURL != "" {
 		var level []logrus.Level
 
@@ -88,8 +86,41 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		})
 	}
 
+	// Connect to raven
+	var rc *raven.Client
+	if flags.RavenDSN != "" {
+		h, err := os.Hostname()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		rc, err = raven.NewClient(flags.RavenDSN, map[string]string{
+			"hostname": h,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	env.Raven = rc
+
 	// Pass it to the environment package
 	env.Log = log
+
+	// Load the bloom filter
+	bf := bloom.NewWithEstimates(flags.BloomCount, 0.001)
+	bff, err := os.Open(flags.BloomFilter)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to open the bloom filter file")
+	}
+	defer bff.Close()
+	if _, err := bf.ReadFrom(bff); err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Fatal("Unable to read from the bloom filter file")
+	}
+	env.PasswordBF = bf
 
 	// Initialize the cache
 	redis, err := cache.NewRedisCache(&cache.RedisCacheOpts{
@@ -162,6 +193,13 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 			"accounts",
 		),
 		Tokens: env.Tokens,
+	}
+	env.Addresses = &db.AddressesTable{
+		RethinkCRUD: db.NewCRUDTable(
+			rethinkSession,
+			rethinkOpts.Database,
+			"addresses",
+		),
 	}
 	env.Keys = &db.KeysTable{
 		RethinkCRUD: db.NewCRUDTable(
@@ -249,6 +287,30 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	//defer deliveryConsumer.Stop()
 
 	deliveryConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		// Raven recoverer
+		defer func() {
+			rec := recover()
+			if rec == nil {
+				return
+			}
+
+			msg := &raven.Message{
+				Message: string(m.Body),
+				Params:  []interface{}{"delivery"},
+			}
+
+			var packet *raven.Packet
+			switch rval := recover().(type) {
+			case error:
+				packet = raven.NewPacket(rval.Error(), msg, raven.NewException(rval, raven.NewStacktrace(2, 3, nil)))
+			default:
+				str := fmt.Sprintf("%+v", rval)
+				packet = raven.NewPacket(str, msg, raven.NewException(errors.New(str), raven.NewStacktrace(2, 3, nil)))
+			}
+
+			rc.Capture(packet, nil)
+		}()
+
 		var msg *struct {
 			ID    string `json:"id"`
 			Owner string `json:"owner"`
@@ -326,6 +388,30 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	//defer receiptConsumer.Stop()
 
 	receiptConsumer.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		// Raven recoverer
+		defer func() {
+			rec := recover()
+			if rec == nil {
+				return
+			}
+
+			msg := &raven.Message{
+				Message: string(m.Body),
+				Params:  []interface{}{"receipt"},
+			}
+
+			var packet *raven.Packet
+			switch rval := recover().(type) {
+			case error:
+				packet = raven.NewPacket(rval.Error(), msg, raven.NewException(rval, raven.NewStacktrace(2, 3, nil)))
+			default:
+				str := fmt.Sprintf("%+v", rval)
+				packet = raven.NewPacket(str, msg, raven.NewException(errors.New(str), raven.NewStacktrace(2, 3, nil)))
+			}
+
+			rc.Capture(packet, nil)
+		}()
+
 		var msg *struct {
 			ID    string `json:"id"`
 			Owner string `json:"owner"`
@@ -453,8 +539,8 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 		})
 	})
 	mux.Use(middleware.RequestID)
-	mux.Use(glogrus.NewGlogrus(log, "api"))
-	mux.Use(middleware.Recoverer)
+	//mux.Use(glogrus.NewGlogrus(log, "api"))
+	mux.Use(recoverer)
 	mux.Use(middleware.AutomaticOptions)
 
 	// Set up an auth'd mux
@@ -471,6 +557,10 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Put("/accounts/:id", routes.AccountsUpdate)
 	auth.Delete("/accounts/:id", routes.AccountsDelete)
 	auth.Post("/accounts/:id/wipe-data", routes.AccountsWipeData)
+	auth.Post("/accounts/:id/start-onboarding", routes.AccountsStartOnboarding)
+
+	// Addresses
+	auth.Get("/addresses", routes.AddressesList)
 
 	// Avatars
 	mux.Get(regexp.MustCompile(`/avatars/(?P<hash>[\S\s]*?)\.(?P<ext>svg|png)(?:[\S\s]*?)$`), routes.Avatars)
@@ -521,6 +611,11 @@ func PrepareMux(flags *env.Flags) *web.Mux {
 	auth.Post("/keys", routes.KeysCreate)
 	mux.Get("/keys/:id", routes.KeysGet)
 	auth.Post("/keys/:id/vote", routes.KeysVote)
+
+	// Headers proxy
+	mux.Get("/headers", func(w http.ResponseWriter, r *http.Request) {
+		utils.JSONResponse(w, 200, r.Header)
+	})
 
 	mux.Handle("/ws/*", sockjs.NewHandler("/ws", sockjs.DefaultOptions, func(session sockjs.Session) {
 		var subscribed string

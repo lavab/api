@@ -3,9 +3,10 @@ package routes
 import (
 	//"bytes"
 	//"io"
-	//"crypto/sha256"
-	//"encoding/hex"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
+	"net/mail"
 	"regexp"
 	"strconv"
 	"strings"
@@ -132,9 +133,10 @@ type EmailsCreateRequest struct {
 	Thread string `json:"thread"`
 
 	// Metadata that has to be leaked
-	To  []string `json:"to"`
-	CC  []string `json:"cc"`
-	BCC []string `json:"bcc"`
+	From string   `json:"from"`
+	To   []string `json:"to"`
+	CC   []string `json:"cc"`
+	BCC  []string `json:"bcc"`
 
 	// Encrypted parts
 	PGPFingerprints []string `json:"pgp_fingerprints"`
@@ -195,6 +197,27 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if input.Files != nil && len(input.Files) > 0 {
+		// Check rights to files
+		files, err := env.Files.GetFiles(input.Files...)
+		if err != nil {
+			utils.JSONResponse(w, 500, &EmailsCreateResponse{
+				Success: false,
+				Message: "Unable to fetch emails",
+			})
+			return
+		}
+		for _, file := range files {
+			if file.Owner != session.Owner {
+				utils.JSONResponse(w, 403, &EmailsCreateResponse{
+					Success: false,
+					Message: "You are not the owner of file " + file.ID,
+				})
+				return
+			}
+		}
+	}
+
 	// Create an email resource
 	resource := models.MakeResource(session.Owner, input.Subject)
 
@@ -237,6 +260,65 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 			Message: "Misconfigured account",
 		})
 		return
+	}
+
+	if input.From != "" {
+		// Parse the from field
+		from, err := mail.ParseAddress(input.From)
+		if err != nil {
+			utils.JSONResponse(w, 400, &EmailsCreateResponse{
+				Success: false,
+				Message: "Invalid email.From",
+			})
+			return
+		}
+
+		// We have a specified address
+		if from.Address != "" {
+			parts := strings.SplitN(from.Address, "@", 2)
+
+			if parts[1] != env.Config.EmailDomain {
+				utils.JSONResponse(w, 400, &EmailsCreateResponse{
+					Success: false,
+					Message: "Invalid email.From (invalid domain)",
+				})
+				return
+			}
+
+			address, err := env.Addresses.GetAddress(parts[0])
+			if err != nil {
+				utils.JSONResponse(w, 400, &EmailsCreateResponse{
+					Success: false,
+					Message: "Invalid email.From (invalid username)",
+				})
+				return
+			}
+
+			if address.Owner != account.ID {
+				utils.JSONResponse(w, 400, &EmailsCreateResponse{
+					Success: false,
+					Message: "Invalid email.From (address not owned)",
+				})
+				return
+			}
+		}
+	} else {
+		displayName := ""
+
+		if x, ok := account.Settings.(map[string]interface{}); ok {
+			if y, ok := x["displayName"]; ok {
+				if z, ok := y.(string); ok {
+					displayName = z
+				}
+			}
+		}
+
+		addr := &mail.Address{
+			Name:    displayName,
+			Address: account.StyledName + "@" + env.Config.EmailDomain,
+		}
+
+		input.From = addr.String()
 	}
 
 	// Check if Thread is set
@@ -307,14 +389,19 @@ func EmailsCreate(c web.C, w http.ResponseWriter, r *http.Request) {
 		input.Thread = thread.ID
 	}
 
+	// Calculate the message ID
+	idHash := sha256.Sum256([]byte(resource.ID))
+	messageID := hex.EncodeToString(idHash[:]) + "@" + env.Config.EmailDomain
+
 	// Create a new email struct
 	email := &models.Email{
-		Resource: resource,
+		Resource:  resource,
+		MessageID: messageID,
 
 		Kind:   input.Kind,
 		Thread: input.Thread,
 
-		From: account.StyledName + "@" + env.Config.EmailDomain,
+		From: input.From,
 		To:   input.To,
 		CC:   input.CC,
 		BCC:  input.BCC,

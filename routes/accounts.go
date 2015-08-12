@@ -1,10 +1,12 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/lavab/webhook/events"
 	"github.com/zenazn/goji/web"
 
 	"github.com/lavab/api/env"
@@ -87,15 +89,27 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 		// Normalize the username
 		input.Username = utils.NormalizeUsername(input.Username)
 
-		// Ensure that the username is not used
-		if used, err := env.Accounts.IsUsernameUsed(input.Username); err != nil || used {
-			if err != nil {
-				env.Log.WithFields(logrus.Fields{
-					"error": err.Error(),
-				}).Error("Unable to lookup registered accounts for usernames")
-			}
-
+		// Validate the username
+		if len(input.Username) < 3 || len(utils.RemoveDots(input.Username)) < 3 || len(input.Username) > 32 {
 			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+				Success: false,
+				Message: "Invalid username - it has to be at least 3 and at max 32 characters long",
+			})
+			return
+		}
+
+		// Ensure that the username is not used in address table
+		if used, err := env.Addresses.GetAddress(utils.RemoveDots(input.Username)); err == nil || used != nil {
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
+				Success: false,
+				Message: "Username already used",
+			})
+			return
+		}
+
+		// Then check it in the accounts table
+		if ok, err := env.Accounts.IsUsernameUsed(utils.RemoveDots(input.Username)); ok || err != nil {
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Username already used",
 			})
@@ -110,7 +124,7 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 				}).Error("Unable to lookup registered accounts for emails")
 			}
 
-			utils.JSONResponse(w, 400, &AccountsCreateResponse{
+			utils.JSONResponse(w, 409, &AccountsCreateResponse{
 				Success: false,
 				Message: "Email already used",
 			})
@@ -215,6 +229,15 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Ensure that the account is "registered"
+		if account.Status != "registered" {
+			utils.JSONResponse(w, 403, &AccountsCreateResponse{
+				Success: true,
+				Message: "This account was already configured",
+			})
+			return
+		}
+
 		// Everything is fine, return it.
 		utils.JSONResponse(w, 200, &AccountsCreateResponse{
 			Success: true,
@@ -289,10 +312,19 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Ensure that the account is "registered"
+		if account.Status != "registered" {
+			utils.JSONResponse(w, 403, &AccountsCreateResponse{
+				Success: true,
+				Message: "This account was already configured",
+			})
+			return
+		}
+
 		// Our token is fine, next part: password.
 
 		// Ensure that user has chosen a secure password (check against 10k most used)
-		if !utils.IsPasswordSecure(input.Password) {
+		if env.PasswordBF.TestString(input.Password) {
 			utils.JSONResponse(w, 403, &AccountsCreateResponse{
 				Success: false,
 				Message: "Weak password",
@@ -357,6 +389,27 @@ func AccountsCreate(w http.ResponseWriter, r *http.Request) {
 			env.Log.WithFields(logrus.Fields{
 				"error": err.Error(),
 			}).Error("Could not insert labels into the database")
+			return
+		}
+
+		// Add a new mapping
+		err = env.Addresses.Insert(&models.Address{
+			Resource: models.Resource{
+				ID:           account.Name,
+				DateCreated:  time.Now(),
+				DateModified: time.Now(),
+				Owner:        account.ID,
+			},
+		})
+		if err != nil {
+			utils.JSONResponse(w, 500, &AccountsCreateResponse{
+				Success: false,
+				Message: "Unable to create a new address mapping",
+			})
+
+			env.Log.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Error("Could not insert an address mapping into db")
 			return
 		}
 
@@ -549,7 +602,7 @@ func AccountsUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if input.NewPassword != "" && !utils.IsPasswordSecure(input.NewPassword) {
+	if input.NewPassword != "" && env.PasswordBF.TestString(input.NewPassword) {
 		utils.JSONResponse(w, 400, &AccountsUpdateResponse{
 			Success: false,
 			Message: "Weak new password",
@@ -792,5 +845,51 @@ func AccountsWipeData(c web.C, w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, 200, &AccountsWipeDataResponse{
 		Success: true,
 		Message: "Your account has been successfully wiped",
+	})
+}
+
+type AccountsStartOnboardingResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+func AccountsStartOnboarding(c web.C, w http.ResponseWriter, r *http.Request) {
+	// Get the account ID from the request
+	id := c.URLParams["id"]
+
+	// Right now we only support "me" as the ID
+	if id != "me" {
+		utils.JSONResponse(w, 501, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: `Only the "me" user is implemented`,
+		})
+		return
+	}
+
+	// Fetch the current session from the database
+	session := c.Env["token"].(*models.Token)
+
+	data, err := json.Marshal(&events.Onboarding{
+		Account: session.Owner,
+	})
+	if err != nil {
+		utils.JSONResponse(w, 500, &AccountsStartOnboardingResponse{
+			Success: false,
+			Message: "Unable to encode a message",
+		})
+		return
+	}
+
+	if err := env.Producer.Publish("hook_onboarding", data); err != nil {
+		utils.JSONResponse(w, 500, &AccountsCreateResponse{
+			Success: false,
+			Message: "Unable to initialize onboarding emails",
+		})
+		return
+	}
+
+	utils.JSONResponse(w, 200, &AccountsStartOnboardingResponse{
+		Success: true,
+		Message: "Onboarding emails for your account have been initialized",
 	})
 }

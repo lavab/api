@@ -2,3 +2,4 @@
 *.exe
 _vagrant/.vagrant
 .config.conf
+bloom.db

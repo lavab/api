@@ -17,8 +17,7 @@ type Thread struct {
 	IsRead   bool   `json:"is_read" gorethink:"is_read"`
 	LastRead string `json:"last_read" gorethink:"last_read"`
 
-	FilesCount *int   `json:"files_count,omitempty" gorethink:"-"`
-	Manifest   string `json:"manifest,omitempty" gorethink:"manifest"`
+	Manifest string `json:"manifest,omitempty" gorethink:"manifest"`
 
 	// SHA256 hash of the raw subject without prefixes
 	SubjectHash string `json:"subject_hash" gorethink:"subject_hash"`

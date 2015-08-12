@@ -4,6 +4,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-nsq"
 	"github.com/dancannon/gorethink"
+	"github.com/getsentry/raven-go"
+	"github.com/willf/bloom"
 
 	"github.com/lavab/api/cache"
 	"github.com/lavab/api/db"
@@ -21,6 +23,8 @@ var (
 	Cache cache.Cache
 	// Accounts is the global instance of AccountsTable
 	Accounts *db.AccountsTable
+	// Addresses is the global instance of Addresses table
+	Addresses *db.AddressesTable
 	// Tokens is the global instance of TokensTable
 	Tokens *db.TokensTable
 	// Keys is the global instance of KeysTable
@@ -41,4 +45,8 @@ var (
 	Factors map[string]factor.Factor
 	// Producer is the nsq producer used to send messages to other components of the system
 	Producer *nsq.Producer
+	// PasswordBF is the bloom filter used for leaked password matching
+	PasswordBF *bloom.BloomFilter
+	// Raven is the raven client used for reporting panics to Sentry
+	Raven *raven.Client
 )
