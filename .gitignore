@@ -3,3 +3,4 @@
 _vagrant/.vagrant
 .config.conf
 bloom.db
+.DS_Store
