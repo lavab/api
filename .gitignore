@@ -3,3 +3,5 @@
 _vagrant/.vagrant
 .config.conf
 bloom.db
+Project.espressostorage
+user.felix.espressostorage
