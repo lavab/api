@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/lavab/api.png?label=ready&title=Ready)](https://waffle.io/lavab/api)
 # Lavaboom API
 
 [![Code Climate](https://codeclimate.com/github/lavab/api/badges/gpa.svg)](https://codeclimate.com/github/lavab/api)
